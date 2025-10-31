@@ -19,9 +19,10 @@ import {
   Paper,
   Chip,
   Avatar,
-  Alert
+  Alert,
+  InputAdornment
 } from '@mui/material';
-import { Edit, Delete, Add, Person } from '@mui/icons-material';
+import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
 export default function Users() {
@@ -207,7 +208,7 @@ export default function Users() {
   return (
     <Box sx={{ 
       p: 1, 
-      backgroundColor: '#f8f9fa', 
+      backgroundColor: '#ffff', 
       minHeight: '100vh',
       color: '#1a1a1a'
     }}>
@@ -419,7 +420,7 @@ export default function Users() {
         }}
       >
         <DialogTitle sx={{ 
-          backgroundColor: '#ffcc33',
+          borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
           fontSize: '20px',
@@ -434,17 +435,26 @@ export default function Users() {
           backgroundColor: '#ffffff'
         }}>
           <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: 3,
-            padding: "15px"
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 2.5,
+            padding: "15px",
+            pt: '35px'
           }}>
+            {/* Ligne 1: Nom et Email */}
             <TextField
               label="Nom complet"
               name="name"
               value={formData.name}
               onChange={handleChange}
               fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Person sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
@@ -468,6 +478,13 @@ export default function Users() {
               onChange={handleChange}
               fullWidth
               helperText="L'email est optionnel."
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Email sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
@@ -483,6 +500,7 @@ export default function Users() {
                 },
               }}
             />
+            {/* Ligne 2: Téléphone et Rôle */}
             <TextField
               label="Numéro de téléphone"
               name="numero"
@@ -490,31 +508,13 @@ export default function Users() {
               value={formData.numero}
               onChange={handleChange}
               fullWidth
-              helperText="Format: 77, 78, 76, 70, 75, 33 ou 71 suivi de 7 chiffres"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '8px',
-                  '&:hover fieldset': {
-                    borderColor: '#ffcc33',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#ffcc33',
-                  },
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#ffcc33',
-                },
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Phone sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
               }}
-            />
-            <TextField
-              label="Mot de passe"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              fullWidth
-              required={!editUser}
-              helperText={editUser ? "Laissez vide pour conserver le mot de passe actuel" : "Mot de passe requis pour le nouvel utilisateur"}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
@@ -537,6 +537,13 @@ export default function Users() {
               value={formData.role}
               onChange={handleChange}
               fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <AdminPanelSettings sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
@@ -555,8 +562,43 @@ export default function Users() {
               <MenuItem value="client">Client</MenuItem>
               <MenuItem value="admin">Administrateur</MenuItem>
             </TextField>
+
+            {/* Ligne 3: Mot de passe (pleine largeur) */}
+            <TextField
+              label="Mot de passe"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              fullWidth
+              required={!editUser}
+              helperText={editUser ? "Laissez vide pour conserver le mot de passe actuel" : "Mot de passe requis pour le nouvel utilisateur"}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                gridColumn: 'span 2',
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px',
+                  '&:hover fieldset': {
+                    borderColor: '#ffcc33',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#ffcc33',
+                  },
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#ffcc33',
+                },
+              }}
+            />
             {error && (
               <Box sx={{ 
+                gridColumn: 'span 2',
                 p: 2, 
                 backgroundColor: '#ffebee', 
                 borderRadius: '8px',

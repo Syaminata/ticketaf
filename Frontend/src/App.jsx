@@ -40,12 +40,12 @@ function App() {
   };
 
   const AdminLayout = ({ children }) => (
-    <Box sx={{ display: 'flex', minHeight: '100vh', background: '#faf9f8ff' }}>
+    <Box sx={{ display: 'flex', height: '100vh', background: '#ffff', overflow: 'hidden' }}>
       
       <Sidebar />
 
       {/* Conteneur: Header + Contenu */}
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column'}}>
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
        
         <Header
           adminName={user?.name}
@@ -58,8 +58,13 @@ function App() {
           component="main"
           sx={{
             flexGrow: 1,
-            mt: '5px', // hauteur du header            
-            minHeight: '100vh'
+            mt: '5px', // hauteur du header
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            scrollbarWidth: 'none', // Firefox
+            '&::-webkit-scrollbar': {
+              display: 'none', // Chrome, Safari, Edge
+            },
           }}
         >
           {children}

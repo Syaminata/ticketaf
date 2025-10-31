@@ -32,21 +32,10 @@ const Header = ({ adminName = 'Admin', adminRole = 'Administrateur', onLogout })
       .slice(0, 2);
   };
 
-  // Obtenir le titre en fonction de la route actuelle
+  
   const getPageTitle = () => {
-    const path = location.pathname;
-    const titleMap = {
-      '/dashboard': 'Tableau de bord',
-      '/users': 'Gestion des utilisateurs',
-      '/drivers': 'Gestion des conducteurs',
-      '/voyage': 'Gestion des voyages',
-      '/reservations': 'Gestion des réservations',
-      '/profile': 'Mon Profil',
-      '/buses': 'Gestion des bus',
-      '/stats': 'Statistiques'
-    };
-    
-    return titleMap[path] || 'Tableau de bord';
+  const path = location.pathname;
+    return path.startsWith('/dashboard') ? 'Tableau de bord' : '';
   };
 
   // Gérer l'ouverture/fermeture du menu utilisateur
@@ -79,10 +68,9 @@ const Header = ({ adminName = 'Admin', adminRole = 'Administrateur', onLogout })
       sx={{
         backgroundColor: 'white',
         color: '#1a1a1a',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
         borderRadius: '16px',
         m: '8px',   
-        
         width: '99%'
       }}
     >
@@ -93,11 +81,7 @@ const Header = ({ adminName = 'Admin', adminRole = 'Administrateur', onLogout })
             {getPageTitle()}
           </Typography>
           <Typography variant="body2" sx={{ color: '#666' }}>
-            Bienvenue, {currentTime.toLocaleDateString('fr-FR', {  
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
+            Bienvenue !
           </Typography>
         </Box>
 
@@ -106,8 +90,8 @@ const Header = ({ adminName = 'Admin', adminRole = 'Administrateur', onLogout })
 
           <Box sx={{ textAlign: 'right' }}>
             <Typography sx={{ 
-              fontSize: "24px", 
-              fontWeight: "700", 
+              fontSize: "18px", 
+              fontWeight: "500", 
               color: "#ffcc33",
               fontFamily: "monospace"
             }}>

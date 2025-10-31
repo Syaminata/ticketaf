@@ -15,6 +15,9 @@ const driverRoutes = require('./routes/driver.routes');
 const statsRoutes = require('./routes/stats.routes');
 const reservationRoutes = require("./routes/reservation.routes");
 const annonceRoutes = require('./routes/annonce.routes');
+const notificationRoutes = require('./routes/notifications.routes');
+
+
 
 
 // Middleware
@@ -75,6 +78,12 @@ app.use('/api/reservations', reservationRoutes);
 // Annonce Routes
 // -----------------
 app.use('/api/annonces', annonceRoutes);
+
+// -----------------
+// notification Routes
+// -----------------
+app.use('/api/notifications', notificationRoutes);  // route pour envoyer notifications
+        
 
 // Catch-all
 app.use((req, res) => {

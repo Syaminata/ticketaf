@@ -63,7 +63,7 @@ export default function Historique() {
 
       const [vData, rData, uData] = await Promise.all([vRes.json(), rRes.json(), uRes.json()]);
 
-      console.log('📊 Données chargées:');
+      console.log(' Données chargées:');
       console.log('  - Voyages:', vData?.length || 0);
       console.log('  - Réservations:', rData?.length || 0);
       console.log('  - Utilisateurs:', uData?.length || 0);
@@ -77,14 +77,14 @@ export default function Historique() {
           return date && new Date(date) < new Date();
         });
         
-        console.log('📋 Analyse des réservations:');
+        console.log(' Analyse des réservations:');
         console.log('  - Total:', rData.length);
         console.log('  - Sans voyage/bus:', sansVoyage.length);
         console.log('  - Avec voyage/bus:', avecVoyage.length);
         console.log('  - Voyages expirés:', voyagesExpires.length);
         
         if (sansVoyage.length > 0) {
-          console.warn('⚠️ Réservations sans voyage/bus:', sansVoyage.map(r => r._id));
+          console.warn('Réservations sans voyage/bus:', sansVoyage.map(r => r._id));
         }
       }
 
@@ -429,7 +429,7 @@ export default function Historique() {
   }, [voyages, reservations]);
 
   return (
-    <Box sx={{ p: 2, backgroundColor: '#f6f7f9', minHeight: '100vh' }}>
+    <Box sx={{ p: 2, backgroundColor: '#ffff', minHeight: '100vh' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800, fontSize: '22px', color: '#1a1a1a', mb: 0.5 }}>

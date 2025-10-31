@@ -272,7 +272,7 @@ export default function Voyage() {
   return (
     <Box sx={{ 
       p: 1, 
-      backgroundColor: '#f8f9fa', 
+      backgroundColor: '#ffff', 
       minHeight: '100vh',
       color: '#1a1a1a'
     }}>
@@ -515,22 +515,12 @@ export default function Voyage() {
         }}
       >
         <DialogTitle sx={{ 
-          background: 'linear-gradient(135deg, #ffcc33 0%, #ffb300 100%)',
+          borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
           fontSize: '24px',
           textAlign: 'center',
-          py: 3,
-          position: 'relative',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '4px',
-            background: 'linear-gradient(90deg, #ff6b35, #f7931e, #ffcc33)'
-          }
+          py: 3
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
             <DirectionsBus sx={{ fontSize: 28 }} />

@@ -272,7 +272,7 @@ function Buses() {
   return (
     <Box sx={{ 
       p: 1, 
-      backgroundColor: '#f8f9fa', 
+      backgroundColor: '#ffff', 
       minHeight: '100vh',
       color: '#1a1a1a'
     }}>
@@ -544,22 +544,12 @@ function Buses() {
         }}
       >
         <DialogTitle sx={{ 
-          background: 'linear-gradient(135deg, #ffcc33 0%, #ffb300 100%)',
+          borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
           fontSize: '24px',
           textAlign: 'center',
-          py: 3,
-          position: 'relative',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '4px',
-            background: 'linear-gradient(90deg, #ff6b35, #f7931e, #ffcc33)'
-          }
+          py: 3
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
             <BusIcon sx={{ fontSize: 28 }} />
@@ -856,7 +846,7 @@ function Buses() {
                 mb: 3
               }}>
                 <Typography color="error" variant="body1" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  ⚠️ {error}
+                   {error}
                 </Typography>
               </Box>
             )}
@@ -942,7 +932,7 @@ function Buses() {
         }}
       >
         <DialogTitle sx={{ 
-          background: 'linear-gradient(135deg, #ffcc33 0%, #ffb300 100%)',
+          borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
           fontSize: '24px',
@@ -956,10 +946,9 @@ function Buses() {
             left: 0,
             right: 0,
             height: '4px',
-            background: 'linear-gradient(90deg, #ff6b35, #f7931e, #ffcc33)'
           }
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2,  }}>
             <BusIcon sx={{ fontSize: 28 }} />
             Détails du bus
           </Box>
@@ -974,6 +963,7 @@ function Buses() {
                   color: '#1a1a1a', 
                   fontWeight: 600, 
                   mb: 3,
+                  pt: 2,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1

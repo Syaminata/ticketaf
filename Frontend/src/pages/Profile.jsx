@@ -206,7 +206,7 @@ const Profile = () => {
   if (!user) return <Box sx={{ p: 3, textAlign: 'center' }}><Typography>Chargement...</Typography></Box>;
 
   return (
-    <Box sx={{ p: 5, backgroundColor: '#f8f9fa', minHeight: '100vh', ml: -4 }}>
+    <Box sx={{ p: 5, backgroundColor: '#ffff', minHeight: '100vh', ml: -4 }}>
       {/* Alertes */}
       {error && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setError('')}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
@@ -220,7 +220,7 @@ const Profile = () => {
       <Box sx={{ display: 'flex', gap: 3, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
         {/* Carte profil */}
         <Box sx={{ flex: { xs: '1 1 100%', md: '0 0 40%' } }}>
-          <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
+          <Card sx={{ borderRadius: 3, boxShadow: 1 }}>
             <CardContent sx={{ textAlign: 'center', p: 3 }}>
               <Avatar sx={{ width: 70, height: 70, bgcolor: '#ffcc33', color: '#1a1a1a', mx: 'auto', mb: 2, fontWeight: 700 }}>
                 {getInitials(user.name)}
@@ -265,7 +265,7 @@ const Profile = () => {
 
         {/* Informations personnelles */}
         <Box sx={{ flex: { xs: '1 1 100%', md: '0 0 60%' } }}>
-          <Paper sx={{ p: 5, borderRadius: 3, boxShadow: 3 }}>
+          <Paper sx={{ p: 5, borderRadius: 3, boxShadow: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
               <Typography sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}><Person sx={{ color: '#ffcc33' }} /> Informations personnelles</Typography>
               {!editMode && (

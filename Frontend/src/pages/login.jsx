@@ -3,6 +3,10 @@ import axios from "../api/axios";
 import { useNavigate } from "react-router-dom";
 import storage from "../utils/storage";
 import "../index.css";
+import { Email, Lock } from "@mui/icons-material";
+import { ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { AdminPanelSettings as AdminIcon, SupervisedUserCircle as SuperAdminIcon } from '@mui/icons-material';
+import logo from "../images/logo.png";
 
 export default function Login({ setUser }) {
   const [role, setRole] = useState("admin");
@@ -21,14 +25,10 @@ export default function Login({ setUser }) {
       const token = response.data.token;
 
       storage.setToken(token);
+      storage.setUser(userData);
+      setUser(userData);
 
-      if (userData.role === "admin") {
-        storage.setUser(userData);
-        setUser(userData);
-        navigate("/dashboard");
-      } else if (userData.role === "superadmin") {
-        storage.setUser(userData);
-        setUser(userData);
+      if (userData.role === "admin" || userData.role === "superadmin") {
         navigate("/dashboard");
       } else {
         setError("Rôle non reconnu");
@@ -45,26 +45,52 @@ export default function Login({ setUser }) {
 
   return (
     <div className="login-page">
-      <div className="login-card">
-        <h2 className="login-title">Connexion à TICKETAF</h2>
+      <div className="login-overlay"></div>
 
-        <div className="login-role">
-          <label>Se connecter en :</label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="login-select"
-          >
-            <option value="admin">Admin</option>
-            <option value="superadmin">Super Admin</option>
-          </select>
+      <div className="login-card fade-in">
+        <div className="login-logo-container">
+          <img src={logo} alt="Logo Ticketaf" className="login-logo" />
         </div>
-
+        <div style={{ marginBottom: '5px' }}>
+          <h2 className="login-title">Connexion au système</h2>
+          <h4>Entrer vos identifiants pour accéder au tableau de bord</h4>
+        </div>
         {error && <p className="login-error">{error}</p>}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', margin: '0 30px 10px 0' }}>
+          <ToggleButtonGroup
+            color="primary"
+            value={role}
+            exclusive
+            onChange={(e, newRole) => newRole && setRole(newRole)}
+            aria-label="Rôle"
+            className="role-selector"
+          >
+            <ToggleButton value="admin" className="role-button">
+              <Tooltip title="Administrateur">
+                <div className="role-option">
+                  <AdminIcon />
+                  <span>Admin</span>
+                </div>
+              </Tooltip>
+            </ToggleButton>
+            <ToggleButton value="superadmin" className="role-button">
+              <Tooltip title="Super Administrateur">
+                <div className="role-option">
+                  <SuperAdminIcon />
+                  <span>Super Admin</span>
+                </div>
+              </Tooltip>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </div>
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="login-field">
-            <label>Email</label>
+            <label>
+              <Email style={{ verticalAlign: 'middle', marginRight: '8px' }} />
+              Adresse email
+            </label>
             <input
               type="email"
               value={email}
@@ -76,7 +102,10 @@ export default function Login({ setUser }) {
           </div>
 
           <div className="login-field">
-            <label>Mot de passe</label>
+            <label>
+              <Lock style={{ verticalAlign: 'middle', marginRight: '8px' }} />
+              Mot de passe
+            </label>
             <input
               type="password"
               value={password}

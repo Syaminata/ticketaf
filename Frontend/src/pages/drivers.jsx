@@ -25,9 +25,10 @@ import {
   Select,
   MenuItem,
   Chip,
-  Switch
+  Switch,
+  InputAdornment
 } from '@mui/material';
-import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person} from '@mui/icons-material';
+import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge} from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
 export default function Drivers() {
@@ -386,7 +387,7 @@ export default function Drivers() {
   return (
     <Box sx={{ 
       p:1, 
-      backgroundColor: '#f8f9fa', 
+      backgroundColor: '#ffff', 
       minHeight: '100vh',
       color: '#1a1a1a'
     }}>
@@ -713,7 +714,7 @@ export default function Drivers() {
         }}
       >
         <DialogTitle sx={{ 
-          backgroundColor: '#ffcc33',
+          borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
           fontSize: '20px',
@@ -727,11 +728,13 @@ export default function Drivers() {
           backgroundColor: '#ffffff'
         }}>
           <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: 3,
-            padding: "15px"
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 2.5,
+            padding: "15px",
+            pt: '35px'
           }}>
+            {/* Ligne 1: Nom et Email */}
             <TextField
               label="Nom complet"
               name="name"
@@ -739,6 +742,13 @@ export default function Drivers() {
               onChange={handleChange}
               fullWidth
               required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Person sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
@@ -762,6 +772,13 @@ export default function Drivers() {
               onChange={handleChange}
               fullWidth
               helperText="L'email est optionnel."
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Email sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
@@ -777,6 +794,7 @@ export default function Drivers() {
                 },
               }}
             />
+            {/* Ligne 2: Téléphone et Matricule */}
             <TextField
               label="Numéro de téléphone"
               name="numero"
@@ -785,7 +803,13 @@ export default function Drivers() {
               onChange={handleChange}
               fullWidth
               required
-              helperText="Format: 77, 78, 76, 70, 75, 33 ou 71 suivi de 7 chiffres"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Phone sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
@@ -808,6 +832,13 @@ export default function Drivers() {
               onChange={handleChange}
               fullWidth
               required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Badge sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
@@ -823,6 +854,7 @@ export default function Drivers() {
                 },
               }}
             />
+            {/* Ligne 3: Marque et Nombre de places */}
             <TextField
               label="Marque du véhicule"
               name="marque"
@@ -830,6 +862,13 @@ export default function Drivers() {
               onChange={handleChange}
               fullWidth
               required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <DirectionsCar sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
@@ -846,13 +885,20 @@ export default function Drivers() {
               }}
             />
             <TextField
-              label="nombre de places"
+              label="Nombre de places"
               name="capacity"
               type="number"
               value={formData.capacity}
               onChange={handleChange}
               fullWidth
               required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <EventSeat sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
@@ -868,6 +914,7 @@ export default function Drivers() {
                 },
               }}
             />
+            {/* Ligne 4: Capacité coffre et Mot de passe */}
             <FormControl fullWidth required>
               <InputLabel sx={{ 
                 '&.Mui-focused': {
@@ -881,6 +928,11 @@ export default function Drivers() {
                 value={formData.capacity_coffre}
                 onChange={handleChange}
                 label="Capacité du coffre"
+                startAdornment={
+                  <InputAdornment position="start">
+                    <Luggage sx={{ color: '#ffcc33', ml: 1 }} />
+                  </InputAdornment>
+                }
                 sx={{
                   borderRadius: '8px',
                   '&:hover .MuiOutlinedInput-notchedOutline': {
@@ -905,6 +957,13 @@ export default function Drivers() {
               fullWidth
               required={!editDriver}
               helperText={editDriver ? "Laissez vide pour conserver le mot de passe actuel" : "Mot de passe requis pour le nouveau conducteur"}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
@@ -921,7 +980,7 @@ export default function Drivers() {
               }}
             />
             
-            {/* Champ Climatisation */}
+            {/* Ligne 5: Climatisation  */}
             <FormControlLabel
               control={
                 <Checkbox
@@ -938,6 +997,7 @@ export default function Drivers() {
               }
               label="Véhicule équipé de climatisation"
               sx={{
+                gridColumn: 'span 2',
                 '& .MuiFormControlLabel-label': {
                   fontSize: '0.9rem',
                   fontWeight: 500
@@ -945,8 +1005,8 @@ export default function Drivers() {
               }}
             />
             
-            {/* Upload du permis */}
-            <FormControl fullWidth>
+            {/* Upload du permis (pleine largeur) */}
+            <FormControl fullWidth sx={{ gridColumn: 'span 2' }}>
               <InputLabel sx={{ 
                 color: '#ffcc33',
                 '&.Mui-focused': {
@@ -971,7 +1031,7 @@ export default function Drivers() {
                     startIcon={<AttachFile />}
                     sx={{
                       borderColor: '#ffcc33',
-                      color: '#ffcc33',
+                      color: 'black',
                       '&:hover': {
                         borderColor: '#ffb300',
                         backgroundColor: 'rgba(255, 204, 51, 0.1)'
@@ -984,8 +1044,8 @@ export default function Drivers() {
               </Box>
             </FormControl>
             
-            {/* Upload de la photo */}
-            <FormControl fullWidth>
+            {/* Upload de la photo (pleine largeur) */}
+            <FormControl fullWidth sx={{ gridColumn: 'span 2' }}>
               <InputLabel sx={{ 
                 color: '#ffcc33',
                 '&.Mui-focused': {
@@ -1009,9 +1069,9 @@ export default function Drivers() {
                     startIcon={<CloudUpload />}
                     sx={{
                       borderColor: '#ffcc33',
-                      color: '#ffcc33',
+                      color: '#44423fff',
                       '&:hover': {
-                        borderColor: '#ffb300',
+                        borderColor: '#ffcc33',
                         backgroundColor: 'rgba(255, 204, 51, 0.1)'
                       }
                     }}
@@ -1024,6 +1084,7 @@ export default function Drivers() {
             
             {error && (
               <Box sx={{ 
+                gridColumn: 'span 2',
                 p: 2, 
                 backgroundColor: '#ffebee', 
                 borderRadius: '8px',
@@ -1103,7 +1164,7 @@ export default function Drivers() {
         }}
       >
         <DialogTitle sx={{ 
-          backgroundColor: '#ffcc33',
+          borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
           fontSize: '18px',
@@ -1225,22 +1286,12 @@ export default function Drivers() {
         }}
       >
         <DialogTitle sx={{ 
-          background: 'linear-gradient(135deg, #ffcc33 0%, #ffb300 100%)',
+          borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
           fontSize: '24px',
           textAlign: 'center',
-          py: 3,
-          position: 'relative',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '4px',
-            background: 'linear-gradient(90deg, #ff6b35, #f7931e, #ffcc33)'
-          }
+          py: 3
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
             <Person sx={{ fontSize: 28 }} />
@@ -1257,6 +1308,7 @@ export default function Drivers() {
                   color: '#1a1a1a', 
                   fontWeight: 600, 
                   mb: 3,
+                  pt: 2,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1

@@ -1,8 +1,6 @@
 const path = require('path');
 const Annonce = require('../models/annonce.model');
 
-// Create a new annonce
-// Expects: title, description in body and image file in req.file
 exports.createAnnonce = async (req, res) => {
   try {
     const { title, description, datePublication, dateFin } = req.body;

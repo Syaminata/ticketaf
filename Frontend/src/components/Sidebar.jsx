@@ -53,15 +53,24 @@ const Sidebar = ({ onLogout }) => {
       sx={{
         width: 265,
         flexShrink: 0,
-        [`& .MuiDrawer-paper`]: {
+        '& .MuiDrawer-paper': {
           width: 250,
           boxSizing: 'border-box',
           height: '100vh', 
-          backgroundColor: '#ebeaeaff',
+          backgroundColor: '#ffffffff',
           display: 'flex',
           flexDirection: 'column',
           border: 'none',
           boxShadow: 'none',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          scrollbarWidth: 'none', // Firefox
+          msOverflowStyle: 'none', // IE et Edge
+          '&::-webkit-scrollbar': { 
+            display: 'none', // Chrome, Safari, Opera
+            width: 0,
+            height: 0,
+          },
         },
       }}
     >
@@ -102,15 +111,15 @@ const Sidebar = ({ onLogout }) => {
             to={item.path}
             sx={{
               cursor: 'pointer',
-              backgroundColor: isActive ? '#faf9f8ff' : 'transparent',
-              color: isActive ? '#000000ff' : '#000000ff',
+              backgroundColor: isActive ? '#ebff3325' : 'transparent',
+              color: isActive ? '#ffc403ff' : '#000000ff',
               borderRadius: '10px',
               mb: 1,
               mx: 1,
               position: 'relative', 
               transition: 'all 0.3s ease',
               '&:hover': {
-                backgroundColor: isActive ? '#02020259' : 'transparent',
+                backgroundColor: isActive ? '#ebff3325' : 'transparent',
                 transform: 'translateX(4px)',
               },
               '&::before': {
@@ -127,7 +136,7 @@ const Sidebar = ({ onLogout }) => {
               },
             }}
           >
-            <ListItemIcon sx={{ color: isActive ? '#000000ff' : '#000000ff' }}>
+            <ListItemIcon sx={{ color: isActive ? '#ffc403ff' : '#000000ff' }}>
               {item.icon}
             </ListItemIcon>
             <ListItemText primary={item.text} />

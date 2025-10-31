@@ -96,18 +96,20 @@ export default function RevenueWidget() {
       </Box>
 
       {/* Cartes de statistiques */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 1, mb: 1.5 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 3, mb: 1.5 }}>
         {/* Revenu total */}
         <Box sx={{
-          background: 'rgba(119, 94, 25, 0.68)',
+          background: '#fff9e6',
           borderRadius: '10px',
           padding: '10px 12px',
-          color: 'white',
+          color: '#1a1a1a',
           position: 'relative',
           overflow: 'hidden',
-          minHeight: '80px'
+          minHeight: '80px',
+          border: '1px solid #ffcc33',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'
         }}>
-          <Typography variant="caption" sx={{ opacity: 0.85, fontSize: '14px', display: 'block', mb: 0.3 }}>
+          <Typography variant="caption" sx={{ color: '#666', fontSize: '14px', display: 'block', mb: 0.3 }}>
             Revenu Total
           </Typography>
           <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '18px', mb: 0.3 }}>
@@ -115,7 +117,7 @@ export default function RevenueWidget() {
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
             <TrendingUpIcon sx={{ fontSize: 12 }} />
-            <Typography variant="caption" sx={{ fontSize: '9px' }}>{getPeriodLabel()}</Typography>
+            <Typography variant="caption" sx={{ fontSize: '12px' }}>{getPeriodLabel()}</Typography>
           </Box>
           <AttachMoneyIcon sx={{
             position: 'absolute',
@@ -128,85 +130,42 @@ export default function RevenueWidget() {
 
         {/* Nombre de réservations */}
         <Box sx={{
-          background: 'rgba(119, 94, 25, 0.54)',
+          background: '#f1f8f4',
           borderRadius: '10px',
           padding: '10px 12px',
-          color: 'white',
-          minHeight: '80px'
+          color: '#1a1a1a',
+          minHeight: '80px',
+          border: '1px solid #4caf50',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'
         }}>
-          <Typography variant="caption" sx={{ opacity: 0.85, fontSize: '14px', display: 'block', mb: 0.3 }}>
+          <Typography variant="caption" sx={{ color: '#666', fontSize: '14px', display: 'block', mb: 0.3 }}>
             Réservations
           </Typography>
           <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '18px', mb: 0.3 }}>
             {revenueData?.reservationsCount || 0}
           </Typography>
-          <Typography variant="caption" sx={{ fontSize: '9px' }}>{getPeriodLabel()}</Typography>
+          <Typography variant="caption" sx={{ fontSize: '12px' }}>{getPeriodLabel()}</Typography>
         </Box>
 
         {/* Revenu moyen */}
         <Box sx={{
-          background: 'rgba(119, 94, 25, 0.42)',
+          background: '#e3f2fd',
           borderRadius: '10px',
           padding: '10px 12px',
-          color: 'white',
-          minHeight: '80px'
+          color: '#1a1a1a',
+          minHeight: '80px',
+          border: '1px solid #2196f3',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'
         }}>
-          <Typography variant="caption" sx={{ opacity: 0.85, fontSize: '14px', display: 'block', mb: 0.3 }}>
+          <Typography variant="caption" sx={{ color: '#666', fontSize: '14px', display: 'block', mb: 0.3 }}>
             Revenu Moyen
           </Typography>
           <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '18px', mb: 0.3 }}>
             {formatCurrency(Math.round(revenueData?.averageRevenue || 0))}
           </Typography>
-          <Typography variant="caption" sx={{ fontSize: '9px' }}>Par réservation</Typography>
+          <Typography variant="caption" sx={{ fontSize: '12px' }}>Par réservation</Typography>
         </Box>
       </Box>
-
-      {/* Graphique d'évolution */}
-      {revenueData?.dailyRevenue && revenueData.dailyRevenue.length > 0 && (
-        <Box sx={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          padding: '16px',
-          mb: 2,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
-        }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5, color: '#1a1a1a', fontSize: '15px' }}>
-            Évolution des revenus
-          </Typography>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={revenueData.dailyRevenue}>
-              <defs>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ffcc33" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#ffcc33" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 12 }}
-                tickFormatter={(date) => new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-              />
-              <Tooltip 
-                formatter={(value) => formatCurrency(value)}
-                labelFormatter={(date) => new Date(date).toLocaleDateString('fr-FR')}
-              />
-              <Area 
-                type="monotone" 
-                dataKey="revenue" 
-                stroke="#ffcc33" 
-                strokeWidth={3}
-                fillOpacity={1} 
-                fill="url(#colorRevenue)" 
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </Box>
-      )}
 
       {/* Top 5 routes par revenu */}
       {revenueData?.routeRevenue && revenueData.routeRevenue.length > 0 && (

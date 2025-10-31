@@ -404,7 +404,7 @@ function Dashboard() {
           backgroundColor: "white",
           padding:"20px",
           borderRadius: "15px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
         }}>
         {Object.entries(animatedStats).map(([key, value]) => {
           const config = statConfig[key] || { color: "#ffcc33", icon: WarningIcon, label: key, trend: "+0%" };
@@ -421,18 +421,18 @@ function Dashboard() {
                 overflow: "hidden",
                 transition: "all 0.3s ease",
                 cursor: "pointer",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
                 border: "1px solid #e0e0e0",
                 borderLeft: `4px solid ${config.color}`
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.15)";
+                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
                 e.currentTarget.style.borderColor = config.color;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+                e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.05)";
                 e.currentTarget.style.borderColor = "#e0e0e0";
               }}
             >
@@ -474,7 +474,7 @@ function Dashboard() {
         padding: "20px",
         marginBottom: "24px",
         border: "1px solid #e0e0e0",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+        boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
       }}>
         <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
           <BarChartIcon style={{ fontSize: "24px", color: "#ffcc33", marginRight: "8px" }} />
@@ -500,12 +500,12 @@ function Dashboard() {
               <Tooltip cursor={{ fill: "rgba(255, 204, 51, 0.1)" }} />
 
               {/* Barres avec valeurs au-dessus */}
-              <Bar dataKey="value" fill="#775e19a2" radius={[8, 8, 0, 0]} barSize={40} isAnimationActive={false}>
+              <Bar dataKey="value" fill="#b6660abd" radius={[8, 8, 0, 0]} barSize={60} isAnimationActive={false}>
                 <LabelList dataKey="value" position="top" style={{ fontSize: 12, fill: "#1a1a1a" }} />
               </Bar>
 
               
-              <Line type="monotone" dataKey="value" stroke="#ff8c00" strokeWidth={2} dot={{ r: 4 }} 
+              <Line type="monotone" dataKey="value" stroke="#ffCC33" strokeWidth={2} dot={{ r: 4 }} 
                     isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
@@ -522,7 +522,7 @@ function Dashboard() {
           padding: "20px",
           color: "#1a1a1a",
           border: "1px solid #e0e0e0",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+          boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
         }}>
           <h4 style={{ 
             margin: "0 0 16px 0", 
@@ -619,7 +619,7 @@ function Dashboard() {
           padding: "20px",
           color: "#1a1a1a",
           border: "1px solid #e0e0e0",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+          boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
         }}>
           <h4 style={{ 
             margin: "0 0 16px 0", 

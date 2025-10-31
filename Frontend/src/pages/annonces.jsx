@@ -216,7 +216,7 @@ export default function Annonce() {
   }, []);
 
   return (
-    <Box sx={{ p: 2, backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
+    <Box sx={{ p: 2, backgroundColor: '#ffff', minHeight: '100vh' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800, fontSize: '22px', color: '#1a1a1a', mb: 0.5 }}>
@@ -443,7 +443,7 @@ export default function Annonce() {
       </Box>
 
       <Dialog open={editOpen} onClose={closeEdit} maxWidth="sm" fullWidth>
-        <DialogTitle>Modifier l'annonce</DialogTitle>
+        <DialogTitle sx={{ borderBottom: '3px solid #ffcc33' }}>Modifier l'annonce</DialogTitle>
         <DialogContent dividers>
           <Box sx={{ display: 'grid', gap: 2, mt: 1 }}>
             <TextField
@@ -493,7 +493,7 @@ export default function Annonce() {
             </Box>
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{p:3}}>
           <Button onClick={closeEdit} disabled={editLoading}>Annuler</Button>
           <Button onClick={submitEdit} variant="contained" disabled={editLoading} sx={{ backgroundColor: '#ffcc33', color: '#1a1a1a' }}>
             {editLoading ? 'Enregistrement...' : 'Enregistrer'}
