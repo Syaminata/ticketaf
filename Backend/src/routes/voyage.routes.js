@@ -3,12 +3,193 @@ const router = express.Router();
 const voyageController = require('../controllers/voyage.controller');
 const { auth, adminAuth } = require('../middleware/auth');
 
-// Routes CRUD pour les voyages
+/**
+ * @swagger
+ * /voyages:
+ *   post:
+ *     summary: Créer un nouveau voyage
+ *     tags: [Voyages]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - driver
+ *               - from
+ *               - to
+ *               - date
+ *               - price
+ *               - totalSeats
+ *             properties:
+ *               driver:
+ *                 type: string
+ *                 description: ID du conducteur
+ *               from:
+ *                 type: string
+ *                 description: Ville de départ
+ *               to:
+ *                 type: string
+ *                 description: Ville d'arrivée
+ *               date:
+ *                 type: string
+ *                 format: date-time
+ *               price:
+ *                 type: number
+ *                 description: Prix du voyage
+ *               totalSeats:
+ *                 type: number
+ *                 default: 4
+ *               availableSeats:
+ *                 type: number
+ *                 default: 4
+ *     responses:
+ *       201:
+ *         description: Voyage créé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Voyage'
+ */
 router.post('/', auth, adminAuth, voyageController.createVoyage);
+
+/**
+ * @swagger
+ * /voyages:
+ *   get:
+ *     summary: Récupérer tous les voyages futurs
+ *     tags: [Voyages]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des voyages futurs
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Voyage'
+ */
 router.get('/', auth, adminAuth, voyageController.getAllVoyage); // Voyages futurs uniquement
+
+/**
+ * @swagger
+ * /voyages/all/including-expired:
+ *   get:
+ *     summary: Récupérer tous les voyages (y compris expirés)
+ *     tags: [Voyages]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Récupère tous les voyages, y compris ceux qui sont passés (pour historique)
+ *     responses:
+ *       200:
+ *         description: Liste de tous les voyages
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Voyage'
+ */
 router.get('/all/including-expired', auth, adminAuth, voyageController.getAllVoyageIncludingExpired); // Tous les voyages (pour historique)
+
+/**
+ * @swagger
+ * /voyages/{id}:
+ *   get:
+ *     summary: Récupérer un voyage par ID
+ *     tags: [Voyages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID du voyage
+ *     responses:
+ *       200:
+ *         description: Détails du voyage
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Voyage'
+ *       404:
+ *         description: Voyage non trouvé
+ */
 router.get('/:id', auth, adminAuth, voyageController.getVoyageById);
+
+/**
+ * @swagger
+ * /voyages/{id}:
+ *   put:
+ *     summary: Mettre à jour un voyage
+ *     tags: [Voyages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               driver:
+ *                 type: string
+ *               from:
+ *                 type: string
+ *               to:
+ *                 type: string
+ *               date:
+ *                 type: string
+ *                 format: date-time
+ *               price:
+ *                 type: number
+ *               totalSeats:
+ *                 type: number
+ *               availableSeats:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Voyage mis à jour
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Voyage'
+ */
 router.put('/:id', auth, adminAuth, voyageController.updateVoyage);
+
+/**
+ * @swagger
+ * /voyages/{id}:
+ *   delete:
+ *     summary: Supprimer un voyage
+ *     tags: [Voyages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Voyage supprimé avec succès
+ *       404:
+ *         description: Voyage non trouvé
+ */
 router.delete('/:id', auth, adminAuth, voyageController.deleteVoyage);
 
 module.exports = router;

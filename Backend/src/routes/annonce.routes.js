@@ -35,10 +35,150 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB
 
-// Routes
+/**
+ * @swagger
+ * /annonces:
+ *   post:
+ *     summary: Créer une nouvelle annonce
+ *     tags: [Annonces]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - description
+ *               - image
+ *               - datePublication
+ *               - dateFin
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Titre de l'annonce
+ *               description:
+ *                 type: string
+ *                 description: Description de l'annonce
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Image de l'annonce (max 5MB)
+ *               datePublication:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Date de publication
+ *               dateFin:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Date de fin de publication
+ *               published:
+ *                 type: boolean
+ *                 default: true
+ *     responses:
+ *       201:
+ *         description: Annonce créée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Annonce'
+ *       400:
+ *         description: Erreur de validation
+ */
 router.post('/', auth, adminAuth, upload.single('image'), createAnnonce);
+
+/**
+ * @swagger
+ * /annonces:
+ *   get:
+ *     summary: Récupérer toutes les annonces
+ *     tags: [Annonces]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des annonces
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Annonce'
+ */
 router.get('/', auth, listAnnonces);
+
+/**
+ * @swagger
+ * /annonces/{id}:
+ *   put:
+ *     summary: Mettre à jour une annonce
+ *     tags: [Annonces]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de l'annonce
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *               datePublication:
+ *                 type: string
+ *                 format: date-time
+ *               dateFin:
+ *                 type: string
+ *                 format: date-time
+ *               published:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Annonce mise à jour
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Annonce'
+ *       404:
+ *         description: Annonce non trouvée
+ */
 router.put('/:id', auth, adminAuth, upload.single('image'), updateAnnonce);
+
+/**
+ * @swagger
+ * /annonces/{id}:
+ *   delete:
+ *     summary: Supprimer une annonce
+ *     tags: [Annonces]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de l'annonce
+ *     responses:
+ *       200:
+ *         description: Annonce supprimée avec succès
+ *       404:
+ *         description: Annonce non trouvée
+ */
 router.delete('/:id', auth, adminAuth, deleteAnnonce);
 
 module.exports = router;
