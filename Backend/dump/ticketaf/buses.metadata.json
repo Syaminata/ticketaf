@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"plateNumber":{"$numberInt":"1"}},"name":"plateNumber_1","background":true,"unique":true}],"uuid":"08c2e22681ac442ca17053937b1d127f","collectionName":"buses","type":"collection"}

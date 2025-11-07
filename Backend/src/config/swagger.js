@@ -7,7 +7,7 @@ const swaggerOptions = {
     info: {
       title: 'API Ticketaf',
       version: '1.0.0',
-      description: 'Documentation complète de l\'API Ticketaf - Système de réservation de tickets de bus',
+      description: 'Documentation complète de l\'API Ticketaf - Système de réservation de tickets de transport',
       contact: {
         name: 'Support API',
         email: 'support@ticketaf.com'
