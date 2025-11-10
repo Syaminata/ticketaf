@@ -121,3 +121,4 @@ npm run dev
 3. Vérifier la console du navigateur (F12)
 4. Vérifier que MongoDB est accessible
 
+
