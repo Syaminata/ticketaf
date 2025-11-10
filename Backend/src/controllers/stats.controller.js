@@ -45,29 +45,56 @@ exports.getRevenue = async (req, res) => {
     
     const now = new Date();
     let startDate = new Date();
+    let endDate = new Date();
+    
+    // Normaliser la date de fin à la fin de la journée (23:59:59)
+    endDate.setHours(23, 59, 59, 999);
     
     // Definir la periode
     switch(period) {
       case 'today':
+        // Aujourd'hui : depuis minuit jusqu'à maintenant
         startDate.setHours(0, 0, 0, 0);
+        endDate = now; // Jusqu'à maintenant
         break;
       case 'week':
+        // 7 derniers jours : depuis 7 jours à minuit jusqu'à maintenant
         startDate.setDate(now.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = now;
         break;
       case 'month':
-        startDate.setMonth(now.getMonth() - 1);
+        // Mois actuel : depuis le 1er jour du mois actuel jusqu'à maintenant
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1); // 1er jour du mois
+        startDate.setHours(0, 0, 0, 0);
+        endDate = now;
         break;
       case 'year':
-        startDate.setFullYear(now.getFullYear() - 1);
+        // Cette année : depuis le 1er janvier de cette année jusqu'à maintenant
+        startDate = new Date(now.getFullYear(), 0, 1); // 1er janvier
+        startDate.setHours(0, 0, 0, 0);
+        endDate = now;
         break;
       default:
+        // Par défaut : aujourd'hui
         startDate.setHours(0, 0, 0, 0);
+        endDate = now;
     }
+    
+    // Log pour debug
+    console.log(`[Revenue Stats] Période: ${period}`);
+    console.log(`[Revenue Stats] Date de début: ${startDate.toISOString()}`);
+    console.log(`[Revenue Stats] Date de fin: ${endDate.toISOString()}`);
     
     // Recuperer toutes les reservations de la periode
     const reservations = await Reservation.find({
-      createdAt: { $gte: startDate }
+      createdAt: { 
+        $gte: startDate,
+        $lte: endDate
+      }
     }).populate('voyage').populate('bus');
+    
+    console.log(`[Revenue Stats] Nombre de réservations trouvées: ${reservations.length}`);
     
     // Calculer le revenu total
     let totalRevenue = 0;

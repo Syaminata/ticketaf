@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import RevenueWidget from "../components/RevenueWidget";
 
-import PeopleIcon from '@mui/icons-material/People'; 
+import PeopleIcon from '@mui/icons-material/People';
 import DriveEtaIcon from '@mui/icons-material/DriveEta'; 
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber'; 
 import DirectionsBusIcon from '@mui/icons-material/DirectionsBus'; 
@@ -101,7 +101,11 @@ function Dashboard() {
     })
     .catch(err => {
       console.error("Erreur lors de la récupération des statistiques:", err);
-      setError("Erreur lors du chargement des statistiques.");
+      if (err.code === 'ERR_NETWORK' || err.message?.includes('ERR_CONNECTION_REFUSED')) {
+        setError("Impossible de se connecter au serveur. Vérifiez que le backend est démarré.");
+      } else {
+        setError("Erreur lors du chargement des statistiques.");
+      }
     });
 
     // Récupérer les données du graphique (réservations par jour)
@@ -114,8 +118,11 @@ function Dashboard() {
     })
     .catch(err => {
       console.error("Erreur lors de la récupération des données du graphique:", err);
-      console.error("Détails de l'erreur:", err.response?.data);
-      
+      if (err.code === 'ERR_NETWORK' || err.message?.includes('ERR_CONNECTION_REFUSED')) {
+        console.error("Le serveur backend n'est pas accessible. Vérifiez qu'il est démarré sur le port 3000.");
+      } else {
+        console.error("Détails de l'erreur:", err.response?.data);
+      }
     });
 
     
@@ -147,9 +154,11 @@ function Dashboard() {
     })
     .catch(err => {
       console.error("Erreur lors de la récupération des réservations:", err);
-      console.error("Détails de l'erreur:", err.response?.data);
-      
-      
+      if (err.code === 'ERR_NETWORK' || err.message?.includes('ERR_CONNECTION_REFUSED')) {
+        console.error("Le serveur backend n'est pas accessible. Vérifiez qu'il est démarré sur le port 3000.");
+      } else {
+        console.error("Détails de l'erreur:", err.response?.data);
+      }
       setRecentReservations([]);
       setLoading(false);
     });
@@ -235,7 +244,10 @@ function Dashboard() {
     })
     .catch(err => {
       console.error("Erreur lors de la récupération des utilisateurs:", err);
-      
+      if (err.code === 'ERR_NETWORK' || err.message?.includes('ERR_CONNECTION_REFUSED')) {
+        console.error("Le serveur backend n'est pas accessible. Vérifiez qu'il est démarré sur le port 3000.");
+      }
+      // Données de démonstration en cas d'erreur
       setUserRoleData([
         { name: "Clients", value: 45, color: "#2196f3" },
         { name: "Chauffeurs", value: 12, color: "#C0C0C0" },
@@ -247,25 +259,50 @@ function Dashboard() {
 
   // Fonction pour formater les réservations récentes
   const formatReservations = (reservations) => {
-    return reservations.map(reservation => ({
-      id: reservation._id,
-      client: reservation.user?.name || reservation.user?.email || 'Client inconnu',
-      route: reservation.voyage ? 
-        `${reservation.voyage.from} → ${reservation.voyage.to}` :
-        reservation.bus ? 
-          (reservation.bus.from && reservation.bus.to ? 
-            `${reservation.bus.from} → ${reservation.bus.to}` :
-            `${reservation.bus.name} (${reservation.bus.plateNumber})`) :
-          'Transport non spécifié',
-      time: new Date(reservation.createdAt).toLocaleTimeString('fr-FR', { 
-        day: 'numeric',
-        month:'numeric',
-        year: 'numeric',
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }),
-      status: 'Confirmé' // Par défaut
-    }));
+    const now = new Date();
+    // Normaliser la date actuelle à minuit pour comparer seulement les dates
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return reservations.map(reservation => {
+      // Déterminer la date du voyage/bus
+      let voyageDate = null;
+      
+      if (reservation.voyage?.date) {
+        voyageDate = new Date(reservation.voyage.date);
+      } else if (reservation.bus?.departureDate) {
+        voyageDate = new Date(reservation.bus.departureDate);
+      }
+      
+      // Déterminer le statut selon si la date est passée
+      let status = 'Confirmé';
+      if (voyageDate) {
+        // Normaliser la date du voyage à minuit pour comparer seulement les dates
+        const voyageDateOnly = new Date(voyageDate.getFullYear(), voyageDate.getMonth(), voyageDate.getDate());
+        if (voyageDateOnly < today) {
+          status = 'Passé';
+        }
+      }
+      
+      return {
+        id: reservation._id,
+        client: reservation.user?.name || reservation.user?.email || 'Client inconnu',
+        route: reservation.voyage ? 
+          `${reservation.voyage.from} → ${reservation.voyage.to}` :
+          reservation.bus ? 
+            (reservation.bus.from && reservation.bus.to ? 
+              `${reservation.bus.from} → ${reservation.bus.to}` :
+              `${reservation.bus.name} (${reservation.bus.plateNumber})`) :
+            'Transport non spécifié',
+        time: new Date(reservation.createdAt).toLocaleTimeString('fr-FR', { 
+          day: 'numeric',
+          month:'numeric',
+          year: 'numeric',
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
+        status: status
+      };
+    });
   };
 
   // Fonction pour calculer les revenus par mois
@@ -674,8 +711,16 @@ function Dashboard() {
                   borderRadius: '20px',
                   fontSize: '12px',
                   fontWeight: '600',
-                  background: reservation.status === 'Confirmé' ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 152, 0, 0.1)',
-                  color: reservation.status === 'Confirmé' ? '#4caf50' : '#ff9800'
+                  background: reservation.status === 'Confirmé' 
+                    ? 'rgba(76, 175, 80, 0.1)' 
+                    : reservation.status === 'Passé'
+                    ? 'rgba(158, 158, 158, 0.1)'
+                    : 'rgba(255, 152, 0, 0.1)',
+                  color: reservation.status === 'Confirmé' 
+                    ? '#4caf50' 
+                    : reservation.status === 'Passé'
+                    ? '#9e9e9e'
+                    : '#ff9800'
                 }}>
                   {reservation.status}
                 </div>

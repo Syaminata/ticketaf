@@ -21,13 +21,29 @@ export default function RevenueWidget() {
     setError('');
     try {
       const token = sessionStorage.getItem('token');
+      if (!token) {
+        setError('Token d\'authentification manquant');
+        setLoading(false);
+        return;
+      }
+      
       const response = await axios.get(`/stats/revenue?period=${period}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setRevenueData(response.data);
     } catch (err) {
       console.error('Erreur lors du chargement des revenus:', err);
-      setError('Erreur lors du chargement des revenus');
+      
+      // Gestion des erreurs spécifiques
+      if (err.code === 'ERR_NETWORK' || err.message?.includes('ERR_CONNECTION_REFUSED')) {
+        setError('Impossible de se connecter au serveur. Vérifiez que le backend est démarré sur le port 3000.');
+      } else if (err.response?.status === 401) {
+        setError('Session expirée. Veuillez vous reconnecter.');
+      } else if (err.response?.status === 403) {
+        setError('Accès refusé. Vous n\'avez pas les permissions nécessaires.');
+      } else {
+        setError(err.response?.data?.message || 'Erreur lors du chargement des revenus');
+      }
     } finally {
       setLoading(false);
     }
@@ -56,7 +72,7 @@ export default function RevenueWidget() {
   const getPeriodLabel = () => {
     switch(period) {
       case 'today': return "Aujourd'hui";
-      case 'week': return 'Cette semaine';
+      case 'week': return '7 derniers jours';
       case 'month': return 'Ce mois';
       case 'year': return 'Cette année';
       default: return 'Période';
@@ -89,7 +105,7 @@ export default function RevenueWidget() {
           >
             <MenuItem value="today">Aujourd'hui</MenuItem>
             <MenuItem value="week">7 derniers jours</MenuItem>
-            <MenuItem value="month">30 derniers jours</MenuItem>
+            <MenuItem value="month">Ce mois</MenuItem>
             <MenuItem value="year">Cette année</MenuItem>
           </Select>
         </FormControl>
