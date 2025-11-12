@@ -52,9 +52,9 @@ export default function Historique() {
     setError('');
     try {
       const [vRes, rRes, uRes] = await Promise.all([
-        fetch('http://localhost:3000/api/voyages/all/including-expired', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('http://localhost:3000/api/reservations', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('http://localhost:3000/api/users', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('https://ticket-taf.itea.africa/api/voyages/all/including-expired', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('https://ticket-taf.itea.africa/api/reservations', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('https://ticket-taf.itea.africa/api/users', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       if (!vRes.ok) throw new Error('Erreur chargement voyages');

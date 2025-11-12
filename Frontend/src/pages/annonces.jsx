@@ -58,7 +58,7 @@ export default function Annonce() {
       dateFin: toInput(a.dateFin)
     });
     setEditImageFile(null);
-    const abs = a.imageUrl && a.imageUrl.startsWith('http') ? a.imageUrl : (a.imageUrl ? `http://localhost:3000${a.imageUrl}` : '');
+    const abs = a.imageUrl && a.imageUrl.startsWith('http') ? a.imageUrl : (a.imageUrl ? `https://ticket-taf.itea.africa${a.imageUrl}` : '');
     setEditImagePreview(abs);
     setEditOpen(true);
   };
@@ -94,7 +94,7 @@ export default function Annonce() {
       formData.append('datePublication', new Date(editData.datePublication).toISOString());
       formData.append('dateFin', new Date(editData.dateFin).toISOString());
       if (editImageFile) formData.append('image', editImageFile);
-      const resp = await fetch(`http://localhost:3000/api/annonces/${editData.id}`, {
+      const resp = await fetch(`https://ticket-taf.itea.africa/api/annonces/${editData.id}`, {
         method: 'PUT',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
@@ -116,7 +116,7 @@ export default function Annonce() {
     try {
       setDeleteLoadingId(id);
       const token = typeof window !== 'undefined' ? sessionStorage.getItem('token') : null;
-      const resp = await fetch(`http://localhost:3000/api/annonces/${id}`, {
+      const resp = await fetch(`https://ticket-taf.itea.africa/api/annonces/${id}`, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
@@ -173,7 +173,7 @@ export default function Annonce() {
       formData.append('dateFin', new Date(dateFin).toISOString());
       formData.append('image', imageFile);
 
-      const resp = await fetch('http://localhost:3000/api/annonces', {
+      const resp = await fetch('https://ticket-taf.itea.africa/api/annonces', {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
@@ -198,7 +198,7 @@ export default function Annonce() {
     try {
       setListLoading(true);
       const token = typeof window !== 'undefined' ? sessionStorage.getItem('token') : null;
-      const resp = await fetch('http://localhost:3000/api/annonces', {
+      const resp = await fetch('https://ticket-taf.itea.africa/api/annonces', {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       const data = await resp.json();
@@ -372,7 +372,7 @@ export default function Annonce() {
                     <CardMedia
                       component="img"
                       height="160"
-                      image={a.imageUrl.startsWith('http') ? a.imageUrl : `http://localhost:3000${a.imageUrl}`}
+                      image={a.imageUrl.startsWith('http') ? a.imageUrl : `https://ticket-taf.itea.africa${a.imageUrl}`}
                       alt={a.title}
                     />
                   )}

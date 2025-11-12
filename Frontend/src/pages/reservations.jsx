@@ -97,7 +97,7 @@ export default function Reservations() {
       const token = sessionStorage.getItem('token');
       console.log('Token:', token ? 'Présent' : 'Absent');
       
-      const response = await fetch('http://localhost:3000/api/voyages', {
+      const response = await fetch('https://ticket-taf.itea.africa/api/voyages', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -127,7 +127,7 @@ export default function Reservations() {
       const token = sessionStorage.getItem('token');
       console.log('Token:', token ? 'Présent' : 'Absent');
       
-      const response = await fetch('http://localhost:3000/api/users', {
+      const response = await fetch('https://ticket-taf.itea.africa/api/users', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -157,7 +157,7 @@ export default function Reservations() {
       const token = sessionStorage.getItem('token');
       console.log('Token:', token ? 'Présent' : 'Absent');
       
-      const response = await fetch('http://localhost:3000/api/buses', {
+      const response = await fetch('https://ticket-taf.itea.africa/api/buses', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -257,7 +257,7 @@ export default function Reservations() {
     setNewUserLoading(true);
     try {
       const token = sessionStorage.getItem('token');
-      const resp = await fetch('http://localhost:3000/api/users', {
+      const resp = await fetch('https://ticket-taf.itea.africa/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(newUserData)
