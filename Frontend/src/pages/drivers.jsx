@@ -362,7 +362,7 @@ export default function Drivers() {
 
   const handleDownloadFile = (file, type) => {
     const link = document.createElement('a');
-    link.href = `https://ticket-taf.itea.africa/uploads/drivers/${file.filename}`;
+    link.href = `/uploads/drivers/${file.filename}`;
     link.download = file.originalName;
     link.target = '_blank';
     document.body.appendChild(link);
@@ -1188,7 +1188,7 @@ export default function Drivers() {
                 }}>
                   {fileViewer.type === 'photo' ? (
                     <img
-                      src={`https://ticket-taf.itea.africa/uploads/drivers/${fileViewer.file.filename}`}
+                      src={`/uploads/drivers/${fileViewer.file.filename}`}
                       alt={fileViewer.file.originalName}
                       style={{
                         width: '100%',
@@ -1203,7 +1203,7 @@ export default function Drivers() {
                     />
                   ) : (
                     <iframe
-                      src={`https://ticket-taf.itea.africa/uploads/drivers/${fileViewer.file.filename}`}
+                      src={`/uploads/drivers/${fileViewer.file.filename}`}
                       style={{
                         width: '100%',
                         height: '60vh',

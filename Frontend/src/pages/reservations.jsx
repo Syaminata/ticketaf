@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { reservationsAPI } from '../api/reservations';
+import ConfirmationDialog from '../components/ConfirmationDialog';
 import {
   Box,
   Button,
@@ -49,9 +50,17 @@ export default function Reservations() {
     quantity: 1,
     description: ''
   });
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    loading: false
+  });
 
   // Etat pour création rapide d'utilisateur
   const [newUserOpen, setNewUserOpen] = useState(false);
@@ -276,6 +285,7 @@ export default function Reservations() {
     }
   };
 
+
   // ----- CRUD -----
   const handleSubmit = async () => {
     setError('');
@@ -381,18 +391,41 @@ export default function Reservations() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Voulez-vous vraiment supprimer cette réservation ?")) return;
-    try {
-      await reservationsAPI.deleteReservation(id);
-      setSuccess('Réservation supprimée avec succès');
-      await fetchReservations();
-    } catch (err) {
-      console.error(err);
-      setError("Erreur lors de la suppression.");
-    }
-  };
+  const handleDelete = (id) => {
+  const reservation = reservations.find(r => r._id === id);
+  const info = reservation
+    ? `${reservation.user?.name || 'Client'} - ${
+        reservation.voyage
+          ? `${reservation.voyage.from} → ${reservation.voyage.to}`
+          : reservation.bus
+          ? `${reservation.bus.from} → ${reservation.bus.to}`
+          : 'Trajet non défini'
+      }`
+    : 'cette réservation';
 
+  setConfirmDialog({
+    open: true,
+    title: 'Supprimer la réservation',
+    message: `Êtes-vous sûr de vouloir supprimer définitivement ${info} ?`,
+    onConfirm: () => confirmDelete(id),
+    loading: false
+  });
+};
+
+const confirmDelete = async (id) => {
+  setConfirmDialog(prev => ({ ...prev, loading: true }));
+
+  try {
+    await reservationsAPI.deleteReservation(id);
+    setSuccess('Réservation supprimée avec succès');
+    await fetchReservations();
+    setConfirmDialog(prev => ({ ...prev, open: false }));
+  } catch (err) {
+    console.error(err);
+    setError('Erreur lors de la suppression.');
+    setConfirmDialog(prev => ({ ...prev, loading: false }));
+  }
+};
   // ----- Helpers -----
   const getStatusColor = (dateString) => {
     const voyageDate = new Date(dateString);
@@ -474,6 +507,17 @@ export default function Reservations() {
 
   return (
     <Box sx={{ p: 1, backgroundColor: '#ffff', minHeight: '100vh' }}>
+      <ConfirmationDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title || 'Confirmation de suppression'}
+        message={confirmDialog.message || "Voulez-vous vraiment supprimer cette réservation ?"}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        type="delete"
+        loading={confirmDialog.loading}
+      />
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>

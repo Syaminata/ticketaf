@@ -24,6 +24,7 @@ import {
 } from '@mui/material';
 import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+import storage from '../utils/storage';
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -45,6 +46,8 @@ export default function Users() {
     onConfirm: null,
     loading: false
   });
+
+  const [currentUserRole] = useState(storage.getUser()?.role || null);
 
   const fetchUsers = async () => {
     const token = sessionStorage.getItem('token');
@@ -205,6 +208,8 @@ export default function Users() {
     }
   };
 
+  const displayedUsers = currentUserRole === 'admin' ? users.filter(u => u.role === 'client') : users;
+
   return (
     <Box sx={{ 
       p: 1, 
@@ -334,7 +339,7 @@ export default function Users() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {users.map((user, index) => (
+            {displayedUsers.map((user, index) => (
               <TableRow 
                 key={user._id}
                 sx={{ 

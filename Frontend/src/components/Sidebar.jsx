@@ -36,8 +36,10 @@ const Sidebar = ({ onLogout }) => {
 
   const menuItems = [
     { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/dashboard' },
-    // Seuls les superadmin peuvent voir les utilisateurs
-    ...(userRole === 'superadmin' ? [{ text: 'Utilisateurs', icon: <PeopleIcon />, path: '/users' }] : []),
+    // Admin et Superadmin peuvent voir les utilisateurs
+    ...(userRole === 'superadmin' || userRole === 'admin' 
+      ? [{ text: 'Utilisateurs', icon: <PeopleIcon />, path: '/users' }] 
+      : []),
     { text: 'Conducteurs', icon: <CommuteIcon />, path: '/drivers' },
     { text: 'Voyages', icon: <DirectionsBusIcon />, path: '/voyage' },
     { text: 'Réservations', icon: <ConfirmationNumberIcon />, path: '/reservations' },

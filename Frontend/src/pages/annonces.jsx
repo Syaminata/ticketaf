@@ -36,6 +36,8 @@ export default function Annonce() {
   const [editImagePreview, setEditImagePreview] = useState('');
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
+  const [now, setNow] = useState(new Date());
+  const token = typeof window !== 'undefined' ? sessionStorage.getItem('token') : null;
 
   const resetForm = () => {
     setTitle('');
@@ -87,7 +89,6 @@ export default function Annonce() {
     if (!editData.dateFin) { setError('La date de fin est requise'); return; }
     try {
       setEditLoading(true);
-      const token = typeof window !== 'undefined' ? sessionStorage.getItem('token') : null;
       const formData = new FormData();
       formData.append('title', editData.title.trim());
       formData.append('description', editData.description.trim());
@@ -115,7 +116,6 @@ export default function Annonce() {
     if (!window.confirm('Supprimer cette annonce ?')) return;
     try {
       setDeleteLoadingId(id);
-      const token = typeof window !== 'undefined' ? sessionStorage.getItem('token') : null;
       const resp = await fetch(`https://ticket-taf.itea.africa/api/annonces/${id}`, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -165,7 +165,6 @@ export default function Annonce() {
 
     try {
       setLoading(true);
-      const token = typeof window !== 'undefined' ? sessionStorage.getItem('token') : null;
       const formData = new FormData();
       formData.append('title', title.trim());
       formData.append('description', description.trim());
@@ -197,13 +196,14 @@ export default function Annonce() {
   const fetchAnnonces = async () => {
     try {
       setListLoading(true);
-      const token = typeof window !== 'undefined' ? sessionStorage.getItem('token') : null;
       const resp = await fetch('https://ticket-taf.itea.africa/api/annonces', {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       const data = await resp.json();
+      console.log('📢 Annonces API:', data);
       if (!resp.ok) throw new Error(data?.message || 'Erreur chargement annonces');
-      setAnnonces(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setAnnonces(list);
     } catch (e) {
       // garder silencieux côté liste; l'erreur principale reste dans error
     } finally {
@@ -212,8 +212,30 @@ export default function Annonce() {
   };
 
   useEffect(() => {
-    fetchAnnonces();
+      fetchAnnonces();
+    }, []);
+
+    useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 60 * 1000); // toutes les 60s
+
+    return () => clearInterval(interval);
   }, []);
+
+  const getAnnonceStatus = (annonce) => {
+    if (!annonce.dateFin) return 'active';
+
+    const end = new Date(annonce.dateFin);
+    const diffMs = now - end;
+
+    if (diffMs <= 0) return 'active'; // pas encore fini
+
+    const diffHours = diffMs / (1000 * 60 * 60);
+
+    if (diffHours <= 24) return 'grace'; // film blanc pendant 24h
+    return 'expired'; // à supprimer
+  };
 
   return (
     <Box sx={{ p: 2, backgroundColor: '#ffff', minHeight: '100vh' }}>
@@ -365,72 +387,86 @@ export default function Annonce() {
           </Box>
         ) : (
           <Grid container spacing={2}>
-            {annonces.map((a) => (
-              <Grid item xs={12} sm={6} md={4} key={a._id}>
-                <Card sx={{ borderRadius: '12px', border: '1px solid #eee', position: 'relative' }}>
-                  {a.imageUrl && (
-                    <CardMedia
-                      component="img"
-                      height="160"
-                      image={a.imageUrl.startsWith('http') ? a.imageUrl : `https://ticket-taf.itea.africa${a.imageUrl}`}
-                      alt={a.title}
-                    />
-                  )}
-                  <CardContent>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{a.title}</Typography>
-                    <Typography variant="body2" sx={{ color: '#666', mt: 0.5 }}>
-                      {a.description}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#555', display: 'block', mt: 0.5 }}>
-                      Publication: {a.datePublication ? new Date(a.datePublication).toLocaleString('fr-FR') : '—'}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#555', display: 'block' }}>
-                      Fin: {a.dateFin ? new Date(a.dateFin).toLocaleString('fr-FR') : '—'}
-                    </Typography>
-                    {a.createdAt && (
-                      <Typography variant="caption" sx={{ color: '#999', display: 'block', mt: 1 }}>
-                        Publié le {new Date(a.createdAt).toLocaleString('fr-FR')}
-                      </Typography>
-                    )}
-                    <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                      {/* Bouton Modifier */}
-                      <IconButton
-                        size="small"
-                        onClick={() => openEdit(a)}
-                        sx={{
-                          color: '#ffcc33',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 204, 51, 0.1)',
-                          },
-                        }}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
+            {annonces.map((a) => {
+              const status = getAnnonceStatus(a);
 
-                      {/* Bouton Supprimer */}
-                      <IconButton
-                        size="small"
-                        onClick={() => deleteAnnonce(a._id)}
-                        disabled={deleteLoadingId === a._id}
+              return ( 
+                <Grid item xs={12} sm={6} md={4} key={a._id}>
+                  <Card sx={{ borderRadius: '12px', border: '1px solid #eee', position: 'relative' }}>
+                    {a.imageUrl && (
+                      <CardMedia
+                        component="img"
+                        height="160"
+                        image={a.imageUrl.startsWith('http') ? a.imageUrl : `https://ticket-taf.itea.africa${a.imageUrl}`}
+                        alt={a.title}
+                      />
+                    )}
+                    <CardContent>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{a.title}</Typography>
+                      <Typography variant="body2" sx={{ color: '#666', mt: 0.5 }}>
+                        {a.description}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#555', display: 'block', mt: 0.5 }}>
+                        Publication: {a.datePublication ? new Date(a.datePublication).toLocaleString('fr-FR') : '—'}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#555', display: 'block' }}>
+                        Fin: {a.dateFin ? new Date(a.dateFin).toLocaleString('fr-FR') : '—'}
+                      </Typography>
+                      {a.createdAt && (
+                        <Typography variant="caption" sx={{ color: '#999', display: 'block', mt: 1 }}>
+                          Publié le {new Date(a.createdAt).toLocaleString('fr-FR')}
+                        </Typography>
+                      )}
+                      <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                        {/* Bouton Modifier */}
+                        <IconButton
+                          size="small"
+                          onClick={() => openEdit(a)}
+                          sx={{
+                            color: '#ffcc33',
+                            '&:hover': {
+                              backgroundColor: 'rgba(255, 204, 51, 0.1)',
+                            },
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+
+                        {/* Bouton Supprimer */}
+                        <IconButton
+                          size="small"
+                          onClick={() => deleteAnnonce(a._id)}
+                          disabled={deleteLoadingId === a._id}
+                          sx={{
+                            color: '#d32f2f', 
+                            '&:hover': {
+                              backgroundColor: 'rgba(211, 47, 47, 0.1)', 
+                              color: '#b71c1c', 
+                            },
+                          }}
+                        >
+                          {deleteLoadingId === a._id ? (
+                            <CircularProgress size={16} sx={{ color: '#d32f2f' }} />
+                          ) : (
+                            <DeleteIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </Box>
+                    </CardContent>
+                    {status === 'grace' && (
+                      <Box
                         sx={{
-                          color: '#d32f2f', 
-                          '&:hover': {
-                            backgroundColor: 'rgba(211, 47, 47, 0.1)', 
-                            color: '#b71c1c', 
-                          },
+                          position: 'absolute',
+                          inset: 0,
+                          backgroundColor: 'rgba(255,255,255,0.7)',
+                          pointerEvents: 'none',
                         }}
-                      >
-                        {deleteLoadingId === a._id ? (
-                          <CircularProgress size={16} sx={{ color: '#d32f2f' }} />
-                        ) : (
-                          <DeleteIcon fontSize="small" />
-                        )}
-                      </IconButton>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+                      />
+                    )}
+                  </Card>
+                </Grid>
+              );
+            })}
             {annonces.length === 0 && !listLoading && (
               <Grid item xs={12}>
                 <Box sx={{ textAlign: 'center', color: '#888', py: 4, border: '1px dashed #ddd', borderRadius: '12px' }}>

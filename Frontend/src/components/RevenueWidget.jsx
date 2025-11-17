@@ -5,16 +5,22 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import axios from '../api/axios';
+import storage from '../utils/storage';
 
 export default function RevenueWidget() {
   const [period, setPeriod] = useState('month');
   const [revenueData, setRevenueData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [userRole] = useState(storage.getUser()?.role || null);
 
   useEffect(() => {
+    if (userRole !== 'superadmin') {
+      setLoading(false);
+      return;
+    }
     fetchRevenue();
-  }, [period]);
+  }, [period, userRole]);
 
   const fetchRevenue = async () => {
     setLoading(true);
@@ -48,6 +54,10 @@ export default function RevenueWidget() {
       setLoading(false);
     }
   };
+
+  if (userRole !== 'superadmin') {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -165,12 +175,12 @@ export default function RevenueWidget() {
 
         {/* Revenu moyen */}
         <Box sx={{
-          background: '#e3f2fd',
+          background: '#fcf1e68f',
           borderRadius: '10px',
           padding: '10px 12px',
           color: '#1a1a1a',
           minHeight: '80px',
-          border: '1px solid #2196f3',
+          border: '1px solid #e69151ff',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'
         }}>
           <Typography variant="caption" sx={{ color: '#666', fontSize: '14px', display: 'block', mb: 0.3 }}>
