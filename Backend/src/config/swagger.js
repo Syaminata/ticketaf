@@ -15,8 +15,8 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'http://localhost:3000/api', 
-        description: 'Serveur de développement'
+        url: 'https://ticket-taf.itea.africa/api', 
+        description: 'Serveur de production'
       }
     ],
     tags: [
