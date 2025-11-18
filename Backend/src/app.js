@@ -35,7 +35,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Route documentation Swagger
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec)); 
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec)); 
 
 /**
  * @swagger
