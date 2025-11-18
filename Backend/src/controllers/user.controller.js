@@ -63,7 +63,7 @@ const createUser = async (req, res) => {
     }
 
     
-    const user = await User.create({ name, email: email || null, numero, password, role });
+    const user = await User.create({ name, email: email || undefined, numero, password, role });
     const userSafe = { ...user._doc };
     delete userSafe.password;
 
@@ -95,7 +95,7 @@ const updateUser = async (req, res) => {
     
     // Gérer l'email optionnel
     if (email !== undefined) {
-      updateData.email = email || null;
+      updateData.email = email || undefined;
     }
 
     if (password && password.trim() !== '') {
