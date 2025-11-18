@@ -8,7 +8,6 @@ const driverSchema = new mongoose.Schema({
     type: String, 
     unique: true, 
     sparse: true, // Permet plusieurs documents avec email null
-    default: null 
   },
   password: { type: String, required: true },
   numero:{type: String, required: true, unique: true, match: [/^(77|78|76|70|75|33|71)\d{7}$/, 'Le numéro doit contenir exactement 9 chiffres']},
