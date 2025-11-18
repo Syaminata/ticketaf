@@ -50,7 +50,7 @@ const createDriver = async (req, res) => {
     
     const { name, email, password, numero, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
     
-    // Validation des champs requis (email maintenant optionnel)
+    // Validation des champs requis (email optionnel)
     if (!name || !password || !numero || !matricule || !marque || !capacity || !capacity_coffre) {
       console.log('Champs manquants:', { name: !name, email: !email, password: !password, numero: !numero, matricule: !matricule, marque: !marque, capacity: !capacity, capacity_coffre: !capacity_coffre });
       return res.status(400).json({ 
@@ -122,7 +122,7 @@ const createDriver = async (req, res) => {
     console.log('Création du conducteur...');
     const driver = await Driver.create({
       name, 
-      email: email || null, 
+      email: email || undefined, 
       password, 
       numero, 
       matricule, 
@@ -171,7 +171,12 @@ const updateDriver = async (req, res) => {
     
     // Gérer l'email optionnel
     if (email !== undefined) {
-      updateData.email = email || null;
+      if (email && email.trim() !== '') {
+        updateData.email = email.trim();
+      } else {
+        // on supprime le champ email si l'utilisateur l'efface
+        updateData.email = undefined;
+      }
     }
     
     if (password && password.trim() !== '') {

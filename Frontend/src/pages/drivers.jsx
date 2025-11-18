@@ -287,7 +287,7 @@ export default function Drivers() {
   const handleDelete = (id) => {
     const driver = drivers.find(d => d._id === id);
     const driverInfo = driver 
-      ? `"${driver.name}" (${driver.email || 'Pas d\'email'}) - Bus: ${driver.marque} ${driver.matricule}`
+      ? `"${driver.name}" - Matricule: ${driver.marque} ${driver.matricule}`
       : 'ce conducteur';
     
     setConfirmDialog({
