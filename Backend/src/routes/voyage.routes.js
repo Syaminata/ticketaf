@@ -74,7 +74,7 @@ router.post('/', auth, adminAuth, voyageController.createVoyage);
  *               items:
  *                 $ref: '#/components/schemas/Voyage'
  */
-router.get('/', auth, adminAuth, voyageController.getAllVoyage); // Voyages futurs uniquement
+router.get('/', voyageController.getAllVoyage); // Voyages futurs uniquement
 
 /**
  * @swagger
@@ -95,7 +95,7 @@ router.get('/', auth, adminAuth, voyageController.getAllVoyage); // Voyages futu
  *               items:
  *                 $ref: '#/components/schemas/Voyage'
  */
-router.get('/all/including-expired', auth, adminAuth, voyageController.getAllVoyageIncludingExpired); // Tous les voyages (pour historique)
+router.get('/all/including-expired', voyageController.getAllVoyageIncludingExpired); // Tous les voyages (pour historique)
 
 /**
  * @swagger
@@ -122,7 +122,7 @@ router.get('/all/including-expired', auth, adminAuth, voyageController.getAllVoy
  *       404:
  *         description: Voyage non trouvé
  */
-router.get('/:id', auth, adminAuth, voyageController.getVoyageById);
+router.get('/:id', voyageController.getVoyageById);
 
 /**
  * @swagger
