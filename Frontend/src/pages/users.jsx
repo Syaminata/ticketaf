@@ -22,7 +22,7 @@ import {
   Alert,
   InputAdornment
 } from '@mui/material';
-import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings } from '@mui/icons-material';
+import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import storage from '../utils/storage';
 
@@ -30,6 +30,7 @@ export default function Users() {
   const [users, setUsers] = useState([]);
   const [open, setOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -210,6 +211,13 @@ export default function Users() {
 
   const displayedUsers = currentUserRole === 'admin' ? users.filter(u => u.role === 'client') : users;
 
+  const filteredUsers = displayedUsers.filter((user) => {
+    const term = searchTerm.toLowerCase();
+    const name = (user.name || '').toLowerCase();
+    const numero = (user.numero || '').toLowerCase();
+    return name.includes(term) || numero.includes(term);
+  });
+
   return (
     <Box sx={{ 
       p: 1, 
@@ -286,6 +294,40 @@ export default function Users() {
         </Button>
       </Box>
 
+      {/* Recherche simple */}
+      <Box sx={{ 
+        display: 'flex', 
+        gap: 2, 
+        alignItems: 'center', 
+        mb: 3,
+        justifyContent: 'space-between'
+      }}>
+        <TextField
+          placeholder="Rechercher par un utilisateur..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          size="small"
+          InputProps={{
+            startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
+          }}
+          sx={{
+            width: 300,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '8px',
+              '&:hover fieldset': {
+                borderColor: '#ffcc33',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#ffcc33',
+                borderWidth: 2,
+              },
+            },
+            '& .MuiInputLabel-root.Mui-focused': {
+              color: '#ffcc33',
+            },
+          }}
+        />
+      </Box>
       {/* Table */}
       <Paper sx={{ 
         borderRadius: '12px',
@@ -339,7 +381,7 @@ export default function Users() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {displayedUsers.map((user, index) => (
+            {filteredUsers.map((user, index) => (
               <TableRow 
                 key={user._id}
                 sx={{ 
