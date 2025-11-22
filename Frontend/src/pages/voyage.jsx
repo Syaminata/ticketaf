@@ -19,9 +19,11 @@ import {
   Paper,
   MenuItem,
   Chip,
-  Alert
+  Alert,
+  TablePagination,
+  InputAdornment,
 } from '@mui/material';
-import { Edit, Delete, Add, DirectionsBus, LocationOn, AccessTime, AttachMoney, DoubleArrow } from '@mui/icons-material';
+import { Edit, Delete, Add, DirectionsBus, LocationOn, AccessTime, AttachMoney, DoubleArrow, Search as SearchIcon } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
 export default function Voyage() {
@@ -39,6 +41,9 @@ export default function Voyage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     title: '',
@@ -95,6 +100,10 @@ export default function Voyage() {
     fetchVoyages();
     fetchDrivers();
   }, []);
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm]);
 
   const handleOpen = (voyage = null) => {
     setError('');
@@ -269,6 +278,28 @@ export default function Voyage() {
     ? drivers.filter(d => d.isActive || d._id === formData.driverId)
     : drivers.filter(d => d.isActive);
 
+
+  const filteredVoyages = voyages.filter((voyage) => {
+    const term = searchTerm.toLowerCase();
+
+    const from = (voyage.from || '').toLowerCase();
+    const to = (voyage.to || '').toLowerCase();
+    const driverName = (voyage.driver?.name || '').toLowerCase();
+    const dateText = formatDate(voyage.date).toLowerCase(); // utilise déjà ta fonction formatDate
+
+    return (
+      from.includes(term) ||
+      to.includes(term) ||
+      driverName.includes(term) ||
+      dateText.includes(term)
+    );
+  });
+
+  const paginatedVoyages = filteredVoyages.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
   return (
     <Box sx={{ 
       p: 1, 
@@ -352,6 +383,41 @@ export default function Voyage() {
         </Alert>
       )}
 
+      {/* Recherche simple */}
+      <Box sx={{
+        display: 'flex',
+        gap: 2,
+        alignItems: 'center',
+        mb: 3,
+        justifyContent: 'space-between'
+      }}>
+        <TextField
+          placeholder="Rechercher par trajet ou date..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          size="small"
+          InputProps={{
+            startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
+          }}
+          sx={{
+            width: 300,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '8px',
+              '&:hover fieldset': {
+                borderColor: '#ffcc33',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#ffcc33',
+                borderWidth: 2,
+              },
+            },
+            '& .MuiInputLabel-root.Mui-focused': {
+              color: '#ffcc33',
+            },
+          }}
+        />
+      </Box>
+
       {/* Table */}
       {voyages.length > 0 ? (
         <Paper sx={{ 
@@ -414,7 +480,7 @@ export default function Voyage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {voyages.map((voyage, index) => (
+              {paginatedVoyages.map((voyage, index) => (
                 <TableRow 
                   key={voyage._id}
                   sx={{ 
@@ -498,6 +564,20 @@ export default function Voyage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={filteredVoyages.length}
+            page={page}
+            onPageChange={(event, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(event) => {
+              setRowsPerPage(parseInt(event.target.value, 10));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[10, 25, 50]}
+            labelRowsPerPage="Lignes par page"
+          />
+              
         </Paper>
       ) : null}
 

@@ -14,12 +14,15 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  TablePagination,
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 
 export default function Annonce() {
   const [title, setTitle] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [description, setDescription] = useState('');
   const [datePublication, setDatePublication] = useState('');
   const [dateFin, setDateFin] = useState('');
@@ -212,10 +215,10 @@ export default function Annonce() {
   };
 
   useEffect(() => {
-      fetchAnnonces();
-    }, []);
+    fetchAnnonces();
+  }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     const interval = setInterval(() => {
       setNow(new Date());
     }, 60 * 1000); // toutes les 60s
@@ -236,6 +239,11 @@ export default function Annonce() {
     if (diffHours <= 24) return 'grace'; // film blanc pendant 24h
     return 'expired'; // à supprimer
   };
+
+  const paginatedAnnonces = annonces.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
 
   return (
     <Box sx={{ p: 2, backgroundColor: '#ffff', minHeight: '100vh' }}>
@@ -386,8 +394,9 @@ export default function Annonce() {
             <CircularProgress sx={{ color: '#ffcc33' }} />
           </Box>
         ) : (
+          <>
           <Grid container spacing={2}>
-            {annonces.map((a) => {
+            {paginatedAnnonces.map((a) => {
               const status = getAnnonceStatus(a);
 
               return ( 
@@ -475,6 +484,20 @@ export default function Annonce() {
               </Grid>
             )}
           </Grid>
+          <TablePagination
+            component="div"
+            count={annonces.length}
+            page={page}
+            onPageChange={(event, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(event) => {
+              setRowsPerPage(parseInt(event.target.value, 10));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[6, 9, 12]}
+            labelRowsPerPage="Annonces par page"
+          />
+        </>
         )}
       </Box>
 

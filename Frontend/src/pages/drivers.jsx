@@ -26,15 +26,17 @@ import {
   MenuItem,
   Chip,
   Switch,
-  InputAdornment
+  InputAdornment,
+  TablePagination
 } from '@mui/material';
-import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge} from '@mui/icons-material';
+import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge, Search as SearchIcon } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
 export default function Drivers() {
   const [drivers, setDrivers] = useState([]);
   const [open, setOpen] = useState(false);
   const [editDriver, setEditDriver] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -70,6 +72,13 @@ export default function Drivers() {
     open: false,
     driver: null
   });
+
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm]);
 
   const fetchDrivers = async () => {
     const token = sessionStorage.getItem('token');
@@ -384,6 +393,22 @@ export default function Drivers() {
     });
   };
 
+  const filteredDrivers = drivers.filter((driver) => {
+    const term = searchTerm.toLowerCase();
+    const name = (driver.name || '').toLowerCase();
+    const numero = (driver.numero || '').toLowerCase();
+    return name.includes(term) || numero.includes(term);
+  });
+
+  const sortedDrivers = [...filteredDrivers].sort((a, b) =>
+  (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
+);
+
+  const paginatedDrivers = sortedDrivers.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
   return (
     <Box sx={{ 
       p:1, 
@@ -460,6 +485,41 @@ export default function Drivers() {
         </Button>
       </Box>
 
+      {/* Recherche simple */}
+      <Box sx={{ 
+        display: 'flex', 
+        gap: 2, 
+        alignItems: 'center', 
+        mb: 3,
+        justifyContent: 'space-between'
+      }}>
+        <TextField
+          placeholder="Rechercher un conducteur (nom ou numéro)..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          size="small"
+          InputProps={{
+            startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
+          }}
+          sx={{
+            width: 300,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '8px',
+              '&:hover fieldset': {
+                borderColor: '#ffcc33',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#ffcc33',
+                borderWidth: 2,
+              },
+            },
+            '& .MuiInputLabel-root.Mui-focused': {
+              color: '#ffcc33',
+            },
+          }}
+        />
+      </Box>
+
       {/* Table */}
       <Paper sx={{ 
         borderRadius: '12px',
@@ -523,7 +583,7 @@ export default function Drivers() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {drivers.map((driver, index) => (
+            {paginatedDrivers.map((driver, index) => (
               <TableRow 
                 key={driver._id}
                 sx={{ 
@@ -699,6 +759,20 @@ export default function Drivers() {
             ))}
           </TableBody>
         </Table>
+
+        <TablePagination
+          component="div"
+          count={filteredDrivers.length}
+          page={page}
+          onPageChange={(event, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(event) => {
+            setRowsPerPage(parseInt(event.target.value, 10));
+            setPage(0);
+          }}
+          rowsPerPageOptions={[10, 25, 50]}
+          labelRowsPerPage="Lignes par page"
+        />
       </Paper>
 
       <Dialog 

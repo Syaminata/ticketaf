@@ -19,7 +19,8 @@ import {
   MenuItem,
   Chip,
   Alert,
-  Snackbar
+  Snackbar,
+  TablePagination, 
 } from "@mui/material";
 import {
   DirectionsBus as BusIcon,
@@ -42,6 +43,9 @@ function Buses() {
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  
 
   // État du formulaire
   const [formData, setFormData] = useState({
@@ -70,6 +74,10 @@ function Buses() {
   useEffect(() => {
     fetchBuses();
   }, []);
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm]);
 
   const fetchBuses = async () => {
     try {
@@ -268,6 +276,10 @@ function Buses() {
     return matchesSearch;
   });
 
+  const paginatedBuses = filteredBuses.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
 
   return (
     <Box sx={{ 
@@ -428,7 +440,7 @@ function Buses() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredBuses.map((bus) => (
+              {paginatedBuses.map((bus) => (
                 <TableRow 
                   key={bus._id}
                   sx={{ 
@@ -511,6 +523,20 @@ function Buses() {
               ))}
             </TableBody>
           </Table>
+
+          <TablePagination
+            component="div"
+            count={filteredBuses.length}
+            page={page}
+            onPageChange={(event, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(event) => {
+              setRowsPerPage(parseInt(event.target.value, 10));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[10, 25, 50]}
+            labelRowsPerPage="Bus par page"
+          />
         </Paper>
       ) : (
         <Paper sx={{ 

@@ -18,7 +18,8 @@ import {
   Card,
   CardContent,
   CircularProgress,
-  Autocomplete
+  Autocomplete,
+  TablePagination,
 } from '@mui/material';
 import { 
   Edit, 
@@ -29,12 +30,16 @@ import {
   DirectionsCar,
   EventSeat,
   LocalShipping,
-  Visibility
+  Visibility,
+  Search as SearchIcon, 
 } from '@mui/icons-material';
 
 export default function Reservations() {
   const [reservations, setReservations] = useState([]);
   const [voyages, setVoyages] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(6);
   const [users, setUsers] = useState([]);
   const [buses, setBuses] = useState([]);
   const [open, setOpen] = useState(false);
@@ -130,6 +135,13 @@ export default function Reservations() {
     }
   };
 
+  const upcomingVoyages = (voyages || []).filter((v) => {
+    if (!v?.date) return false;
+    const voyageDate = new Date(v.date);
+    const now = new Date();
+    return voyageDate >= now; // garder seulement les voyages futurs ou aujourd'hui
+  });
+
   const fetchUsers = async () => {
     try {
       console.log('🔍 Récupération des utilisateurs...');
@@ -196,6 +208,10 @@ export default function Reservations() {
     fetchUsers();
     fetchBuses();
   }, []);
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm]);
 
   // ----- Dialog -----
   const handleOpen = (reservation = null) => {
@@ -505,6 +521,36 @@ const confirmDelete = async (id) => {
 
   const visibleReservations = (reservations || []).filter(r => !isReservationPast(r));
 
+  const filteredReservations = visibleReservations.filter((reservation) => {
+    const term = searchTerm.toLowerCase();
+
+    const clientName = (reservation.user?.name || '').toLowerCase();
+    const clientNumero = (reservation.user?.numero || '').toLowerCase();
+
+    const voyageTrajet = reservation.voyage
+      ? `${reservation.voyage.from || ''} ${reservation.voyage.to || ''}`.toLowerCase()
+      : '';
+    const busTrajet = reservation.bus
+      ? `${reservation.bus.from || ''} ${reservation.bus.to || ''}`.toLowerCase()
+      : '';
+    const dateText = formatDateShort(
+      reservation.voyage?.date || reservation.bus?.departureDate
+    ).toLowerCase();
+
+    return (
+      clientName.includes(term) ||
+      clientNumero.includes(term) ||
+      voyageTrajet.includes(term) ||
+      busTrajet.includes(term) ||
+      dateText.includes(term)
+    );
+  });
+
+  const paginatedReservations = filteredReservations.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+  
   return (
     <Box sx={{ p: 1, backgroundColor: '#ffff', minHeight: '100vh' }}>
       <ConfirmationDialog
@@ -553,7 +599,40 @@ const confirmDelete = async (id) => {
           Nouvelle Réservation
         </Button>
       </Box>
-
+      {/* Recherche */}
+      <Box sx={{
+        display: 'flex',
+        gap: 2,
+        alignItems: 'center',
+        mb: 3,
+        justifyContent: 'space-between'
+      }}>
+        <TextField
+          placeholder="Rechercher par client, trajet ou date..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          size="small"
+          InputProps={{
+            startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
+          }}
+          sx={{
+            width: 300,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '8px',
+              '&:hover fieldset': {
+                borderColor: '#ffcc33',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#ffcc33',
+                borderWidth: 2,
+              },
+            },
+            '& .MuiInputLabel-root.Mui-focused': {
+              color: '#ffcc33',
+            },
+          }}
+        />
+      </Box>
       {/* Alerts */}
       {error && (
         <Alert 
@@ -591,8 +670,9 @@ const confirmDelete = async (id) => {
           <CircularProgress sx={{ color: '#ffcc33' }} />
         </Box>
       ) : visibleReservations.length > 0 ? (
+        <>
         <Grid container spacing={2}>
-          {visibleReservations.map((reservation) => (
+          {paginatedReservations.map((reservation) => (
             <Grid item xs={12} sm={6} lg={4} key={reservation._id}>
               <Card
                 sx={{
@@ -713,6 +793,20 @@ const confirmDelete = async (id) => {
             </Grid>
           ))}
         </Grid>
+        <TablePagination
+          component="div"
+          count={filteredReservations.length}
+          page={page}
+          onPageChange={(event, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(event) => {
+            setRowsPerPage(parseInt(event.target.value, 10));
+            setPage(0);
+          }}
+          rowsPerPageOptions={[6, 12, 24]}
+          labelRowsPerPage="Réservations par page"
+        />
+        </>
       ) : (
         <Box sx={{ 
           textAlign: 'center', 

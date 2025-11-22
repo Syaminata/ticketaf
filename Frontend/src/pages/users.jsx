@@ -20,9 +20,10 @@ import {
   Chip,
   Avatar,
   Alert,
-  InputAdornment
+  InputAdornment,
+  TablePagination,
 } from '@mui/material';
-import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search as SearchIcon, } from '@mui/icons-material';
+import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search as SearchIcon } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import storage from '../utils/storage';
 
@@ -49,6 +50,13 @@ export default function Users() {
   });
 
   const [currentUserRole] = useState(storage.getUser()?.role || null);
+
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm]);
 
   const fetchUsers = async () => {
     const token = sessionStorage.getItem('token');
@@ -218,6 +226,16 @@ export default function Users() {
     return name.includes(term) || numero.includes(term);
   });
 
+  const sortedUsers = [...filteredUsers].sort((a, b) =>
+    (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
+  );
+  
+  const paginatedUsers = sortedUsers.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+  
+
   return (
     <Box sx={{ 
       p: 1, 
@@ -303,7 +321,7 @@ export default function Users() {
         justifyContent: 'space-between'
       }}>
         <TextField
-          placeholder="Rechercher par un utilisateur..."
+          placeholder="Rechercher un utilisateur..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           size="small"
@@ -381,7 +399,7 @@ export default function Users() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredUsers.map((user, index) => (
+            {paginatedUsers.map((user, index) => (
               <TableRow 
                 key={user._id}
                 sx={{ 
@@ -452,6 +470,19 @@ export default function Users() {
             ))}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={filteredUsers.length}
+          page={page}
+          onPageChange={(event, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(event) => {
+            setRowsPerPage(parseInt(event.target.value, 10));
+            setPage(0);
+          }}
+          rowsPerPageOptions={[10, 25, 50]}
+          labelRowsPerPage="Lignes par page"
+        />
       </Paper>
 
       <Dialog 
