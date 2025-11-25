@@ -9,11 +9,11 @@ const Bus = require('../models/bus.model');
 // -----------------------------
 const createReservation = async (req, res) => {
   try {
-    const { userId, voyageId, busId, ticket, quantity, description, delivery } = req.body;
+    const { voyageId, busId, ticket, quantity, description, delivery } = req.body;
 
     // Validation des champs obligatoires
-    if (!userId || !ticket || !quantity) {
-      return res.status(400).json({ message: 'Utilisateur, type de ticket et quantité sont requis' });
+    if ( !ticket || !quantity) {
+      return res.status(400).json({ message: 'type de ticket et quantité sont requis' });
     }
 
     if (!voyageId && !busId) {
@@ -24,6 +24,7 @@ const createReservation = async (req, res) => {
       return res.status(400).json({ message: 'Uniquement un voyage OU un bus peut être spécifié, pas les deux' });
     }
 
+    const userId = req.user._id;
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
@@ -158,15 +159,31 @@ const getReservationById = async (req, res) => {
 
 const updateReservation = async (req, res) => {
   try {
-    const reservation = await Reservation.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      return res.status(404).json({ message: 'Réservation non trouvée' });
+    }
+
+    // Si pas admin/superadmin, vérifier que la réservation appartient au user
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      if (String(reservation.user) !== String(req.user._id)) {
+        return res.status(403).json({ message: 'Vous ne pouvez modifier que vos propres réservations' });
+      }
+    }
+
+    // Appliquer la mise à jour
+    Object.assign(reservation, req.body);
+    await reservation.save();
+
+    const populated = await Reservation.findById(reservation._id)
       .populate('user', '-password')
       .populate({
         path: 'voyage',
         populate: { path: 'driver', select: '-password' }
       })
       .populate('bus');
-    if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
-    res.status(200).json({ message: 'Réservation mise à jour', reservation });
+
+    res.status(200).json({ message: 'Réservation mise à jour', reservation: populated });
   } catch (err) {
     console.error('Erreur updateReservation:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
@@ -181,16 +198,21 @@ const deleteReservation = async (req, res) => {
     const reservation = await Reservation.findById(req.params.id);
     if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
 
+    // Si pas admin/superadmin, vérifier que la réservation appartient au user
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      if (String(reservation.user) !== String(req.user._id)) {
+        return res.status(403).json({ message: 'Vous ne pouvez supprimer que vos propres réservations' });
+      }
+    }
+
     // Remettre les places disponibles si ticket === 'place'
     if (reservation.ticket === 'place') {
       if (reservation.voyage) await Voyage.findByIdAndUpdate(reservation.voyage, { $inc: { availableSeats: reservation.quantity } });
       if (reservation.bus) await Bus.findByIdAndUpdate(reservation.bus, { $inc: { availableSeats: reservation.quantity } });
     }
 
-    // Supprimer la réservation
     await Reservation.findByIdAndDelete(req.params.id);
 
-    // Supprimer le colis associé si ticket === 'colis'
     if (reservation.ticket === 'colis') {
       await Colis.deleteOne({ reservation: reservation._id });
     }

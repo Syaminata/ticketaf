@@ -108,7 +108,7 @@ router.get("/chart", auth, adminAuth, async (req, res) => {
  *       400:
  *         description: Erreur de validation
  */
-router.post('/', auth, adminAuth, reservationController.createReservation);
+router.post('/', auth, reservationController.createReservation);
 
 /**
  * @swagger
@@ -155,7 +155,7 @@ router.get('/', auth, adminAuth, reservationController.getAllReservations);
  *       404:
  *         description: Réservation non trouvée
  */
-router.get('/:id', auth, adminAuth, reservationController.getReservationById);
+router.get('/:id', auth, reservationController.getReservationById);
 
 /**
  * @swagger
@@ -197,7 +197,7 @@ router.get('/:id', auth, adminAuth, reservationController.getReservationById);
  *             schema:
  *               $ref: '#/components/schemas/Reservation'
  */
-router.put('/:id', auth, adminAuth, reservationController.updateReservation);
+router.put('/:id', auth, reservationController.updateReservation);
 
 /**
  * @swagger
@@ -219,6 +219,6 @@ router.put('/:id', auth, adminAuth, reservationController.updateReservation);
  *       404:
  *         description: Réservation non trouvée
  */
-router.delete('/:id', auth, adminAuth, reservationController.deleteReservation);
+router.delete('/:id', auth, reservationController.deleteReservation);
 
 module.exports = router;
