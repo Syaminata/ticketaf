@@ -37,8 +37,12 @@ const createBus = async (req, res) => {
 
 const getAllBuses = async (req, res) => {
   try {
-    const buses = await Bus.find();
-    
+    const now = new Date();
+
+    const buses = await Bus.find({
+      departureDate: { $gte: now }
+    });
+
     // Migration: Corriger les bus qui n'ont pas de availableSeats
     for (const bus of buses) {
       if (bus.availableSeats === undefined || bus.availableSeats === null) {
@@ -48,7 +52,7 @@ const getAllBuses = async (req, res) => {
         bus.availableSeats = bus.capacity;
       }
     }
-    
+
     res.status(200).json(buses);
   } catch (err) {
     console.error('Erreur getAllBuses:', err);
