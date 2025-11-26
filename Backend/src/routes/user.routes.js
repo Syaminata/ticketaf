@@ -168,4 +168,8 @@ router.put('/:id', auth, adminAuth, updateUser);
  */
 router.delete('/:id', auth, adminAuth, deleteUser);
 
+router.get('/me', auth, (req, res) => {
+  res.status(200).json(req.user);
+});
+
 module.exports = router;
