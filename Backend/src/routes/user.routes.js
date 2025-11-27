@@ -71,6 +71,9 @@ router.get('/', auth, adminAuth, getAllUsers);
  */
 router.post('/', auth, adminAuth, createUser); 
 
+router.get('/me', auth, (req, res) => {
+  res.status(200).json(req.user);
+});
 /**
  * @swagger
  * /users/{id}:
@@ -167,9 +170,5 @@ router.put('/:id', auth, adminAuth, updateUser);
  *         description: Utilisateur non trouvé
  */
 router.delete('/:id', auth, adminAuth, deleteUser);
-
-router.get('/me', auth, (req, res) => {
-  res.status(200).json(req.user);
-});
 
 module.exports = router;
