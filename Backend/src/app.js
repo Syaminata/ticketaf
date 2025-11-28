@@ -242,8 +242,8 @@ app.put('/api/buses/:id', validateObjectId, busController.updateBus);
  *       404:
  *         description: Bus non trouvé
  */
-app.put('/bus/:id/activate', auth, adminAuth, busController.activateBus);
-app.put('/bus/:id/deactivate', auth, adminAuth, busController.deactivateBus);
+app.put('/api/bus/:id/activate', auth, adminAuth, busController.activateBus);
+app.put('/api/bus/:id/deactivate', auth, adminAuth, busController.deactivateBus);
 app.delete('/api/buses/:id', validateObjectId, busController.deleteBus);
 
 // -----------------
