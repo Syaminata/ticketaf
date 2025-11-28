@@ -8,7 +8,8 @@ const busSchema = new mongoose.Schema({
   from: { type: String, required: true },
   to: { type: String, required: true },
   departureDate: { type: Date, required: true }, 
-  price: { type: Number, required: true } 
+  price: { type: Number, required: true } ,
+  isActive: { type: Boolean, default: false },
 }, { timestamps: true });
 
 busSchema.pre('save', function(next) {

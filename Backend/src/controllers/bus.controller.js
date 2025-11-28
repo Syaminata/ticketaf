@@ -116,5 +116,34 @@ const migrateBusSeats = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
+const activateBus = async (req, res) => {
+  try {
+    const bus = await Bus.findByIdAndUpdate(
+      req.params.id,
+      { isActive: true },
+      { new: true }
+    );
+    if (!bus) return res.status(404).json({ message: 'Bus non trouvé' });
+    res.status(200).json({ message: 'Bus activé', bus });
+  } catch (err) {
+    console.error('Erreur activateBus:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
 
-module.exports = { createBus, getAllBuses, getBusById, updateBus, deleteBus, migrateBusSeats };
+const deactivateBus = async (req, res) => {
+  try {
+    const bus = await Bus.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      { new: true }
+    );
+    if (!bus) return res.status(404).json({ message: 'Bus non trouvé' });
+    res.status(200).json({ message: 'Bus désactivé', bus });
+  } catch (err) {
+    console.error('Erreur deactivateBus:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+module.exports = { createBus, getAllBuses, getBusById, updateBus, deleteBus, migrateBusSeats, activateBus, deactivateBus };
