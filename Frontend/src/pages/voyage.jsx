@@ -22,13 +22,16 @@ import {
   Alert,
   TablePagination,
   InputAdornment,
+  Menu
 } from '@mui/material';
-import { Edit, Delete, Add, DirectionsBus, LocationOn, AccessTime, AttachMoney, DoubleArrow, Search as SearchIcon } from '@mui/icons-material';
+import { Edit, Delete, Add, DirectionsBus, LocationOn, AccessTime, AttachMoney, DoubleArrow, Search as SearchIcon, FilterList as FilterIcon } from '@mui/icons-material';
+import Autocomplete from '@mui/material/Autocomplete';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
 export default function Voyage() {
   const [voyages, setVoyages] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [driverSearch, setDriverSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [editVoyage, setEditVoyage] = useState(null);
   const [formData, setFormData] = useState({
@@ -626,45 +629,72 @@ export default function Voyage() {
                 <DirectionsBus sx={{ color: '#ffcc33' }} />
                 Sélection du conducteur
               </Typography>
-              <TextField
-                label="Choisir un conducteur"
-                name="driverId"
-                value={formData.driverId}
-                onChange={handleChange}
-                select
-                fullWidth
-                required
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '12px',
-                    '&:hover fieldset': {
-                      borderColor: '#ffcc33',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#ffcc33',
-                      borderWidth: 2,
-                    },
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#ffcc33',
-                  },
+              <Autocomplete
+                options={drivers}
+                getOptionLabel={(option) => `${option.name} (${option.marque})`}
+                value={drivers.find(driver => driver._id === formData.driverId) || null}
+                onChange={(_, newValue) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    driverId: newValue ? newValue._id : ''
+                  }));
                 }}
-              >
-                {selectableDrivers.map((driver) => (
-                  <MenuItem key={driver._id} value={driver._id}>
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Rechercher un conducteur"
+                    required
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '12px',
+                        '&:hover fieldset': {
+                          borderColor: '#ffcc33',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#ffcc33',
+                          borderWidth: 2,
+                        },
+                      },
+                      '& .MuiInputLabel-root.Mui-focused': {
+                        color: '#ffcc33',
+                      },
+                    }}
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
                       <Box sx={{ flex: 1 }}>
                         <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                          {driver.name}
+                          {option.name}
                         </Typography>
                         <Typography variant="body2" sx={{ color: '#666666' }}>
-                          {driver.marque} • {driver.capacity} places 
+                          {option.marque} • {option.capacity} places 
                         </Typography>
                       </Box>
                     </Box>
-                  </MenuItem>
-                ))}
-              </TextField>
+                  </li>
+                )}
+                noOptionsText="Aucun conducteur trouvé"
+                filterOptions={(options, { inputValue }) => {
+                  const input = inputValue.toLowerCase();
+                  return options
+                    .filter(option => 
+                      option.name.toLowerCase().includes(input) ||
+                      option.marque?.toLowerCase().includes(input) ||
+                      option.capacity?.toString().includes(input)
+                    )
+                    .slice(0, 3);
+                }}
+              />
             </Box>
 
             {/* Section Trajet */}

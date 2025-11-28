@@ -20,6 +20,7 @@ import {
   CircularProgress,
   Autocomplete,
   TablePagination,
+  Menu
 } from '@mui/material';
 import { 
   Edit, 
@@ -31,8 +32,10 @@ import {
   EventSeat,
   LocalShipping,
   Visibility,
-  Search as SearchIcon, 
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
 } from '@mui/icons-material';
+import { Divider } from '@mui/material';
 
 export default function Reservations() {
   const [reservations, setReservations] = useState([]);
@@ -519,31 +522,73 @@ const confirmDelete = async (id) => {
     return Boolean(voyageMissing || busMissing);
   };
 
-  const visibleReservations = (reservations || []).filter(r => !isReservationPast(r));
+  const visibleReservations = (reservations || []).filter(r => !isReservationPast(r) && !isReservationCanceled(r));
 
-  const filteredReservations = visibleReservations.filter((reservation) => {
-    const term = searchTerm.toLowerCase();
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [anchorEl, setAnchorEl] = useState(null);
 
-    const clientName = (reservation.user?.name || '').toLowerCase();
-    const clientNumero = (reservation.user?.numero || '').toLowerCase();
+  const handleOpenFilter = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
 
-    const voyageTrajet = reservation.voyage
-      ? `${reservation.voyage.from || ''} ${reservation.voyage.to || ''}`.toLowerCase()
-      : '';
-    const busTrajet = reservation.bus
-      ? `${reservation.bus.from || ''} ${reservation.bus.to || ''}`.toLowerCase()
-      : '';
-    const dateText = formatDateShort(
-      reservation.voyage?.date || reservation.bus?.departureDate
-    ).toLowerCase();
+  const handleCloseFilter = (value) => {
+    setAnchorEl(null);
+    if (value !== undefined) {
+      setTypeFilter(value);
+      setPage(0); // Réinitialiser à la première page lors du changement de filtre
+    }
+  };
 
-    return (
-      clientName.includes(term) ||
-      clientNumero.includes(term) ||
-      voyageTrajet.includes(term) ||
-      busTrajet.includes(term) ||
-      dateText.includes(term)
-    );
+  // Filtrage des réservations
+  const filteredReservations = visibleReservations.filter(reservation => {
+    if (!reservation) return false;
+    
+    // Filtre par type (place/colis)
+    if (typeFilter !== 'all' && reservation.ticket !== typeFilter) {
+      return false;
+    }
+    
+    // Si pas de terme de recherche, on garde tout
+    const search = searchTerm.toLowerCase().trim();
+    if (!search) return true;
+
+    // Récupération des données imbriquées
+    // Les données utilisateur peuvent être directement dans l'objet reservation
+    const user = {
+      name: reservation.userName || reservation.user?.name,
+      username: reservation.userName || reservation.user?.username,
+      email: reservation.userEmail || reservation.user?.email,
+      phone: reservation.userPhone || reservation.user?.phone || reservation.user?.numero
+    };
+    
+    const voyage = reservation.voyageId || reservation.voyage || {};
+    const bus = reservation.busId || reservation.bus || {};
+    
+    // Débogage des données utilisateur
+    if (searchTerm.trim() !== '') {
+      console.log('Recherche de:', searchTerm);
+      console.log('Données utilisateur:', user);
+      console.log('Données complètes de la réservation:', reservation);
+    }
+
+    // Liste des champs à rechercher
+    const searchFields = [
+      user?.name || '',
+      user?.username || '',
+      user?.email || '',
+      user?.phone || user?.numero || '',
+      voyage?.from || '',
+      voyage?.to || '',
+      bus?.from || '',
+      bus?.to || '',
+      bus?.name || '',
+      reservation?.reference || '',
+      reservation?.ticket || '',
+      reservation?.createdAt ? new Date(reservation.createdAt).toLocaleDateString() : ''
+    ].filter(Boolean).map(field => field.toString().toLowerCase());
+
+    // Vérifie si le terme de recherche est présent dans l'un des champs
+    return searchFields.some(field => field.includes(search));
   });
 
   const paginatedReservations = filteredReservations.slice(
@@ -605,33 +650,70 @@ const confirmDelete = async (id) => {
         gap: 2,
         alignItems: 'center',
         mb: 3,
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        flexWrap: 'wrap'
       }}>
-        <TextField
-          placeholder="Rechercher par client, trajet ou date..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          size="small"
-          InputProps={{
-            startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
-          }}
-          sx={{
-            width: 300,
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '8px',
-              '&:hover fieldset': {
-                borderColor: '#ffcc33',
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <TextField
+            placeholder="Rechercher par client, trajet ou date..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            size="small"
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
+            }}
+            sx={{
+              width: 300,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px',
+                '&:hover fieldset': {
+                  borderColor: '#ffcc33',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#ffcc33',
+                  borderWidth: 2,
+                },
               },
-              '&.Mui-focused fieldset': {
-                borderColor: '#ffcc33',
-                borderWidth: 2,
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#ffcc33',
               },
-            },
-            '& .MuiInputLabel-root.Mui-focused': {
-              color: '#ffcc33',
-            },
-          }}
-        />
+            }}
+          />
+          
+          {/* Filtre par type */}
+          <Button
+            variant="outlined"
+            onClick={handleOpenFilter}
+            startIcon={<FilterListIcon />}
+            sx={{ 
+              textTransform: 'none',
+              borderColor: '#ffcc33',
+              color: '#666',
+              '&:hover': {
+                borderColor: '#ffcc33',
+                backgroundColor: 'rgba(255, 204, 51, 0.04)',
+              }
+            }}
+          >
+            {typeFilter === 'all' ? 'Tous les types' : typeFilter === 'place' ? 'Places' : 'Colis'}
+          </Button>
+          
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => handleCloseFilter()}
+          >
+            <MenuItem onClick={() => handleCloseFilter('all')}>
+              Tous les types
+            </MenuItem>
+            <MenuItem onClick={() => handleCloseFilter('place')}>
+              Places
+            </MenuItem>
+            <MenuItem onClick={() => handleCloseFilter('colis')}>
+              Colis
+            </MenuItem>
+          </Menu>
+        </Box>
       </Box>
       {/* Alerts */}
       {error && (
@@ -768,7 +850,11 @@ const confirmDelete = async (id) => {
                         Prix
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600, color: '#4caf50', fontSize: '13px' }}>
-                        {reservation.voyage ? `${reservation.voyage.price} FCFA` : reservation.bus ? `${reservation.bus.price} FCFA` : 'Non défini'}
+                        {reservation.voyage 
+                          ? `${(reservation.voyage.price * (reservation.quantity || 1)).toLocaleString('fr-FR')} FCFA` 
+                          : reservation.bus 
+                            ? `${(reservation.bus.price * (reservation.quantity || 1)).toLocaleString('fr-FR')} FCFA` 
+                            : 'Non défini'}
                       </Typography>
                     </Box>
                   </Box>

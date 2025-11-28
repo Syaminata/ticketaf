@@ -5,7 +5,7 @@ import storage from "../utils/storage";
 import "../index.css";
 import { Email, Lock } from "@mui/icons-material";
 import { ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
-import { AdminPanelSettings as AdminIcon, SupervisedUserCircle as SuperAdminIcon } from '@mui/icons-material';
+import { AdminPanelSettings as AdminIcon, SupervisedUserCircle as SuperAdminIcon, Visibility, VisibilityOff } from '@mui/icons-material';
 import logo from "../images/logo.png";
 
 export default function Login({ setUser }) {
@@ -14,6 +14,7 @@ export default function Login({ setUser }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -101,19 +102,33 @@ export default function Login({ setUser }) {
             />
           </div>
 
-          <div className="login-field">
+          <div className="login-field" style={{ position: "relative" }}>
             <label>
-              <Lock style={{ verticalAlign: 'middle', marginRight: '8px' }} />
+              <Lock style={{ verticalAlign: "middle", marginRight: "8px" }} />
               Mot de passe
             </label>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Entrez votre mot de passe"
               required
               className="login-input"
+              style={{ paddingRight: "10px" }} // espace pour l'icône
             />
+            <span
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                color: "#9694949a",
+                position: "absolute",
+                right: "1px",
+                top: "78%",
+                transform: "translateY(-50%)",
+                cursor: "pointer",
+              }}
+            >
+              {showPassword ? <VisibilityOff /> : <Visibility />}
+            </span>
           </div>
 
           <button type="submit" className="login-button">

@@ -22,8 +22,9 @@ import {
   Alert,
   InputAdornment,
   TablePagination,
+  Menu
 } from '@mui/material';
-import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search as SearchIcon } from '@mui/icons-material';
+import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search as SearchIcon, FilterList as FilterIcon  } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import storage from '../utils/storage';
 
@@ -199,14 +200,6 @@ export default function Users() {
     }
   };
 
-  const getRoleColor = (role) => {
-    switch (role) {
-      case 'admin': return '#ffcc33';
-      case 'conducteur': return '#4caf50';
-      case 'client': return '#2196f3';
-      default: return '#666666';
-    }
-  };
 
   const getRoleLabel = (role) => {
     switch (role) {
@@ -235,6 +228,24 @@ export default function Users() {
     page * rowsPerPage + rowsPerPage
   );
   
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  const filteredUsersByRole = paginatedUsers.filter(user => {
+    if (roleFilter === 'all') return true;
+    return user.role === roleFilter;
+  });
+
+
+  const handleOpenFilter = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseFilter = (role) => {
+    setAnchorEl(null);
+    if (role) setRoleFilter(role);
+  };
+
 
   return (
     <Box sx={{ 
@@ -320,31 +331,45 @@ export default function Users() {
         mb: 3,
         justifyContent: 'space-between'
       }}>
-        <TextField
-          placeholder="Rechercher un utilisateur..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          size="small"
-          InputProps={{
-            startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
-          }}
-          sx={{
-            width: 300,
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '8px',
-              '&:hover fieldset': {
-                borderColor: '#ffcc33',
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <TextField
+            placeholder="Rechercher un utilisateur..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            size="small"
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
+            }}
+            sx={{
+              width: 300,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px',
+                '&:hover fieldset': { borderColor: '#ffcc33' },
+                '&.Mui-focused fieldset': { borderColor: '#ffcc33', borderWidth: 2 },
               },
-              '&.Mui-focused fieldset': {
-                borderColor: '#ffcc33',
-                borderWidth: 2,
-              },
-            },
-            '& .MuiInputLabel-root.Mui-focused': {
-              color: '#ffcc33',
-            },
-          }}
-        />
+            }}
+          />
+
+          <IconButton 
+            onClick={handleOpenFilter} 
+            size="small" 
+            sx={{ border: '1px solid #ffcc33', borderRadius: '8px' }}
+          >
+            <FilterIcon />
+          </IconButton>
+
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => handleCloseFilter(null)}
+          >
+            <MenuItem onClick={() => handleCloseFilter('all')}>Tous les rôles</MenuItem>
+            <MenuItem onClick={() => handleCloseFilter('admin')}>Admin</MenuItem>
+            <MenuItem onClick={() => handleCloseFilter('conducteur')}>Conducteur</MenuItem>
+            <MenuItem onClick={() => handleCloseFilter('client')}>Client</MenuItem>
+          </Menu>
+        </Box>
+        
       </Box>
       {/* Table */}
       <Paper sx={{ 
@@ -399,7 +424,7 @@ export default function Users() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {paginatedUsers.map((user, index) => (
+            {filteredUsersByRole.map((user, index) => (
               <TableRow 
                 key={user._id}
                 sx={{ 
@@ -472,7 +497,7 @@ export default function Users() {
         </Table>
         <TablePagination
           component="div"
-          count={filteredUsers.length}
+          count={filteredUsersByRole.length}
           page={page}
           onPageChange={(event, newPage) => setPage(newPage)}
           rowsPerPage={rowsPerPage}

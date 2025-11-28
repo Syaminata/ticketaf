@@ -21,6 +21,8 @@ import {
   Alert,
   Snackbar,
   TablePagination, 
+  Switch, FormControlLabel,
+  Menu
 } from "@mui/material";
 import {
   DirectionsBus as BusIcon,
@@ -30,7 +32,8 @@ import {
   People as PeopleIcon,
   Refresh as RefreshIcon,
   Search as SearchIcon,
-  LocationOn as LocationIcon
+  LocationOn as LocationIcon,
+  FilterList as FilterListIcon
 } from "@mui/icons-material";
 import ConfirmationDialog from "../components/ConfirmationDialog";
 
@@ -41,6 +44,8 @@ function Buses() {
   const [editingBus, setEditingBus] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [anchorEl, setAnchorEl] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [page, setPage] = useState(0);
@@ -55,7 +60,8 @@ function Buses() {
     from: "",
     to: "",
     departureDate: "",
-    price: ""
+    price: "",
+    isActive: false
   });
 
   const [confirmDialog, setConfirmDialog] = useState({
@@ -269,17 +275,97 @@ function Buses() {
       setConfirmDialog(prev => ({ ...prev, loading: false }));
     }
   };
+  // Changement de statut (Actif / Inactif)
+  const handleToggleStatus = async (bus) => {
+    try {
+      const token = sessionStorage.getItem('token');
+      const newStatus = !bus.isActive;
 
+      await axios.put(
+        `/bus/${bus._id}/${newStatus ? 'activate' : 'deactivate'}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Mise à jour locale
+      setBuses(prev =>
+        prev.map(b =>
+          b._id === bus._id ? { ...b, isActive: newStatus } : b
+        )
+      );
+
+      setSuccess(`Bus ${newStatus ? 'activé' : 'désactivé'} avec succès`);
+    } catch (err) {
+      console.error('Erreur lors du changement de statut:', err);
+      setError('Erreur lors de la mise à jour du statut du bus');
+    }
+  };
+
+
+  // --- FILTRAGE DES BUS ---
   const filteredBuses = buses.filter(bus => {
-    const matchesSearch = bus.plateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         bus.name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+    // Filtre par recherche
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase().trim();
+      const busFrom = bus.from?.toLowerCase() || '';
+      const busTo = bus.to?.toLowerCase() || '';
+      const busDate = bus.departureDate 
+        ? new Date(bus.departureDate).toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          }).toLowerCase()
+        : '';
 
-  const paginatedBuses = filteredBuses.slice(
+    return (
+      bus.plateNumber?.toLowerCase().includes(search) ||
+      bus.name?.toLowerCase().includes(search) ||
+      busFrom.includes(search) ||
+      busTo.includes(search) || 
+      (busFrom + ' ' + busTo).includes(search) || 
+      (busFrom + ' - ' + busTo).toLowerCase().includes(search) || 
+      busDate.includes(search)                          
+      );
+      
+      if (!matchesSearch) return false;
+    }
+    
+    // Filtre par statut
+    if (statusFilter === 'active') return bus.isActive === true;
+    if (statusFilter === 'inactive') return bus.isActive === false;
+    
+    return true; // Si 'all' ou autre valeur non gérée
+  });
+  
+  // Tri des bus
+  const sortedBuses = [...filteredBuses].sort((a, b) =>
+    (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
+  );
+  
+  // --- PAGINATION ---
+  const paginatedBuses = sortedBuses.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
+
+  // Fermeture Snackbar
+  const handleCloseSnackbar = () => {
+    setError('');
+    setSuccess('');
+  };
+
+  // Gestion du filtre de statut
+  const handleOpenFilter = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+  
+  const handleCloseFilter = (status) => {
+    setAnchorEl(null);
+    if (status !== undefined) {
+      setStatusFilter(status);
+      setPage(0); // Réinitialiser à la première page lors du changement de filtre
+    }
+  };
 
   return (
     <Box sx={{ 
@@ -288,6 +374,20 @@ function Buses() {
       minHeight: '100vh',
       color: '#1a1a1a'
     }}>
+      <Snackbar
+        open={!!error || !!success}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={error ? 'error' : 'success'} 
+          sx={{ width: '100%' }}
+        >
+          {error || success}
+        </Alert>
+      </Snackbar>
       {/* Messages d'alerte */}
       {error && (
         <Alert 
@@ -358,39 +458,117 @@ function Buses() {
       </Box>
 
 
-      {/* Recherche simple */}
+      {/* Recherche et filtres */}
       <Box sx={{ 
         display: 'flex', 
         gap: 2, 
         alignItems: 'center', 
         mb: 3,
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        flexWrap: 'wrap'
       }}>
-        <TextField
-          placeholder="Rechercher un bus..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          size="small"
-          InputProps={{
-            startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
-          }}
-          sx={{
-            width: 300,
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '8px',
-              '&:hover fieldset': {
-                borderColor: '#ffcc33',
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <TextField
+            placeholder="Rechercher par plaque, nom, trajet ou date..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            size="small"
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
+            }}
+            sx={{
+              width: 300,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px',
+                '&:hover fieldset': {
+                  borderColor: '#ffcc33',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#ffcc33',
+                  borderWidth: 2,
+                },
               },
-              '&.Mui-focused fieldset': {
-                borderColor: '#ffcc33',
-                borderWidth: 2,
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#ffcc33',
               },
-            },
-            '& .MuiInputLabel-root.Mui-focused': {
-              color: '#ffcc33',
-            },
-          }}
-        />
+            }}
+          />
+          
+          <Button
+            variant="outlined"
+            onClick={handleOpenFilter}
+            startIcon={<FilterListIcon />}
+            sx={{ 
+              textTransform: 'none',
+              borderColor: '#ffcc33',
+              color: '#666',
+              '&:hover': {
+                borderColor: '#ffcc33',
+                color: '#1a1a1a',
+                backgroundColor: 'rgba(255, 204, 51, 0.04)'
+              }
+            }}
+          >
+            {statusFilter === 'all' ? 'Tous' : statusFilter === 'active' ? 'Actifs' : 'Inactifs'}
+          </Button>
+          
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => handleCloseFilter()}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'left',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'left',
+            }}
+          >
+            <MenuItem 
+              onClick={() => handleCloseFilter('all')} 
+              selected={statusFilter === 'all'}
+              sx={{ 
+                '&.Mui-selected': { 
+                  backgroundColor: 'rgba(255, 204, 51, 0.08)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 204, 51, 0.12)'
+                  }
+                }
+              }}
+            >
+              Tous les statuts
+            </MenuItem>
+            <MenuItem 
+              onClick={() => handleCloseFilter('active')} 
+              selected={statusFilter === 'active'}
+              sx={{ 
+                '&.Mui-selected': { 
+                  backgroundColor: 'rgba(255, 204, 51, 0.08)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 204, 51, 0.12)'
+                  }
+                }
+              }}
+            >
+              Actifs
+            </MenuItem>
+            <MenuItem 
+              onClick={() => handleCloseFilter('inactive')} 
+              selected={statusFilter === 'inactive'}
+              sx={{ 
+                '&.Mui-selected': { 
+                  backgroundColor: 'rgba(255, 204, 51, 0.08)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 204, 51, 0.12)'
+                  }
+                }
+              }}
+            >
+              Inactifs
+            </MenuItem>
+          </Menu>
+        </Box>
       </Box>
 
       {/* Table */}
@@ -428,6 +606,14 @@ function Buses() {
                   fontSize: '16px'
                 }}>
                   Date
+                </TableCell>
+                <TableCell sx={{ 
+                  color: '#1a1a1a', 
+                  fontWeight: 700,
+                  fontSize: '16px',
+                  textAlign: 'center'
+                }}>
+                  Statut
                 </TableCell>
                 <TableCell sx={{ 
                   color: '#1a1a1a', 
@@ -474,6 +660,22 @@ function Buses() {
                     <Typography sx={{ color: '#1a1a1a', fontWeight: 500, fontSize: '15px' }}>
                       {bus.departureDate ? new Date(bus.departureDate).toLocaleDateString('fr-FR') : 'Non défini'}
                     </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={bus.isActive || false}
+                          onChange={() => handleToggleStatus(bus)}
+                          sx={{
+                            '& .MuiSwitch-switchBase.Mui-checked': { color: '#4caf50' },
+                            '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: '#4caf50' },
+                            '& .MuiSwitch-track': { backgroundColor: '#f44336' }
+                          }}
+                        />
+                      }
+                      label={bus.isActive ? 'Actif' : 'Inactif'}
+                    />
                   </TableCell>
                   <TableCell sx={{ textAlign: 'center' }}>
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>

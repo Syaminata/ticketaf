@@ -21,7 +21,8 @@ import {
   FormControl,
   InputLabel,
   Grid,
-  Paper
+  Paper,
+  TablePagination
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
@@ -39,6 +40,8 @@ export default function Historique() {
   const [voyages, setVoyages] = useState([]);
   const [reservations, setReservations] = useState([]);
   const [users, setUsers] = useState([]);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   
   // Filtres avancés - Par défaut afficher uniquement les expirés
   const [statusFilter, setStatusFilter] = useState('expired'); // all, expired, today, upcoming
@@ -337,6 +340,19 @@ export default function Historique() {
     );
   };
 
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const getPaginatedItems = (items) => {
+    return items.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  };
+
   const renderSection = () => {
     if (loading) {
       return (
@@ -351,60 +367,52 @@ export default function Historique() {
     }
 
     switch (tab) {
-      case 0: // Tous (sans utilisateurs ni conducteurs)
-        return (
-          <Box sx={{ display: 'grid', gap: 4 }}>
-            <Box>
-              <SectionHeader icon={<DirectionsBusIcon />} title="Voyages" count={filteredVoyages.length} />
-              <List dense sx={{ bgcolor: '#fff', borderRadius: '12px', border: '1px solid #eee' }}>
-                {filteredVoyages.map(v => (
-                  <VoyageRow key={v._id} v={v} />
-                ))}
-                {filteredVoyages.length === 0 && (
-                  <ListItem><ListItemText primary="Aucun voyage" /></ListItem>
-                )}
-              </List>
-            </Box>
-            <Box>
-              <SectionHeader icon={<EventSeatIcon />} title="Réservations" count={filteredReservations.length} />
-              <List dense sx={{ bgcolor: '#fff', borderRadius: '12px', border: '1px solid #eee' }}>
-                {filteredReservations.map(r => (
-                  <ReservationRow key={r._id} r={r} />
-                ))}
-                {filteredReservations.length === 0 && (
-                  <ListItem><ListItemText primary="Aucune réservation" /></ListItem>
-                )}
-              </List>
-            </Box>
-          </Box>
-        );
-
-      case 1:
+      case 0:
         return (
           <Box>
             <SectionHeader icon={<DirectionsBusIcon />} title="Voyages" count={filteredVoyages.length} />
-            <List dense sx={{ bgcolor: '#fff', borderRadius: '12px', border: '1px solid #eee' }}>
-              {filteredVoyages.map(v => (
+            <List dense sx={{ bgcolor: '#fff', borderRadius: '12px', border: '1px solid #eee', mb: 2 }}>
+              {getPaginatedItems(filteredVoyages).map(v => (
                 <VoyageRow key={v._id} v={v} />
               ))}
               {filteredVoyages.length === 0 && (
                 <ListItem><ListItemText primary="Aucun voyage" /></ListItem>
               )}
             </List>
+            <TablePagination
+              component="div"
+              count={filteredVoyages.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25]}
+              labelRowsPerPage="Lignes par page"
+            />
           </Box>
         );
-      case 2:
+      case 1:
         return (
           <Box>
             <SectionHeader icon={<EventSeatIcon />} title="Réservations" count={filteredReservations.length} />
-            <List dense sx={{ bgcolor: '#fff', borderRadius: '12px', border: '1px solid #eee' }}>
-              {filteredReservations.map(r => (
+            <List dense sx={{ bgcolor: '#fff', borderRadius: '12px', border: '1px solid #eee', mb: 2 }}>
+              {getPaginatedItems(filteredReservations).map(r => (
                 <ReservationRow key={r._id} r={r} />
               ))}
               {filteredReservations.length === 0 && (
                 <ListItem><ListItemText primary="Aucune réservation" /></ListItem>
               )}
             </List>
+            <TablePagination
+              component="div"
+              count={filteredReservations.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25]}
+              labelRowsPerPage="Lignes par page"
+            />
           </Box>
         );
       default:
@@ -557,12 +565,14 @@ export default function Historique() {
 
       <Tabs
         value={tab}
-        onChange={(e, v) => setTab(v)}
+        onChange={(e, v) => {
+          setTab(v);
+          setPage(0); // Reset à la première page lors du changement d'onglet
+        }}
         sx={{ mb: 3, '& .MuiTab-root': { textTransform: 'none', fontWeight: 700, minHeight: 42 }, '& .MuiTabs-indicator': { backgroundColor: '#ffb300', height: 3 } }}
         variant="scrollable"
         allowScrollButtonsMobile
       >
-        <Tab label={`Tous (${filteredVoyages.length + filteredReservations.length})`} />
         <Tab label={`Voyages (${filteredVoyages.length})`} />
         <Tab label={`Réservations (${filteredReservations.length})`} />
       </Tabs>

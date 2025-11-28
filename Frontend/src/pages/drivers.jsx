@@ -27,9 +27,10 @@ import {
   Chip,
   Switch,
   InputAdornment,
-  TablePagination
+  TablePagination,
+  Menu
 } from '@mui/material';
-import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge, Search as SearchIcon } from '@mui/icons-material';
+import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge, Search as SearchIcon, FilterList as FilterIcon  } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
 export default function Drivers() {
@@ -392,22 +393,44 @@ export default function Drivers() {
       driver: null
     });
   };
-
-  const filteredDrivers = drivers.filter((driver) => {
+  // 1. Filtre par recherche
+  const filteredDrivers = drivers.filter(driver => {
     const term = searchTerm.toLowerCase();
     const name = (driver.name || '').toLowerCase();
     const numero = (driver.numero || '').toLowerCase();
     return name.includes(term) || numero.includes(term);
   });
 
-  const sortedDrivers = [...filteredDrivers].sort((a, b) =>
-  (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
-);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  const paginatedDrivers = sortedDrivers.slice(
+  // 2. Filtre par status
+  const filteredDriversByStatus = filteredDrivers.filter(driver => {
+    if (statusFilter === 'all') return true;
+    return statusFilter === 'active' ? driver.isActive : !driver.isActive;
+  });
+
+  // 3. Tri
+  const sortedDrivers = [...filteredDriversByStatus].sort((a, b) =>
+    (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
+  );
+
+
+  // 4. Pagination
+  const paginatedDriversByStatus = sortedDrivers.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
+
+  const handleOpenFilter = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseFilter = (status) => {
+    setAnchorEl(null);
+    if (status) setStatusFilter(status);
+  };
+
 
   return (
     <Box sx={{ 
@@ -493,31 +516,50 @@ export default function Drivers() {
         mb: 3,
         justifyContent: 'space-between'
       }}>
-        <TextField
-          placeholder="Rechercher un conducteur (nom ou numéro)..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          size="small"
-          InputProps={{
-            startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
-          }}
-          sx={{
-            width: 300,
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '8px',
-              '&:hover fieldset': {
-                borderColor: '#ffcc33',
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <TextField
+            placeholder="Rechercher ..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            size="small"
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
+            }}
+            sx={{
+              width: 300,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px',
+                '&:hover fieldset': {
+                  borderColor: '#ffcc33',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#ffcc33',
+                  borderWidth: 2,
+                },
               },
-              '&.Mui-focused fieldset': {
-                borderColor: '#ffcc33',
-                borderWidth: 2,
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#ffcc33',
               },
-            },
-            '& .MuiInputLabel-root.Mui-focused': {
-              color: '#ffcc33',
-            },
-          }}
-        />
+            }}
+          />
+          <IconButton 
+            onClick={handleOpenFilter} 
+            size="small" 
+            sx={{ border: '1px solid #ffcc33', borderRadius: '8px' }}
+          >
+            <FilterIcon />
+          </IconButton>
+
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => handleCloseFilter(null)}
+          >
+            <MenuItem onClick={() => handleCloseFilter('all')}>Tous </MenuItem>
+            <MenuItem onClick={() => handleCloseFilter('active')}>Actifs</MenuItem>
+            <MenuItem onClick={() => handleCloseFilter('inactive')}>Inactifs</MenuItem>
+          </Menu>
+        </Box>
       </Box>
 
       {/* Table */}
@@ -583,7 +625,7 @@ export default function Drivers() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {paginatedDrivers.map((driver, index) => (
+            {paginatedDriversByStatus.map((driver, index) => (
               <TableRow 
                 key={driver._id}
                 sx={{ 
@@ -762,7 +804,7 @@ export default function Drivers() {
 
         <TablePagination
           component="div"
-          count={filteredDrivers.length}
+          count={filteredDriversByStatus.length}
           page={page}
           onPageChange={(event, newPage) => setPage(newPage)}
           rowsPerPage={rowsPerPage}

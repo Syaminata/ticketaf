@@ -125,7 +125,7 @@ const updateUser = async (req, res) => {
 
     // Gestion des erreurs de clé unique (doublons)
     if (err.code === 11000) {
-      return res.status(400).json({ message: 'Email ou numéro déjà utilisé' });
+      return res.status(400).json({ message: 'Numéro déjà utilisé' });
     }
 
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
