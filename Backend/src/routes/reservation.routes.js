@@ -6,6 +6,41 @@ const reservationController = require('../controllers/reservation.controller');
 
 /**
  * @swagger
+ * /reservations/me:
+ *   get:
+ *     summary: Récupère les réservations de l'utilisateur connecté
+ *     tags: [Reservations]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des réservations de l'utilisateur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Reservation'
+ *       401:
+ *         description: Non autorisé
+ *       500:
+ *         description: Erreur serveur
+ */
+router.get('/me', auth, async (req, res) => {
+  try {
+    const reservations = await Reservation.find({ user: req.user.id })
+      .populate('voyage')
+      .populate('bus')
+      .populate('user', '-password');
+    res.json(reservations);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+/**
+ * @swagger
  * /reservations/chart:
  *   get:
  *     summary: Statistiques des réservations des 7 derniers jours
