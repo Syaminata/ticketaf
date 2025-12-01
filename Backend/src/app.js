@@ -173,7 +173,7 @@ app.get('/api/buses', busController.getAllBuses);
  *         description: Bus non trouvé
  */
 app.get('/api/buses/:id', validateObjectId, busController.getBusById);
-
+app.get('/api/buses', busController.searchBuses);
 /**
  * @swagger
  * /buses/{id}:

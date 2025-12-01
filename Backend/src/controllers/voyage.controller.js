@@ -103,4 +103,31 @@ const deleteVoyage = async (req, res) => {
   }
 };
 
-module.exports = { createVoyage, getAllVoyage, getAllVoyageIncludingExpired, getVoyageById, updateVoyage, deleteVoyage };
+const searchVoyages = async (req, res) => {
+  try {
+    const { from, to, date } = req.query;
+    const query = {};
+
+    if (from) query.from = { $regex: from, $options: 'i' };
+    if (to) query.to = { $regex: to, $options: 'i' };
+    
+    if (date) {
+      const searchDate = new Date(date);
+      const nextDay = new Date(searchDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      
+      query.date = {
+        $gte: searchDate,
+        $lt: nextDay
+      };
+    }
+
+    const voyages = await Voyage.find(query).populate('driver', '-password');
+    res.json(voyages);
+  } catch (err) {
+    console.error('Erreur lors de la recherche de voyages:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+module.exports = { createVoyage, getAllVoyage, getAllVoyageIncludingExpired, getVoyageById, updateVoyage, deleteVoyage, searchVoyages };

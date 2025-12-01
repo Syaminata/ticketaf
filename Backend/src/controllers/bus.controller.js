@@ -145,5 +145,32 @@ const deactivateBus = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
+// Dans bus.controller.js
+const searchBuses = async (req, res) => {
+  try {
+    const { from, to, date, type } = req.query;
+    const query = { isActive: true }; // Seulement les bus actifs
 
-module.exports = { createBus, getAllBuses, getBusById, updateBus, deleteBus, migrateBusSeats, activateBus, deactivateBus };
+    if (from) query.from = { $regex: from, $options: 'i' }; // Recherche insensible à la casse
+    if (to) query.to = { $regex: to, $options: 'i' };
+    
+    if (date) {
+      const searchDate = new Date(date);
+      const nextDay = new Date(searchDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      
+      query.departureDate = {
+        $gte: searchDate,
+        $lt: nextDay
+      };
+    }
+
+    const buses = await Bus.find(query);
+    res.json(buses);
+  } catch (err) {
+    console.error('Erreur lors de la recherche de bus:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+module.exports = { createBus, getAllBuses, getBusById, updateBus, deleteBus, migrateBusSeats, activateBus, deactivateBus, searchBuses };

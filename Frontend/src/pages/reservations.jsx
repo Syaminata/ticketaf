@@ -970,7 +970,7 @@ const confirmDelete = async (id) => {
                 </Button>
               </Box>
               <Autocomplete
-                options={users || []}
+                options={(users || []).slice(0, 3)}
                 getOptionLabel={(option) => `${option.name} • ${option.numero}`}
                 value={formData.userId}
                 onChange={(e, newValue) => {
@@ -1213,7 +1213,7 @@ const confirmDelete = async (id) => {
                       {...params} 
                       label="Bus" 
                       required
-                      helperText={buses?.length === 0 ? "Aucun bus disponible" : `${buses?.length || 0} bus disponible(s)`}
+                      helperText={buses?.filter(bus => bus.isActive).length === 0 ? "Aucun bus disponible" : `${buses?.filter(bus => bus.isActive).length || 0} bus disponible(s)`}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: '12px',

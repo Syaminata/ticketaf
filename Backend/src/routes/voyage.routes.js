@@ -123,7 +123,7 @@ router.get('/all/including-expired', voyageController.getAllVoyageIncludingExpir
  *         description: Voyage non trouvé
  */
 router.get('/:id', voyageController.getVoyageById);
-
+router.get('/api/voyages', voyageController.searchVoyages);
 /**
  * @swagger
  * /voyages/{id}:
