@@ -1157,15 +1157,16 @@ const confirmDelete = async (id) => {
                   )}
                 </Typography>
                 <Autocomplete
-                  options={buses?.slice(0, 3) || []}
+                  options={(buses?.filter(bus => bus.isActive) || []).slice(0, 3)}
                   getOptionLabel={(option) => `${option.name} • ${option.from} → ${option.to}`}
                   value={formData.busId}
                   onChange={(e, newValue) => {
                     console.log('Bus sélectionné:', newValue);
                     setFormData({ ...formData, busId: newValue });
                   }}
-                  noOptionsText="Aucun bus trouvé"
+                  noOptionsText="Aucun bus disponible"
                   loadingText="Chargement des bus..."
+                  isOptionEqualToValue={(option, value) => option._id === value._id}
                   renderOption={(props, option) => (
                     <li {...props}>
                       <Box sx={{ width: '100%' }}>
