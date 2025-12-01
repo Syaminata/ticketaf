@@ -40,7 +40,8 @@ const getAllBuses = async (req, res) => {
     const now = new Date();
 
     const buses = await Bus.find({
-      departureDate: { $gte: now }
+      departureDate: { $gte: now },
+      isActive: true // Ne retourner que les bus actifs
     });
 
     // Migration: Corriger les bus qui n'ont pas de availableSeats
