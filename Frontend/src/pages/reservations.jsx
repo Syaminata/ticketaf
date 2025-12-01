@@ -971,7 +971,7 @@ const confirmDelete = async (id) => {
               </Box>
               <Autocomplete
                 options={users || []}
-                getOptionLabel={(option) => `${option.name} • ${option.email}`}
+                getOptionLabel={(option) => `${option.name} • ${option.numero}`}
                 value={formData.userId}
                 onChange={(e, newValue) => {
                   console.log('Utilisateur sélectionné:', newValue);
@@ -1076,7 +1076,7 @@ const confirmDelete = async (id) => {
                   )}
                 </Typography>
                 <Autocomplete
-                  options={voyages || []}
+                  options={voyages?.slice(0, 3) || []}
                   getOptionLabel={(option) => `${option.from} → ${option.to} • ${formatDateShort(option.date)} • ${option.price} FCFA • ${option.availableSeats || 0} places`}
                   value={formData.voyageId}
                   onChange={(e, newValue) => {
@@ -1085,6 +1085,31 @@ const confirmDelete = async (id) => {
                   }}
                   noOptionsText="Aucun voyage trouvé"
                   loadingText="Chargement des voyages..."
+                  renderOption={(props, option) => (
+                    <li {...props}>
+                      <Box sx={{ width: '100%' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="body1">
+                            {option.from} → {option.to}
+                          </Typography>
+                          <Chip 
+                            label={`${option.availableSeats || 0} places`} 
+                            size="small" 
+                            color={option.availableSeats > 0 ? 'success' : 'error'}
+                            variant="outlined"
+                          />
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {formatDateShort(option.date)}
+                          </Typography>
+                          <Typography variant="body2" fontWeight="bold">
+                            {option.price} FCFA
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </li>
+                  )}
                   renderInput={(params) => (
                     <TextField 
                       {...params} 
@@ -1132,8 +1157,8 @@ const confirmDelete = async (id) => {
                   )}
                 </Typography>
                 <Autocomplete
-                  options={buses || []}
-                  getOptionLabel={(option) => `${option.name} • ${option.from} → ${option.to} • ${option.availableSeats || 0}/${option.capacity} places • ${formatDateShort(option.departureDate)}`}
+                  options={buses?.slice(0, 3) || []}
+                  getOptionLabel={(option) => `${option.name} • ${option.from} → ${option.to}`}
                   value={formData.busId}
                   onChange={(e, newValue) => {
                     console.log('Bus sélectionné:', newValue);
@@ -1141,6 +1166,47 @@ const confirmDelete = async (id) => {
                   }}
                   noOptionsText="Aucun bus trouvé"
                   loadingText="Chargement des bus..."
+                  renderOption={(props, option) => (
+                    <li {...props}>
+                      <Box sx={{ width: '100%' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="body1" fontWeight="medium">
+                            {option.name}
+                          </Typography>
+                          <Chip 
+                            label={`${option.availableSeats || 0}/${option.capacity} places`} 
+                            size="small" 
+                            color={option.availableSeats > 0 ? 'success' : 'error'}
+                            variant="outlined"
+                          />
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            {option.from} → {option.to}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {formatDateShort(option.departureDate)}
+                          </Typography>
+                          <Typography variant="body2" fontWeight="bold">
+                            {option.price} FCFA
+                          </Typography>
+                        </Box>
+                        {!option.isActive && (
+                          <Box sx={{ mt: 1 }}>
+                            <Chip 
+                              label="Non disponible" 
+                              size="small" 
+                              color="error"
+                              variant="outlined"
+                              sx={{ fontSize: '0.7rem' }}
+                            />
+                          </Box>
+                        )}
+                      </Box>
+                    </li>
+                  )}
                   renderInput={(params) => (
                     <TextField 
                       {...params} 

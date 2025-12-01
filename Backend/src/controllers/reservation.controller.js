@@ -41,6 +41,12 @@ const createReservation = async (req, res) => {
     if (busId) {
       const bus = await Bus.findById(busId);
       if (!bus) return res.status(404).json({ message: 'Bus non trouvé' });
+      
+      // Vérifier si le bus est actif
+      if (bus.isActive === false) {
+        return res.status(400).json({ message: 'Ce bus n\'est pas disponible pour le moment' });
+      }
+      
       if (ticket === 'place' && (bus.availableSeats === undefined || bus.availableSeats === null)) {
         await Bus.findByIdAndUpdate(busId, { availableSeats: bus.capacity });
         bus.availableSeats = bus.capacity;
