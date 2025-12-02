@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
 
+// Dans c:\dev\ticketaf\Backend\src\middleware\auth.js
+
 const auth = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
@@ -11,17 +13,27 @@ const auth = async (req, res, next) => {
 
     const jwtSecret = process.env.JWT_SECRET || 'default_jwt_secret_change_in_production';
     const decoded = jwt.verify(token, jwtSecret);
-    const user = await User.findById(decoded.id).select('-password');
+    
+    // Vérifier d'abord dans la table User
+    let user = await User.findById(decoded.id).select('-password');
+    
+    // Si non trouvé, vérifier dans la table Driver
+    if (!user) {
+      user = await Driver.findById(decoded.id).select('-password');
+      if (user) {
+        user = user.toObject();
+        user.role = 'conducteur'; // Ajouter le rôle conducteur
+      }
+    }
     
     if (!user) {
-      return res.status(401).json({ message: 'Token invalide' });
+      return res.status(401).json({ message: 'Utilisateur non trouvé' });
     }
 
     req.user = user;
     next();
   } catch (err) {
     console.error('Erreur auth middleware:', err.message);
-    // Ne pas logger les erreurs JWT normales (tokens expirés/invalides)
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(401).json({ message: 'Token invalide ou expiré' });
     }
@@ -29,7 +41,7 @@ const auth = async (req, res, next) => {
   }
 };
 
-// Middleware pour vérifier les rôles admin et superadmin
+// Le middleware adminAuth reste inchangé
 const adminAuth = (req, res, next) => {
   if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
     return res.status(403).json({ message: 'Accès refusé. Rôle admin ou superadmin requis.' });
@@ -37,7 +49,7 @@ const adminAuth = (req, res, next) => {
   next();
 };
 
-// Middleware pour vérifier le rôle superadmin uniquement
+// Le middleware superAdminAuth reste inchangé
 const superAdminAuth = (req, res, next) => {
   if (req.user.role !== 'superadmin') {
     return res.status(403).json({ message: 'Accès refusé. Rôle superadmin requis.' });
