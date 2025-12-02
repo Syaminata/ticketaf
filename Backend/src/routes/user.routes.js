@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAllUsers, getUserById, createUser, updateUser, deleteUser } = require('../controllers/user.controller');
+const { getAllUsers, getUserById, createUser, updateUser, deleteUser, updateProfile } = require('../controllers/user.controller');
 const { auth, adminAuth } = require('../middleware/auth');
 
 /**
@@ -170,5 +170,52 @@ router.put('/:id', auth, adminAuth, updateUser);
  *         description: Utilisateur non trouvé
  */
 router.delete('/:id', auth, adminAuth, deleteUser);
+
+/**
+ * @swagger
+ * /users/profile:
+ *   put:
+ *     summary: Mettre à jour le profil de l'utilisateur connecté
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nouveau nom de l'utilisateur
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Nouvel email (optionnel)
+ *               numero:
+ *                 type: string
+ *                 description: Nouveau numéro de téléphone
+ *               currentPassword:
+ *                 type: string
+ *                 description: Mot de passe actuel (requis pour changer de mot de passe)
+ *               newPassword:
+ *                 type: string
+ *                 description: Nouveau mot de passe (optionnel)
+ *     responses:
+ *       200:
+ *         description: Profil mis à jour avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Données de requête invalides ou mot de passe actuel incorrect
+ *       401:
+ *         description: Non authentifié
+ *       500:
+ *         description: Erreur serveur
+ */
+router.put('/profile', auth, updateProfile);
 
 module.exports = router;

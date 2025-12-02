@@ -149,4 +149,78 @@ const deleteUser = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers, getUserById, createUser, updateUser, deleteUser };
+const updateProfile = async (req, res) => {
+  try {
+    const { name, email, currentPassword, newPassword, numero } = req.body;
+    const userId = req.user.id; // L'ID de l'utilisateur connecté
+    const isDriver = req.user.role === 'conducteur';
+
+    // Construction des champs à mettre à jour
+    const updateData = { name, numero };
+    
+    // Gérer l'email optionnel
+    if (email !== undefined) {
+      updateData.email = email || undefined;
+    }
+
+    // Vérifier si l'utilisateur existe
+    const Model = isDriver ? Driver : User;
+    const user = await Model.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+
+    // Vérifier le mot de passe actuel si un nouveau mot de passe est fourni
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ message: 'Le mot de passe actuel est requis pour modifier le mot de passe' });
+      }
+      
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Mot de passe actuel incorrect' });
+      }
+      
+      // Hacher le nouveau mot de passe
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(newPassword, salt);
+    }
+
+    // Mettre à jour l'utilisateur
+    const updatedUser = await Model.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true, runValidators: true, context: 'query' }
+    ).select('-password');
+
+    res.status(200).json({ 
+      message: 'Profil mis à jour avec succès', 
+      user: updatedUser 
+    });
+  } catch (err) {
+    console.error('Erreur updateProfile:', err);
+
+    // Gestion des erreurs de validation Mongoose
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(e => e.message);
+      return res.status(400).json({ message: 'Erreur de validation', errors: messages });
+    }
+
+    // Gestion des erreurs de clé unique (doublons)
+    if (err.code === 11000) {
+      return res.status(400).json({ message: 'Numéro déjà utilisé' });
+    }
+
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+module.exports = { 
+  getAllUsers, 
+  getUserById, 
+  createUser, 
+  updateUser, 
+  deleteUser, 
+  updateProfile 
+};
