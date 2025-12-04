@@ -151,7 +151,7 @@ const deleteUser = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const { name, email, currentPassword, newPassword, numero } = req.body;
+    const { name, email, numero } = req.body;
     const userId = req.user.id; // L'ID de l'utilisateur connecté
     const isDriver = req.user.role === 'conducteur';
 
@@ -171,22 +171,6 @@ const updateProfile = async (req, res) => {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
-    // Vérifier le mot de passe actuel si un nouveau mot de passe est fourni
-    if (newPassword) {
-      if (!currentPassword) {
-        return res.status(400).json({ message: 'Le mot de passe actuel est requis pour modifier le mot de passe' });
-      }
-      
-      const isMatch = await bcrypt.compare(currentPassword, user.password);
-      if (!isMatch) {
-        return res.status(400).json({ message: 'Mot de passe actuel incorrect' });
-      }
-      
-      // Hacher le nouveau mot de passe
-      const salt = await bcrypt.genSalt(10);
-      updateData.password = await bcrypt.hash(newPassword, salt);
-    }
-
     // Mettre à jour l'utilisateur
     const updatedUser = await Model.findByIdAndUpdate(
       userId,
@@ -195,6 +179,7 @@ const updateProfile = async (req, res) => {
     ).select('-password');
 
     res.status(200).json({ 
+      success: true,
       message: 'Profil mis à jour avec succès', 
       user: updatedUser 
     });
@@ -216,11 +201,65 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id; // L'ID de l'utilisateur connecté
+    const isDriver = req.user.role === 'conducteur';
+
+    // Vérifier que les champs requis sont présents
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Le mot de passe actuel et le nouveau mot de passe sont requis' 
+      });
+    }
+
+    // Vérifier si l'utilisateur existe
+    const Model = isDriver ? Driver : User;
+    const user = await Model.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Utilisateur non trouvé' 
+      });
+    }
+
+    // Vérifier le mot de passe actuel
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Mot de passe actuel incorrect' 
+      });
+    }
+    
+    // Hacher le nouveau mot de passe
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Mot de passe mis à jour avec succès' 
+    });
+  } catch (err) {
+    console.error('Erreur changePassword:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur serveur lors du changement de mot de passe',
+      error: err.message 
+    });
+  }
+};
+
 module.exports = { 
   getAllUsers, 
   getUserById, 
   createUser, 
   updateUser, 
   deleteUser, 
-  updateProfile 
+  updateProfile,
+  changePassword
 };

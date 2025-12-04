@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAllUsers, getUserById, createUser, updateUser, deleteUser, updateProfile } = require('../controllers/user.controller');
+const { getAllUsers, getUserById, createUser, updateUser, deleteUser, updateProfile, changePassword } = require('../controllers/user.controller');
 const { auth, adminAuth } = require('../middleware/auth');
 
 /**
@@ -99,12 +99,6 @@ router.get('/me', auth, (req, res) => {
  *               numero:
  *                 type: string
  *                 description: Nouveau numéro de téléphone
- *               currentPassword:
- *                 type: string
- *                 description: Mot de passe actuel (requis pour changer de mot de passe)
- *               newPassword:
- *                 type: string
- *                 description: Nouveau mot de passe (optionnel)
  *     responses:
  *       200:
  *         description: Profil mis à jour avec succès
@@ -113,13 +107,59 @@ router.get('/me', auth, (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/User'
  *       400:
- *         description: Données de requête invalides ou mot de passe actuel incorrect
+ *         description: Données de requête invalides
+ *       401:
+ *         description: Non authentifié
+ */
+router.put('/profile', auth, updateProfile);
+
+/**
+ * @swagger
+ * /users/change-password:
+ *   put:
+ *     summary: Changer le mot de passe de l'utilisateur connecté
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 description: Mot de passe actuel de l'utilisateur
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 description: Nouveau mot de passe
+ *     responses:
+ *       200:
+ *         description: Mot de passe mis à jour avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Mot de passe mis à jour avec succès
+ *       400:
+ *         description: Données de requête invalides
  *       401:
  *         description: Non authentifié
  *       500:
  *         description: Erreur serveur
  */
-router.put('/profile', auth, updateProfile);
+router.put('/change-password', auth, changePassword);
 /**
  * @swagger
  * /users/{id}:
