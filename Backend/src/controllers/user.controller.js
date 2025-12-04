@@ -235,9 +235,8 @@ const changePassword = async (req, res) => {
       });
     }
     
-    // Hacher le nouveau mot de passe
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    // Mettre à jour le mot de passe (le middleware pre('save') s'occupera du hachage)
+    user.password = newPassword;
     await user.save();
 
     res.status(200).json({ 
