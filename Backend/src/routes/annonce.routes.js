@@ -95,8 +95,6 @@ router.post('/', auth, adminAuth, upload.single('image'), createAnnonce);
  *   get:
  *     summary: Récupérer toutes les annonces
  *     tags: [Annonces]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Liste des annonces
@@ -107,7 +105,7 @@ router.post('/', auth, adminAuth, upload.single('image'), createAnnonce);
  *               items:
  *                 $ref: '#/components/schemas/Annonce'
  */
-router.get('/', auth, listAnnonces);
+router.get('/', listAnnonces);
 
 /**
  * @swagger
