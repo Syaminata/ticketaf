@@ -14,6 +14,7 @@ import Historique from './pages/historique';
 import Annonce from './pages/annonces'
 import Profile from './pages/Profile';
 import storage from './utils/storage';
+import Colis from './pages/colis';
 
 function ProtectedRoute({ children, user, role, allowedRoles }) {
   if (!user) return <Navigate to="/login" replace />;
@@ -124,6 +125,16 @@ function App() {
             <ProtectedRoute user={user} allowedRoles={['admin', 'superadmin']}>
               <AdminLayout>
                 <Reservations />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/colis"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['admin', 'superadmin']}>
+             <AdminLayout>
+                <Colis />
               </AdminLayout>
             </ProtectedRoute>
           }

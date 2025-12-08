@@ -43,6 +43,7 @@ const Sidebar = ({ onLogout }) => {
     { text: 'Conducteurs', icon: <CommuteIcon />, path: '/drivers' },
     { text: 'Voyages', icon: <DirectionsBusIcon />, path: '/voyage' },
     { text: 'Réservations', icon: <ConfirmationNumberIcon />, path: '/reservations' },
+    { text: 'Colis', icon: <LocalShippingIcon />, path: '/colis' },
     { text: 'Bus', icon: <DirectionsBusIcon />, path: '/buses' },
     { text: 'Annonces', icon: <CampaignIcon/>, path: '/annonces' },
     { text: 'Historique', icon: <HistoryIcon/>, path: '/historique' },

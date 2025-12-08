@@ -1,63 +1,128 @@
+const path = require('path');
+const fs = require('fs');
+const { uploadColisImage, deleteColisImage } = require('../middleware/upload');
 const Colis = require('../models/colis.model');
-const Place = require('../models/place.model');
-const ColisModel = require('../models/colis.model');
 const Voyage = require('../models/voyage.model');
+const User = require('../models/user.model');
 
-// Créer un colis
+// Créer un colis avec upload d'image
 const createColis = async (req, res) => {
   try {
-    const colisData = {
-      ...req.body,
-      type: 'colis',
-      createdBy: req.user._id
-    };
+    // Gérer l'upload de l'image
+    uploadColisImage(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({ 
+          message: 'Erreur lors du téléchargement de l\'image',
+          error: err.message 
+        });
+      }
 
-    const colis = await ColisModel.create(colisData);
-    res.status(201).json({ message: 'Colis créé avec succès', colis });
+      const { description, destinataire, poids, dimensions, voyageId } = req.body;
+      
+      // Validation des champs obligatoires
+      if (!voyageId) {
+        return res.status(400).json({ message: 'Le voyage est requis' });
+      }
+
+      if (!destinataire || !destinataire.nom || !destinataire.telephone) {
+        return res.status(400).json({ 
+          message: 'Les informations du destinataire sont requises (nom et téléphone)' 
+        });
+      }
+
+      // Vérifier que le voyage existe
+      const voyage = await Voyage.findById(voyageId);
+      if (!voyage) {
+        return res.status(404).json({ message: 'Voyage non trouvé' });
+      }
+
+      // Valider le statut s'il est fourni
+      if (req.body.status && !['en attente', 'envoyé', 'reçu', 'annulé'].includes(req.body.status)) {
+        return res.status(400).json({ 
+          message: 'Statut invalide. Les statuts valides sont: en attente, envoyé, reçu, annulé' 
+        });
+      }
+
+      // Vérifier que l'utilisateur existe
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      }
+
+      // Créer le colis
+      const colisData = {
+        voyage: voyageId,
+        expediteur: req.user._id,
+        destinataire: {
+          nom: destinataire.nom,
+          telephone: destinataire.telephone,
+          adresse: destinataire.adresse || ''
+        },
+        description: description || '',
+        poids: poids || 0,
+        dimensions: dimensions || { longueur: 0, largeur: 0, hauteur: 0 },
+        status: 'en attente',
+        trackingNumber: 'COL' + Date.now().toString().slice(-9),
+        createdBy: req.user._id
+      };
+
+      // Ajouter l'image si elle existe
+      if (req.file) {
+        colisData.imageUrl = `/uploads/colis/${req.file.filename}`;
+      }
+
+      const colis = await Colis.create(colisData);
+      
+      // Populer les références pour la réponse
+      const populatedColis = await Colis.findById(colis._id)
+        .populate('expediteur', 'name email phone')
+        .populate('voyage', 'from to date price');
+
+      res.status(201).json({ 
+        message: 'Colis créé avec succès', 
+        colis: populatedColis 
+      });
+    });
   } catch (err) {
     console.error('Erreur createColis:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ 
+      message: 'Erreur lors de la création du colis', 
+      error: err.message 
+    });
   }
 };
 
-// Créer une réservation de place
-const createPlace = async (req, res) => {
+// Récupérer les colis d'un utilisateur
+const getUserColis = async (req, res) => {
   try {
-    const placeData = {
-      ...req.body,
-      type: 'place',
-      createdBy: req.user._id
-    };
-
-    const place = await Place.create(placeData);
-    res.status(201).json({ message: 'Place réservée avec succès', place });
+    const colis = await Colis.find({ expediteur: req.user._id })
+      .populate('voyage', 'from to date price')
+      .sort({ createdAt: -1 });
+      
+    res.status(200).json(colis);
   } catch (err) {
-    console.error('Erreur createPlace:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    console.error('Erreur getUserColis:', err);
+    res.status(500).json({ 
+      message: 'Erreur lors de la récupération des colis', 
+      error: err.message 
+    });
   }
 };
 
-// Récupérer tous les colis et places
+// Récupérer tous les colis (admin)
 const getAllColis = async (req, res) => {
   try {
-    const { type, status, from, to, date } = req.query;
+    const { status, voyageId, expediteur } = req.query;
     
     let filter = {};
     
-    if (type) filter.type = type;
     if (status) filter.status = status;
-    if (from) filter.from = new RegExp(from, 'i');
-    if (to) filter.to = new RegExp(to, 'i');
-    if (date) {
-      const startDate = new Date(date);
-      const endDate = new Date(date);
-      endDate.setDate(endDate.getDate() + 1);
-      filter.date = { $gte: startDate, $lt: endDate };
-    }
+    if (voyageId) filter.voyage = voyageId;
+    if (expediteur) filter.expediteur = expediteur;
 
     const colis = await Colis.find(filter)
-      .populate('voyage', 'departure arrival price')
-      .populate('driver', 'name phone')
+      .populate('expediteur', 'name email phone')
+      .populate('voyage', 'from to date')
       .populate('createdBy', 'name email')
       .sort({ createdAt: -1 });
 
@@ -72,8 +137,9 @@ const getAllColis = async (req, res) => {
 const getColisById = async (req, res) => {
   try {
     const colis = await Colis.findById(req.params.id)
-      .populate('voyage', 'departure arrival price')
-      .populate('driver', 'name phone')
+      .populate('expediteur', 'name email phone')
+      .populate('voyage', 'from to date driver')
+      .populate('voyage.driver', 'name phone')
       .populate('createdBy', 'name email');
 
     if (!colis) {
@@ -87,41 +153,98 @@ const getColisById = async (req, res) => {
   }
 };
 
-// Mettre à jour un colis/place
+// Mettre à jour un colis 
 const updateColis = async (req, res) => {
   try {
-    const colis = await Colis.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    ).populate('voyage', 'departure arrival price')
-     .populate('driver', 'name phone')
-     .populate('createdBy', 'name email');
+    // Gérer l'upload de la nouvelle image si elle existe
+    uploadColisImage(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({ 
+          message: 'Erreur lors du téléchargement de l\'image',
+          error: err.message 
+        });
+      }
 
-    if (!colis) {
-      return res.status(404).json({ message: 'Colis/Place non trouvé' });
-    }
+      const { destinataire, ...updateData } = req.body;
+      const colis = await Colis.findById(req.params.id);
 
-    res.status(200).json({ message: 'Colis/Place mis à jour', colis });
+      if (!colis) {
+        return res.status(404).json({ message: 'Colis non trouvé' });
+      }
+
+      // Valider le statut s'il est fourni
+      if (updateData.status && !['en attente', 'envoyé', 'reçu', 'annulé'].includes(updateData.status)) {
+        return res.status(400).json({ 
+          message: 'Statut invalide. Les statuts valides sont: en attente, envoyé, reçu, annulé' 
+        });
+      }
+
+      // Mise à jour des champs du destinataire si fournis
+      if (destinataire) {
+        updateData.$set = updateData.$set || {};
+        if (destinataire.nom) updateData.$set['destinataire.nom'] = destinataire.nom;
+        if (destinataire.telephone) updateData.$set['destinataire.telephone'] = destinataire.telephone;
+        if (destinataire.adresse) updateData.$set['destinataire.adresse'] = destinataire.adresse;
+      }
+
+      // Si une nouvelle image est téléchargée
+      if (req.file) {
+        // Supprimer l'ancienne image si elle existe
+        if (colis.imageUrl) {
+          const oldFilename = path.basename(colis.imageUrl);
+          deleteColisImage(oldFilename);
+        }
+        updateData.$set = updateData.$set || {};
+        updateData.$set.imageUrl = `/uploads/colis/${req.file.filename}`;
+      }
+
+      const updatedColis = await Colis.findByIdAndUpdate(
+        req.params.id,
+        updateData,
+        { new: true, runValidators: true }
+      )
+      .populate('expediteur', 'name email phone')
+      .populate('voyage', 'from to date driver')
+      .populate('createdBy', 'name email');
+
+      res.status(200).json({ 
+        message: 'Colis mis à jour avec succès', 
+        colis: updatedColis 
+      });
+    });
   } catch (err) {
     console.error('Erreur updateColis:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ 
+      message: 'Erreur lors de la mise à jour du colis', 
+      error: err.message 
+    });
   }
 };
 
-// Supprimer un colis/place
+// Supprimer un colis
 const deleteColis = async (req, res) => {
   try {
-    const colis = await Colis.findByIdAndDelete(req.params.id);
+    const colis = await Colis.findById(req.params.id);
 
     if (!colis) {
-      return res.status(404).json({ message: 'Colis/Place non trouvé' });
+      return res.status(404).json({ message: 'Colis non trouvé' });
     }
 
-    res.status(200).json({ message: 'Colis/Place supprimé' });
+    // Supprimer l'image associée si elle existe
+    if (colis.imageUrl) {
+      const filename = path.basename(colis.imageUrl);
+      deleteColisImage(filename);
+    }
+
+    await Colis.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({ message: 'Colis supprimé avec succès' });
   } catch (err) {
     console.error('Erreur deleteColis:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ 
+      message: 'Erreur lors de la suppression du colis', 
+      error: err.message 
+    });
   }
 };
 
@@ -129,10 +252,16 @@ const deleteColis = async (req, res) => {
 const trackColis = async (req, res) => {
   try {
     const { trackingNumber } = req.params;
-    
     const colis = await Colis.findOne({ trackingNumber })
-      .populate('voyage', 'departure arrival')
-      .populate('driver', 'name phone');
+      .populate('voyage', 'from to date')
+      .populate('expediteur', 'name phone')
+      .populate({
+        path: 'voyage',
+        populate: {
+          path: 'driver',
+          select: 'name phone'
+        }
+      });
 
     if (!colis) {
       return res.status(404).json({ message: 'Colis non trouvé' });
@@ -148,22 +277,29 @@ const trackColis = async (req, res) => {
 // Statistiques des colis et places
 const getColisStats = async (req, res) => {
   try {
-    const totalColis = await ColisModel.countDocuments();
-    const totalPlaces = await Place.countDocuments();
+    const totalColis = await Colis.countDocuments();
     
-    const colisByStatus = await ColisModel.aggregate([
+    const colisByStatus = await Colis.aggregate([
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
     
-    const placesByStatus = await Place.aggregate([
-      { $group: { _id: '$status', count: { $sum: 1 } } }
+    const colisByMonth = await Colis.aggregate([
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
     ]);
 
     res.status(200).json({
       totalColis,
-      totalPlaces,
-      colisByStatus,
-      placesByStatus
+      colisByStatus: colisByStatus.reduce((acc, curr) => ({
+        ...acc,
+        [curr._id]: curr.count
+      }), {}),
+      colisByMonth
     });
   } catch (err) {
     console.error('Erreur getColisStats:', err);
@@ -173,7 +309,7 @@ const getColisStats = async (req, res) => {
 
 module.exports = {
   createColis,
-  createPlace,
+  getUserColis,
   getAllColis,
   getColisById,
   updateColis,
