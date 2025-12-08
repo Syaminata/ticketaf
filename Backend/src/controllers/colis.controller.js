@@ -8,97 +8,62 @@ const User = require('../models/user.model');
 // Créer un colis avec upload d'image
 const createColis = async (req, res) => {
   try {
-    // Gérer l'upload de l'image
-    uploadColisImage(req, res, async (err) => {
-      if (err) {
-        return res.status(400).json({ 
-          message: 'Erreur lors du téléchargement de l\'image',
-          error: err.message 
-        });
-      }
+    // Récupérer les données du formulaire
+    const { description, voyageId } = req.body;
+    const destinataire = {
+      nom: req.body['destinataire[nom]'],
+      telephone: req.body['destinataire[telephone]'],
+      adresse: req.body['destinataire[adresse]'] || ''
+    };
 
-      const { description, destinataire, voyageId } = req.body;
-      
-      // Validation des champs obligatoires
-      if (!voyageId) {
-        return res.status(400).json({ message: 'Le voyage est requis' });
-      }
+    // Validation des champs obligatoires
+    if (!voyageId) {
+      return res.status(400).json({ message: 'Le voyage est requis' });
+    }
 
-      let destinataireData;
-      try {
-        // Si destinataire est une chaîne, on essaie de le parser en JSON
-        destinataireData = typeof destinataire === 'string' ? JSON.parse(destinataire) : destinataire;
-      } catch (e) {
-        return res.status(400).json({ 
-          message: 'Format des données du destinataire invalide' 
-        });
-      }
-
-      if (!destinataireData || !destinataireData.nom || !destinataireData.telephone) {
-        return res.status(400).json({ 
-          message: 'Les informations du destinataire sont requises (nom et téléphone)' 
-        });
-      }
-
-      // Vérifier que le voyage existe
-      const voyage = await Voyage.findById(voyageId);
-      if (!voyage) {
-        return res.status(404).json({ message: 'Voyage non trouvé' });
-      }
-
-      // Valider le statut s'il est fourni
-      if (req.body.status && !['en attente', 'envoyé', 'reçu', 'annulé'].includes(req.body.status)) {
-        return res.status(400).json({ 
-          message: 'Statut invalide. Les statuts valides sont: en attente, envoyé, reçu, annulé' 
-        });
-      }
-
-      // Vérifier que l'utilisateur existe
-      const user = await User.findById(req.user._id);
-      if (!user) {
-        return res.status(404).json({ message: 'Utilisateur non trouvé' });
-      }
-
-      // Créer le colis
-      const colisData = {
-        voyage: voyageId,
-        expediteur: req.user._id,
-        destinataire: {
-          nom: destinataireData.nom,
-          telephone: destinataireData.telephone,
-          adresse: destinataireData.adresse || ''
-        },
-        description: description || '',
-        status: 'en attente',
-        trackingNumber: 'COL' + Date.now().toString().slice(-9),
-        createdBy: req.user._id
-      };
-
-      // Ajouter l'image si elle existe
-      if (req.file) {
-        colisData.imageUrl = `/uploads/colis/${req.file.filename}`;
-      }
-
-      const colis = await Colis.create(colisData);
-      
-      // Populer les références pour la réponse
-      const populatedColis = await Colis.findById(colis._id)
-        .populate('expediteur', 'name email phone')
-        .populate('voyage', 'from to date price');
-
-      res.status(201).json({ 
-        message: 'Colis créé avec succès', 
-        colis: populatedColis 
+    if (!destinataire.nom || !destinataire.telephone) {
+      return res.status(400).json({ 
+        message: 'Les informations du destinataire sont requises (nom et téléphone)' 
       });
+    }
+
+    // Vérifier que le voyage existe
+    const voyage = await Voyage.findById(voyageId);
+    if (!voyage) {
+      return res.status(404).json({ message: 'Voyage non trouvé' });
+    }
+
+    // Créer le colis
+    const colisData = {
+      voyage: voyageId,
+      expediteur: req.user._id,
+      destinataire: destinataire,
+      description: description || '',
+      status: 'en attente',
+      createdBy: req.user._id
+    };
+
+    // Si une image a été téléchargée
+    if (req.file) {
+      colisData.imageUrl = `/uploads/colis/${req.file.filename}`;
+    }
+
+    const colis = new Colis(colisData);
+    await colis.save();
+
+    // Peupler les références pour la réponse
+    const newColis = await Colis.findById(colis._id)
+      .populate('voyage', 'from to date')
+      .populate('expediteur', 'name email phone')
+      .populate('createdBy', 'name email');
+
+    res.status(201).json({
+      message: 'Colis créé avec succès',
+      colis: newColis
     });
-  } catch (err) {
-    console.error('Erreur createColis:', err);
-    console.error('Erreur complète:', err);
-    res.status(500).json({ 
-      message: 'Erreur lors de la création du colis', 
-      error: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    });
+  } catch (error) {
+    console.error('Erreur création colis:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
 
