@@ -251,9 +251,6 @@ export default function Colis() {
 
       if (imageFile) {
         submitData.append('image', imageFile);
-      } else if (editColis?.imageUrl) {
-        // Si pas de nouvelle image mais qu'il y en avait une avant
-        submitData.append('imageUrl', editColis.imageUrl);
       }
 
       // Afficher les données pour le débogage

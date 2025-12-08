@@ -140,74 +140,90 @@ const getColisById = async (req, res) => {
 };
  
 // Mettre à jour un colis 
+// Mettre à jour un colis 
 const updateColis = async (req, res) => {
   try {
-    // Gérer l'upload de la nouvelle image si elle existe
-    uploadColisImage(req, res, async (err) => {
-      if (err) {
-        return res.status(400).json({ 
-          message: 'Erreur lors du téléchargement de l\'image',
-          error: err.message 
-        });
-      }
+    const { destinataire, prix, description, status, voyageId } = req.body;
+    
+    const colis = await Colis.findById(req.params.id);
 
-      const { destinataire, prix, ...updateData } = req.body;
-      const colis = await Colis.findById(req.params.id);
+    if (!colis) {
+      return res.status(404).json({ message: 'Colis non trouvé' });
+    }
 
-      if (!colis) {
-        return res.status(404).json({ message: 'Colis non trouvé' });
-      }
+    // Préparer les données de mise à jour
+    const updateData = {};
 
-      // Valider le statut s'il est fourni
-      if (updateData.status && !['en attente', 'envoyé', 'reçu', 'annulé'].includes(updateData.status)) {
-        return res.status(400).json({ 
-          message: 'Statut invalide. Les statuts valides sont: en attente, envoyé, reçu, annulé' 
-        });
-      }
-
-      // Valider et mettre à jour le prix si fourni
-      if (prix !== undefined && prix !== null && prix !== '') {
-        const prixNumber = parseFloat(prix);
-        if (isNaN(prixNumber) || prixNumber < 0) {
-          return res.status(400).json({ 
-            message: 'Le prix doit être un nombre positif' 
-          });
-        }
-        updateData.prix = prixNumber;
-      }
-
-      // Mise à jour des champs du destinataire si fournis
-      if (destinataire) {
-        updateData.$set = updateData.$set || {};
-        if (destinataire.nom) updateData.$set['destinataire.nom'] = destinataire.nom;
-        if (destinataire.telephone) updateData.$set['destinataire.telephone'] = destinataire.telephone;
-        if (destinataire.adresse !== undefined) updateData.$set['destinataire.adresse'] = destinataire.adresse;
-      }
-
-      // Si une nouvelle image est téléchargée
-      if (req.file) {
-        // Supprimer l'ancienne image si elle existe
-        if (colis.imageUrl) {
-          const oldFilename = path.basename(colis.imageUrl);
-          deleteColisImage(oldFilename);
-        }
-        updateData.$set = updateData.$set || {};
-        updateData.$set.imageUrl = `/uploads/colis/${req.file.filename}`;
-      }
-
-      const updatedColis = await Colis.findByIdAndUpdate(
-        req.params.id,
-        updateData,
-        { new: true, runValidators: true }
-      )
-      .populate('expediteur', 'name email phone')
-      .populate('voyage', 'from to date driver')
-      .populate('createdBy', 'name email');
-
-      res.status(200).json({ 
-        message: 'Colis mis à jour avec succès', 
-        colis: updatedColis 
+    // Valider le statut s'il est fourni
+    if (status && !['en attente', 'envoyé', 'reçu', 'annulé'].includes(status)) {
+      return res.status(400).json({ 
+        message: 'Statut invalide. Les statuts valides sont: en attente, envoyé, reçu, annulé' 
       });
+    }
+
+    // Mettre à jour les champs simples
+    if (description !== undefined) updateData.description = description;
+    if (status !== undefined) updateData.status = status;
+    if (voyageId !== undefined) updateData.voyage = voyageId;
+
+    // Valider et mettre à jour le prix si fourni
+    if (prix !== undefined && prix !== null && prix !== '') {
+      const prixNumber = parseFloat(prix);
+      if (isNaN(prixNumber) || prixNumber < 0) {
+        return res.status(400).json({ 
+          message: 'Le prix doit être un nombre positif' 
+        });
+      }
+      updateData.prix = prixNumber;
+    }
+
+    // Mise à jour des champs du destinataire si fournis
+    if (destinataire) {
+      updateData.$set = updateData.$set || {};
+      
+      // Parser le destinataire s'il vient du FormData
+      let destData = destinataire;
+      if (typeof destinataire === 'string') {
+        try {
+          destData = JSON.parse(destinataire);
+        } catch (e) {
+          // Si ce n'est pas du JSON, essayer de récupérer depuis req.body
+          destData = {
+            nom: req.body['destinataire[nom]'],
+            telephone: req.body['destinataire[telephone]'],
+            adresse: req.body['destinataire[adresse]']
+          };
+        }
+      }
+      
+      if (destData.nom) updateData.$set['destinataire.nom'] = destData.nom;
+      if (destData.telephone) updateData.$set['destinataire.telephone'] = destData.telephone;
+      if (destData.adresse !== undefined) updateData.$set['destinataire.adresse'] = destData.adresse;
+    }
+
+    // Gérer l'upload d'image UNIQUEMENT si un fichier est présent
+    if (req.file) {
+      // Supprimer l'ancienne image si elle existe
+      if (colis.imageUrl) {
+        const oldFilename = path.basename(colis.imageUrl);
+        deleteColisImage(oldFilename);
+      }
+      updateData.$set = updateData.$set || {};
+      updateData.$set.imageUrl = `/uploads/colis/${req.file.filename}`;
+    }
+
+    const updatedColis = await Colis.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    )
+    .populate('expediteur', 'name email phone')
+    .populate('voyage', 'from to date driver')
+    .populate('createdBy', 'name email');
+
+    res.status(200).json({ 
+      message: 'Colis mis à jour avec succès', 
+      colis: updatedColis 
     });
   } catch (err) {
     console.error('Erreur updateColis:', err);
