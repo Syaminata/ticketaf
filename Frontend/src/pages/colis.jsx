@@ -46,6 +46,7 @@ import {
   Visibility as VisibilityIcon,
   Inventory,
   Route,
+  Image
 } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
@@ -387,19 +388,20 @@ export default function Colis() {
       }}
     >
       <Typography 
-        component="span" // Utilisation de component="span" pour le texte
+        component="span" 
         variant="body2" 
-        sx={{ color: '#666666', fontWeight: 500 }}
+        sx={{ color: '#666666', fontWeight: 500,  }}
       >
         {label}
       </Typography>
       <Box 
-        component="span" // Utilisation de component="span" pour le contenu enfant
+        component="span" 
         sx={{ 
           textAlign: 'right', 
           fontWeight: 600, 
           color: '#1a1a1a',
-          display: 'inline-block' // Pour s'assurer que c'est un élément en ligne
+          display: 'inline-block' ,
+          fontFamily: 'Roboto, sans-serif',
         }}
       >
         {children}
@@ -941,22 +943,23 @@ export default function Colis() {
         cancelText="Annuler"
       />
 
-      
       {/* Dialog Détails */}
       <Dialog
         open={detailsOpen}
         onClose={handleCloseDetails}
-        maxWidth="md"
+        maxWidth="sm"
         fullWidth
         PaperProps={{
           sx: {
             borderRadius: '20px',
             boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
             overflow: 'hidden',
+            minHeight: '60vh',
+            display: 'flex',
+            flexDirection: 'column'
           },
         }}
       >
-        {/* ================= HEADER ================= */}
         <DialogTitle
           sx={{
             borderBottom: '3px solid #ffcc33',
@@ -974,50 +977,116 @@ export default function Colis() {
         </DialogTitle>
 
         {/* ================= CONTENT ================= */}
-        <DialogContent sx={{ p: 4 }}>
+        <DialogContent sx={{ p: 4, backgroundColor: '#ffffff'}}>
           {selectedColis && (
-            <Grid container spacing={4}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: '400px' }}>
+              
+              {/* Infos Colis */}
+              <Box>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 600,
+                    mb: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  <Inventory sx={{ color: '#ffcc33' }} />
+                  Informations du colis
+                </Typography>
 
-              {/* ====== COLONNE GAUCHE ====== */}
-              <Grid item xs={12} md={6}>
+                <Box sx={{ display: 'grid', gap: 2 }}>
+                  <InfoRow label="Statut">
+                    <Chip
+                      icon={getStatusIcon(selectedColis.status)}
+                      label={getStatusText(selectedColis.status)}
+                      color={getStatusColor(selectedColis.status)}
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </InfoRow>
 
-                {/* Infos Colis */}
-                <Box sx={{ mb: 4 }}>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 600,
-                      mb: 3,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                    }}
-                  >
-                    <Inventory sx={{ color: '#ffcc33' }} />
-                    Informations du colis
-                  </Typography>
+                  <InfoRow label="Description">
+                    {selectedColis.description || 'Aucune description'}
+                  </InfoRow>
 
-                  <Box sx={{ display: 'grid', gap: 2 }}>
-                    <InfoRow label="Statut">
-                      <Chip
-                        icon={getStatusIcon(selectedColis.status)}
-                        label={getStatusText(selectedColis.status)}
-                        color={getStatusColor(selectedColis.status)}
-                        sx={{ fontWeight: 600 }}
-                      />
-                    </InfoRow>
-
-                    <InfoRow label="Description">
-                      {selectedColis.description || 'Aucune description'}
-                    </InfoRow>
-
-                    <InfoRow label="Créé le">
-                      {new Date(selectedColis.createdAt).toLocaleString('fr-FR')}
-                    </InfoRow>
-                  </Box>
+                  <InfoRow label="Créé le">
+                    {new Date(selectedColis.createdAt).toLocaleString('fr-FR')}
+                  </InfoRow>
                 </Box>
+              </Box>
 
-                {/* Infos Voyage */}
+              {/* Infos Voyage */}
+              <Box>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 600,
+                    mb: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  <Route sx={{ color: '#ffcc33' }} />
+                  Informations du voyage
+                </Typography>
+
+                <Box sx={{ display: 'grid', gap: 2 }}>
+                  <InfoRow label="Trajet">
+                    {selectedColis.voyage?.from} → {selectedColis.voyage?.to}
+                  </InfoRow>
+
+                  <InfoRow label="Date de départ">
+                    {selectedColis.voyage?.date
+                      ? new Date(selectedColis.voyage.date).toLocaleString('fr-FR')
+                      : 'Non spécifiée'}
+                  </InfoRow>
+
+                  {selectedColis.voyage?.driver && (
+                    <InfoRow label="Chauffeur">
+                      {selectedColis.voyage.driver.name}
+                    </InfoRow>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Destinataire */}
+              <Box>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 600,
+                    mb: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  <Person sx={{ color: '#ffcc33' }} />
+                  Destinataire
+                </Typography>
+
+                <Box sx={{ display: 'grid', gap: 2 }}>
+                  <InfoRow label="Nom">
+                    {selectedColis.destinataire?.nom}
+                  </InfoRow>
+
+                  <InfoRow label="Téléphone">
+                    {selectedColis.destinataire?.telephone}
+                  </InfoRow>
+
+                  {selectedColis.destinataire?.adresse && (
+                    <InfoRow label="Adresse">
+                      {selectedColis.destinataire.adresse}
+                    </InfoRow>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Image */}
+              {selectedColis.imageUrl && selectedColis.imageUrl.trim() !== '' && (
                 <Box>
                   <Typography
                     variant="h6"
@@ -1029,107 +1098,35 @@ export default function Colis() {
                       gap: 1,
                     }}
                   >
-                    <Route sx={{ color: '#ffcc33' }} />
-                    Informations du voyage
+                    <Image sx={{ color: '#ffcc33' }} />
+                    Photo du colis
                   </Typography>
 
-                  <Box sx={{ display: 'grid', gap: 2 }}>
-                    <InfoRow label="Trajet">
-                      {selectedColis.voyage?.from} → {selectedColis.voyage?.to}
-                    </InfoRow>
-
-                    <InfoRow label="Date du voyage">
-                      {selectedColis.voyage?.date
-                        ? new Date(selectedColis.voyage.date).toLocaleString('fr-FR')
-                        : 'Non spécifiée'}
-                    </InfoRow>
-
-                    {selectedColis.voyage?.driver && (
-                      <InfoRow label="Chauffeur">
-                        {selectedColis.voyage.driver.name}
-                      </InfoRow>
-                    )}
-                  </Box>
-                </Box>
-              </Grid>
-
-              {/* ====== COLONNE DROITE ====== */}
-              <Grid item xs={12} md={6}>
-
-                {/* Destinataire */}
-                <Box sx={{ mb: 4 }}>
-                  <Typography
-                    variant="h6"
+                  <Box
                     sx={{
-                      fontWeight: 600,
-                      mb: 3,
+                      backgroundColor: '#f8f9fa',
+                      p: 2,
+                      borderRadius: '12px',
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
+                      justifyContent: 'center',
+                      width: '100%',
+                      boxSizing: 'border-box'
                     }}
                   >
-                    <Person sx={{ color: '#ffcc33' }} />
-                    Destinataire
-                  </Typography>
-
-                  <Box sx={{ display: 'grid', gap: 2 }}>
-                    <InfoRow label="Nom">
-                      {selectedColis.destinataire?.nom}
-                    </InfoRow>
-
-                    <InfoRow label="Téléphone">
-                      {selectedColis.destinataire?.telephone}
-                    </InfoRow>
-
-                    {selectedColis.destinataire?.adresse && (
-                      <InfoRow label="Adresse">
-                        {selectedColis.destinataire.adresse}
-                      </InfoRow>
-                    )}
+                    <img
+                      src={selectedColis.imageUrl}
+                      alt="Colis"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '280px',
+                        borderRadius: '10px',
+                        objectFit: 'contain',
+                      }}
+                    />
                   </Box>
                 </Box>
-
-                {/* Image */}
-                {selectedColis.imageUrl && (
-                  <Box>
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        fontWeight: 600,
-                        mb: 3,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                      }}
-                    >
-                      <Image sx={{ color: '#ffcc33' }} />
-                      Photo du colis
-                    </Typography>
-
-                    <Box
-                      sx={{
-                        backgroundColor: '#f8f9fa',
-                        p: 2,
-                        borderRadius: '12px',
-                        display: 'flex',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <img
-                        src={selectedColis.imageUrl}
-                        alt="Colis"
-                        style={{
-                          maxWidth: '100%',
-                          maxHeight: '280px',
-                          borderRadius: '10px',
-                          objectFit: 'contain',
-                        }}
-                      />
-                    </Box>
-                  </Box>
-                )}
-              </Grid>
-            </Grid>
+              )}
+            </Box>
           )}
         </DialogContent>
 
@@ -1161,8 +1158,6 @@ export default function Colis() {
           </Button>
         </DialogActions>
       </Dialog>
-
-
     </Box>
   );
 }

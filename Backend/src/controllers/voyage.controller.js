@@ -137,7 +137,19 @@ const searchVoyages = async (req, res) => {
     }
 
     const voyages = await Voyage.find(query).populate('driver', '-password');
-    res.json(voyages);
+    
+    // Trier les voyages : chauffeurs épinglés en premier
+    const sortedVoyages = voyages.sort((a, b) => {
+      if (a.driver.isPinned === b.driver.isPinned) {
+        if (a.driver.isPinned) {
+          return (a.driver.pinnedOrder || 0) - (b.driver.pinnedOrder || 0);
+        }
+        return 0;
+      }
+      return b.driver.isPinned - a.driver.isPinned;
+    });
+    
+    res.json(sortedVoyages);
   } catch (err) {
     console.error('Erreur lors de la recherche de voyages:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
