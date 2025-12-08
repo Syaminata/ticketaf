@@ -2,7 +2,16 @@ const mongoose = require('mongoose');
 const Reservation = require('./reservation.model');
 
 const colisSchema = new mongoose.Schema({
-  reservation: { type: mongoose.Schema.Types.ObjectId, ref: 'Reservation', required: true },
+  voyage: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Voyage', 
+    required: true 
+  },
+  reservation: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Reservation',
+    required: false 
+  },
   expediteur: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
@@ -10,7 +19,8 @@ const colisSchema = new mongoose.Schema({
   },
   destinataire: {
     nom: { type: String, required: true },
-    telephone: { type: String, required: true }
+    telephone: { type: String, required: true },
+    adresse: { type: String, required: false }
   },
   description: { type: String, required: false },
   imageUrl: { 
@@ -22,6 +32,11 @@ const colisSchema = new mongoose.Schema({
     type: String, 
     enum: ['en attente', 'envoyé', 'reçu', 'annulé'], 
     default: 'en attente' 
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   }
 }, { timestamps: true });
 
