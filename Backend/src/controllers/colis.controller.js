@@ -17,14 +17,24 @@ const createColis = async (req, res) => {
         });
       }
 
-      const { description, destinataire, poids, dimensions, voyageId } = req.body;
+      const { description, destinataire, voyageId } = req.body;
       
       // Validation des champs obligatoires
       if (!voyageId) {
         return res.status(400).json({ message: 'Le voyage est requis' });
       }
 
-      if (!destinataire || !destinataire.nom || !destinataire.telephone) {
+      let destinataireData;
+      try {
+        // Si destinataire est une chaîne, on essaie de le parser en JSON
+        destinataireData = typeof destinataire === 'string' ? JSON.parse(destinataire) : destinataire;
+      } catch (e) {
+        return res.status(400).json({ 
+          message: 'Format des données du destinataire invalide' 
+        });
+      }
+
+      if (!destinataireData || !destinataireData.nom || !destinataireData.telephone) {
         return res.status(400).json({ 
           message: 'Les informations du destinataire sont requises (nom et téléphone)' 
         });
@@ -54,13 +64,11 @@ const createColis = async (req, res) => {
         voyage: voyageId,
         expediteur: req.user._id,
         destinataire: {
-          nom: destinataire.nom,
-          telephone: destinataire.telephone,
-          adresse: destinataire.adresse || ''
+          nom: destinataireData.nom,
+          telephone: destinataireData.telephone,
+          adresse: destinataireData.adresse || ''
         },
         description: description || '',
-        poids: poids || 0,
-        dimensions: dimensions || { longueur: 0, largeur: 0, hauteur: 0 },
         status: 'en attente',
         trackingNumber: 'COL' + Date.now().toString().slice(-9),
         createdBy: req.user._id
@@ -85,9 +93,11 @@ const createColis = async (req, res) => {
     });
   } catch (err) {
     console.error('Erreur createColis:', err);
+    console.error('Erreur complète:', err);
     res.status(500).json({ 
       message: 'Erreur lors de la création du colis', 
-      error: err.message 
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
   }
 };
@@ -184,7 +194,7 @@ const updateColis = async (req, res) => {
         updateData.$set = updateData.$set || {};
         if (destinataire.nom) updateData.$set['destinataire.nom'] = destinataire.nom;
         if (destinataire.telephone) updateData.$set['destinataire.telephone'] = destinataire.telephone;
-        if (destinataire.adresse) updateData.$set['destinataire.adresse'] = destinataire.adresse;
+        if (destinataire.adresse !== undefined) updateData.$set['destinataire.adresse'] = destinataire.adresse;
       }
 
       // Si une nouvelle image est téléchargée

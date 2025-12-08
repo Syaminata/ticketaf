@@ -56,7 +56,8 @@ export default function Colis() {
     description: '',
     destinataire: {
       nom: '',
-      telephone: ''
+      telephone: '',
+      adresse: ''
     }
   });
   const [imageFile, setImageFile] = useState(null);
@@ -139,7 +140,8 @@ export default function Colis() {
         description: colisItem.description || '',
         destinataire: {
           nom: colisItem.destinataire?.nom || '',
-          telephone: colisItem.destinataire?.telephone || ''
+          telephone: colisItem.destinataire?.telephone || '',
+          adresse: colisItem.destinataire?.adresse || ''
         }
       });
       if (colisItem.imageUrl) {
@@ -151,7 +153,8 @@ export default function Colis() {
         description: '',
         destinataire: {
           nom: '',
-          telephone: ''
+          telephone: '',
+          adresse: ''
         }
       });
     }
@@ -224,9 +227,15 @@ export default function Colis() {
     try {
       const submitData = new FormData();
       submitData.append('voyageId', formData.voyageId);
-      submitData.append('description', formData.description);
-      submitData.append('destinataire[nom]', formData.destinataire.nom);
-      submitData.append('destinataire[telephone]', formData.destinataire.telephone);
+      submitData.append('description', formData.description || '');
+      
+      // Créer un objet destinataire correctement structuré
+      const destinataireData = {
+        nom: formData.destinataire.nom,
+        telephone: formData.destinataire.telephone,
+        adresse: formData.destinataire.adresse || ''
+      };
+      submitData.append('destinataire', JSON.stringify(destinataireData));
 
       if (imageFile) {
         submitData.append('image', imageFile);
@@ -680,6 +689,19 @@ export default function Colis() {
                     onChange={handleChange}
                     fullWidth
                     required
+                    sx={inputStyle}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    label="Adresse du destinataire"
+                    name="destinataire.adresse"
+                    value={formData.destinataire.adresse || ''}
+                    onChange={handleChange}
+                    fullWidth
+                    multiline
+                    rows={2}
                     sx={inputStyle}
                   />
                 </Grid>
