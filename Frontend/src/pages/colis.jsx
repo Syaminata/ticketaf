@@ -226,14 +226,25 @@ export default function Colis() {
 
     try {
       const submitData = new FormData();
+      
+      // Ajouter les champs un par un
       submitData.append('voyageId', formData.voyageId);
       submitData.append('description', formData.description || '');
+      
+      // Ajouter les champs du destinataire directement
       submitData.append('destinataire[nom]', formData.destinataire.nom);
       submitData.append('destinataire[telephone]', formData.destinataire.telephone);
       submitData.append('destinataire[adresse]', formData.destinataire.adresse || '');
 
+      // Ajouter l'image si elle existe
       if (imageFile) {
         submitData.append('image', imageFile);
+      }
+
+      // Afficher les données pour le débogage
+      console.log('Données envoyées:');
+      for (let pair of submitData.entries()) {
+        console.log(pair[0] + ': ', pair[1]);
       }
 
       if (editColis) {
@@ -252,13 +263,18 @@ export default function Colis() {
       }, 5000);
     } catch (err) {
       console.error('Erreur soumission:', err);
+      if (err.response) {
+        console.error('Réponse du serveur:', err.response.data);
+        console.error('Status:', err.response.status);
+        console.error('En-têtes:', err.response.headers);
+      }
       if (err.response?.status === 401) {
         setError('Session expirée. Veuillez vous reconnecter.');
         sessionStorage.removeItem('token');
         sessionStorage.removeItem('user');
         window.location.href = '/login';
       } else {
-        setError(err.response?.data?.message || 'Erreur serveur');
+        setError(err.response?.data?.message || 'Erreur lors de la création du colis');
       }
     } finally {
       setLoading(false);

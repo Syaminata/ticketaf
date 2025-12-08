@@ -10,11 +10,22 @@ const createColis = async (req, res) => {
   try {
     // Récupérer les données du formulaire
     const { description, voyageId } = req.body;
-    const destinataire = {
-      nom: req.body['destinataire[nom]'],
-      telephone: req.body['destinataire[telephone]'],
-      adresse: req.body['destinataire[adresse]'] || ''
-    };
+    let destinataire;
+    if (req.body.destinataire) {
+      // Si les données viennent d'un objet JSON (cas de l'API)
+      destinataire = {
+        nom: req.body.destinataire.nom || req.body['destinataire[nom]'],
+        telephone: req.body.destinataire.telephone || req.body['destinataire[telephone]'],
+        adresse: req.body.destinataire.adresse || req.body['destinataire[adresse]'] || ''
+      };
+    } else {
+      // Ancien format pour rétrocompatibilité
+      destinataire = {
+        nom: req.body['destinataire[nom]'],
+        telephone: req.body['destinataire[telephone]'],
+        adresse: req.body['destinataire[adresse]'] || ''
+      };
+    }
 
     // Validation des champs obligatoires
     if (!voyageId) {
