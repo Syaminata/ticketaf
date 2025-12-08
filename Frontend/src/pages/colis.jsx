@@ -1011,7 +1011,7 @@ export default function Colis() {
                     {selectedColis.description || 'Aucune description'}
                   </InfoRow>
 
-                  <InfoRow label="Créé le">
+                  <InfoRow label="Déposé le">
                     {new Date(selectedColis.createdAt).toLocaleString('fr-FR')}
                   </InfoRow>
                 </Box>

@@ -48,11 +48,28 @@ const fileFilter = (req, file, cb) => {
 
 // Filtre pour les types de fichiers autorisés
 const imageFileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-  if (allowedTypes.includes(file.mimetype)) {
+  // Formats d'image supportés : JPEG, PNG, GIF, HEIC/HEIF, WebP, et formats bruts d'appareils photo
+  const allowedTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/heic',
+    'image/heif',
+    'image/webp',
+    'image/x-canon-cr2',
+    'image/x-nikon-nef',
+    'image/x-sony-arw',
+    'image/x-fuji-raf',
+    'image/x-panasonic-rw2',
+    'image/x-olympus-orf',
+    'image/x-pentax-pef',
+    'image/x-samsung-srw'
+  ];
+  
+  if (allowedTypes.includes(file.mimetype.toLowerCase())) {
     cb(null, true);
   } else {
-    cb(new Error('Type de fichier non autorisé. Seuls les JPEG, PNG et GIF sont acceptés.'));
+    cb(new Error('Type de fichier non autorisé. Formats acceptés : JPEG, PNG, GIF, HEIC, WebP et formats bruts d\'appareils photo.'));
   }
 };
 
