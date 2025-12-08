@@ -228,14 +228,9 @@ export default function Colis() {
       const submitData = new FormData();
       submitData.append('voyageId', formData.voyageId);
       submitData.append('description', formData.description || '');
-      
-      // Créer un objet destinataire correctement structuré
-      const destinataireData = {
-        nom: formData.destinataire.nom,
-        telephone: formData.destinataire.telephone,
-        adresse: formData.destinataire.adresse || ''
-      };
-      submitData.append('destinataire', JSON.stringify(destinataireData));
+      submitData.append('destinataire[nom]', formData.destinataire.nom);
+      submitData.append('destinataire[telephone]', formData.destinataire.telephone);
+      submitData.append('destinataire[adresse]', formData.destinataire.adresse || '');
 
       if (imageFile) {
         submitData.append('image', imageFile);
