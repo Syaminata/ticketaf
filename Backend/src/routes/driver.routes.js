@@ -6,6 +6,17 @@ const { uploadDriverFiles } = require('../middleware/upload');
 
 /**
  * @swagger
+ * /drivers/pinned:
+ *   get:
+ *     summary: Récupérer tous les chauffeurs épinglés
+ *     tags: [Drivers]
+ *     responses:
+ *       200:
+ *         description: Liste des chauffeurs épinglés
+ */
+router.get('/pinned', driverController.getPinnedDrivers);
+/**
+ * @swagger
  * /drivers:
  *   post:
  *     summary: Créer un nouveau conducteur
@@ -141,7 +152,54 @@ router.get('/', auth, adminAuth, driverController.getAllDrivers);
  *         description: Conducteur mis à jour
  */
 router.put('/:id', auth, adminAuth, uploadDriverFiles, driverController.updateDriver);
+/**
+ * @swagger
+ * /drivers/{id}/pin:
+ *   patch:
+ *     summary: Épingler un chauffeur (recommandation)
+ *     tags: [Drivers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               pinnedOrder:
+ *                 type: number
+ *                 description: Ordre d'affichage (optionnel)
+ *     responses:
+ *       200:
+ *         description: Chauffeur épinglé avec succès
+ */
+router.patch('/:id/pin', auth, adminAuth, driverController.pinDriver);
 
+/**
+ * @swagger
+ * /drivers/{id}/unpin:
+ *   patch:
+ *     summary: Désépingler un chauffeur
+ *     tags: [Drivers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Chauffeur désépinglé avec succès
+ */
+router.patch('/:id/unpin', auth, adminAuth, driverController.unpinDriver);
 /**
  * @swagger
  * /drivers/{id}:
@@ -215,5 +273,4 @@ router.put('/:id/activate', auth, adminAuth, driverController.activateDriver);
  *         description: Conducteur désactivé
  */
 router.put('/:id/deactivate', auth, adminAuth, driverController.deactivateDriver);
-
 module.exports = router;

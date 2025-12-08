@@ -30,7 +30,7 @@ import {
   TablePagination,
   Menu
 } from '@mui/material';
-import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge, Search as SearchIcon, FilterList as FilterIcon  } from '@mui/icons-material';
+import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge, Search as SearchIcon, FilterList as FilterIcon, Star, StarBorder } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
 export default function Drivers() {
@@ -361,6 +361,32 @@ export default function Drivers() {
       setError(err.response?.data?.message || 'Erreur lors de la désactivation');
     }
   };
+  const handlePinDriver = async (id, currentPinnedStatus) => {
+  const token = sessionStorage.getItem('token');
+  if (!token) return setError('Authentification nécessaire.');
+  
+  try {
+    if (currentPinnedStatus) {
+      // Désépingler
+      await axios.patch(`/drivers/${id}/unpin`, {}, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      setSuccess('Chauffeur désépinglé avec succès');
+    } else {
+      // Épingler
+      await axios.patch(`/drivers/${id}/pin`, {}, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      setSuccess('Chauffeur épinglé avec succès');
+    }
+    
+    await fetchDrivers();
+    setTimeout(() => setSuccess(''), 5000);
+  } catch (err) {
+    console.error('Erreur épinglage:', err);
+    setError(err.response?.data?.message || 'Erreur lors de l\'épinglage');
+  }
+};
 
   const handleViewFile = (file, type) => {
     setFileViewer({
@@ -410,10 +436,20 @@ export default function Drivers() {
     return statusFilter === 'active' ? driver.isActive : !driver.isActive;
   });
 
-  // 3. Tri
-  const sortedDrivers = [...filteredDriversByStatus].sort((a, b) =>
-    (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
-  );
+  // 3. Tri : chauffeurs épinglés en premier, puis par nom
+  const sortedDrivers = [...filteredDriversByStatus].sort((a, b) => {
+    // Si les deux ont le même statut d'épinglage
+    if (a.isPinned === b.isPinned) {
+      // Si les deux sont épinglés, trier par pinnedOrder
+      if (a.isPinned) {
+        return (a.pinnedOrder || 0) - (b.pinnedOrder || 0);
+      }
+      // Sinon, trier par nom
+      return (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' });
+    }
+    // Les chauffeurs épinglés en premier
+    return b.isPinned - a.isPinned;
+  });
 
 
   // 4. Pagination
@@ -566,7 +602,7 @@ export default function Drivers() {
       <Paper sx={{ 
         borderRadius: '12px',
         overflow: 'hidden',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+        boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)'
       }}>
         <Table>
           <TableHead sx={{ 
@@ -635,25 +671,43 @@ export default function Drivers() {
               >
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Avatar sx={{ 
-                      bgcolor: '#ffcc33',
-                      color: '#1a1a1a',
-                      width: 32,
-                      height: 32,
-                      fontSize: '14px',
-                      fontWeight: 600
-                    }}>
-                      <Person />
-                    </Avatar>
+                    {driver.isPinned ? (
+                      <Avatar
+                        sx={{
+                          bgcolor: '#ffcc33',
+                          color: '#1a1a1a',
+                          width: 32,
+                          height: 32
+                        }}
+                      >
+                        <Star fontSize="small" />
+                      </Avatar>
+                    ) : (
+                      <Person sx={{ color: '#ffcc33', fontSize: 22 }} />
+                    )}
                     <Box>
-                      <Typography sx={{ 
-                        fontWeight: 600,
-                        color: '#1a1a1a',
-                        fontSize: '16px'
-                      }}>
-                        {driver.name}
-                      </Typography>
-                      
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography sx={{ 
+                          fontWeight: 600,
+                          color: '#1a1a1a',
+                          fontSize: '16px'
+                        }}>
+                          {driver.name}
+                        </Typography>
+                        {driver.isPinned && (
+                          <Chip 
+                            label="Recommandé" 
+                            size="small"
+                            sx={{ 
+                              backgroundColor: '#fff8e1',
+                              color: '#ffcc33',
+                              fontWeight: 600,
+                              fontSize: '10px',
+                              height: '20px'
+                            }}
+                          />
+                        )}
+                      </Box>
                     </Box>
                   </Box>
                 </TableCell>
@@ -755,6 +809,21 @@ export default function Drivers() {
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <IconButton
+                      onClick={() => handlePinDriver(driver._id, driver.isPinned)}
+                      size="small"
+                      sx={{ 
+                        color: driver.isPinned ? '#ffcc33' : '#ccc',
+                        '&:hover': { 
+                          backgroundColor: driver.isPinned 
+                            ? 'rgba(255, 204, 51, 0.1)' 
+                            : 'rgba(204, 204, 204, 0.1)' 
+                        }
+                      }}
+                      title={driver.isPinned ? 'Désépingler ce chauffeur' : 'Épingler ce chauffeur'}
+                    >
+                      {driver.isPinned ? <Star fontSize="small" /> : <StarBorder fontSize="small" />}
+                    </IconButton>
                     <Button
                       variant="outlined"
                       size="small"
@@ -837,7 +906,7 @@ export default function Drivers() {
           textAlign: 'center',
           py: 2
         }}>
-          {editDriver ? 'Modifier le conducteur' : 'Ajouter un nouveau conducteur'}
+          {editDriver ? 'Modifier le chauffeur' : 'Ajouter un nouveau chauffeur'}
         </DialogTitle>
         <DialogContent sx={{ 
           p: 3,
@@ -1072,7 +1141,7 @@ export default function Drivers() {
               onChange={handleChange}
               fullWidth
               required={!editDriver}
-              helperText={editDriver ? "Laissez vide pour conserver le mot de passe actuel" : "Mot de passe requis pour le nouveau conducteur"}
+              helperText={editDriver ? "Laissez vide pour conserver le mot de passe actuel" : "Mot de passe requis pour le nouveau chauffeur"}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">

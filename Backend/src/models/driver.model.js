@@ -44,6 +44,11 @@ const driverSchema = new mongoose.Schema({
     ],
   },
   isActive: { type: Boolean, default: false },
+  // NOUVEAUX CHAMPS POUR L'ÉPINGLAGE
+  isPinned: { type: Boolean, default: false },
+  pinnedAt: { type: Date },
+  pinnedOrder: { type: Number, default: 0 }, // Pour gérer l'ordre d'affichage
+
 
   role: { type: String, default: 'conducteur' } 
 }, { timestamps: true });

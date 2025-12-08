@@ -42,7 +42,10 @@ import {
   Search as SearchIcon,
   FilterList as FilterIcon,
   CloudUpload,
-  Person
+  Person,
+  Visibility as VisibilityIcon,
+  Inventory,
+  Route,
 } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
@@ -296,6 +299,19 @@ export default function Colis() {
     });
   };
 
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedColis, setSelectedColis] = useState(null);
+
+  const handleOpenDetails = (colisItem) => {
+    setSelectedColis(colisItem);
+    setDetailsOpen(true);
+  };
+
+  const handleCloseDetails = () => {
+    setDetailsOpen(false);
+    setSelectedColis(null);
+  };
+
   const confirmDelete = async (id) => {
     setConfirmDialog(prev => ({ ...prev, loading: true }));
 
@@ -346,19 +362,50 @@ export default function Colis() {
   };
 
   const inputStyle = {
-  '& .MuiOutlinedInput-root': {
-    borderRadius: '12px',
-    '&:hover fieldset': { borderColor: '#ffcc33' },
-    '&.Mui-focused fieldset': {
-      borderColor: '#ffcc33',
-      borderWidth: 2,
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '12px',
+      '&:hover fieldset': { borderColor: '#ffcc33' },
+      '&.Mui-focused fieldset': {
+        borderColor: '#ffcc33',
+        borderWidth: 2,
+      },
     },
-  },
-  '& .MuiInputLabel-root.Mui-focused': {
-    color: '#ffcc33',
-  },
-};
-
+    '& .MuiInputLabel-root.Mui-focused': {
+      color: '#ffcc33',
+    },
+  };
+  const InfoRow = ({ label, children }) => (
+    <Box
+      component="div" // Ajout explicite de component="div"
+      sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        p: 2,
+        backgroundColor: '#f8f9fa',
+        borderRadius: '10px',
+      }}
+    >
+      <Typography 
+        component="span" // Utilisation de component="span" pour le texte
+        variant="body2" 
+        sx={{ color: '#666666', fontWeight: 500 }}
+      >
+        {label}
+      </Typography>
+      <Box 
+        component="span" // Utilisation de component="span" pour le contenu enfant
+        sx={{ 
+          textAlign: 'right', 
+          fontWeight: 600, 
+          color: '#1a1a1a',
+          display: 'inline-block' // Pour s'assurer que c'est un élément en ligne
+        }}
+      >
+        {children}
+      </Box>
+    </Box>
+  );
 
   const filteredColis = colis.filter((colisItem) => {
     const term = searchTerm.toLowerCase();
@@ -493,14 +540,13 @@ export default function Colis() {
 
       {/* Table */}
       {colis.length > 0 ? (
-        <Paper sx={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+        <Paper sx={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)' }}>
           <Table>
             <TableHead sx={{ borderBottom: '3px solid #ffcc33', '& .MuiTableCell-root': { borderBottom: '3px solid #ffcc33' } }}>
               <TableRow>
-                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Image</TableCell>
+                <TableCell sx={{ width: '60px' }}></TableCell>
                 <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Destinataire</TableCell>
                 <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Voyage</TableCell>
-                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Description</TableCell>
                 {isAdmin && (
                   <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Expéditeur</TableCell>
                 )}
@@ -518,14 +564,19 @@ export default function Colis() {
                   }}
                 >
                   <TableCell>
-                    <Avatar
-                      src={colisItem.imageUrl}
-                      alt="Colis"
-                      variant="rounded"
-                      sx={{ width: 60, height: 60, bgcolor: '#f0f0f0' }}
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#FFA000'
+                      }}
                     >
-                      <LocalShipping sx={{ color: '#999' }} />
-                    </Avatar>
+                      <LocalShipping />
+                    </Box>
                   </TableCell>
                   <TableCell>
                     <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
@@ -541,11 +592,6 @@ export default function Colis() {
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#666666' }}>
                       {colisItem.voyage?.date ? new Date(colisItem.voyage.date).toLocaleDateString('fr-FR') : ''}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ color: '#666666' }}>
-                      {colisItem.description || 'Aucune description'}
                     </Typography>
                   </TableCell>
                   {isAdmin && (
@@ -565,15 +611,37 @@ export default function Colis() {
                     />
                   </TableCell>
                   <TableCell sx={{ textAlign: 'center' }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => handleOpenDetails(colisItem)} // ici tu gardes la fonction existante
+                      sx={{
+                        borderColor: '#ffcc33',
+                        color: '#ffcc33',
+                        fontSize: '12px',
+                        px: 2,
+                        py: 0.5,
+                        borderRadius: '8px',
+                        textTransform: 'none',
+                        '&:hover': {
+                          backgroundColor: 'rgba(255, 204, 51, 0.1)',
+                          borderColor: '#ffb300'
+                        }
+                      }}
+                    >
+                      Voir détails
+                    </Button>
                     <IconButton
                       onClick={() => handleOpen(colisItem)}
                       sx={{ color: '#ffcc33', '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' } }}
+                      title="Modifier"
                     >
                       <Edit />
                     </IconButton>
                     <IconButton
                       onClick={() => handleDelete(colisItem._id)}
                       sx={{ color: '#f44336', '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' } }}
+                      title="Supprimer"
                     >
                       <Delete />
                     </IconButton>
@@ -694,7 +762,7 @@ export default function Colis() {
 
                 <Grid item xs={12} sm={6}>
                   <TextField
-                    label="Téléphone du destinataire"
+                    label="Téléphone "
                     name="destinataire.telephone"
                     value={formData.destinataire.telephone}
                     onChange={handleChange}
@@ -706,13 +774,12 @@ export default function Colis() {
 
                 <Grid item xs={12}>
                   <TextField
-                    label="Adresse du destinataire"
+                    label="Adresse"
                     name="destinataire.adresse"
                     value={formData.destinataire.adresse || ''}
                     onChange={handleChange}
                     fullWidth
                     multiline
-                    rows={2}
                     sx={inputStyle}
                   />
                 </Grid>
@@ -873,6 +940,229 @@ export default function Colis() {
         confirmText="Supprimer définitivement"
         cancelText="Annuler"
       />
+
+      
+      {/* Dialog Détails */}
+      <Dialog
+        open={detailsOpen}
+        onClose={handleCloseDetails}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+            overflow: 'hidden',
+          },
+        }}
+      >
+        {/* ================= HEADER ================= */}
+        <DialogTitle
+          sx={{
+            borderBottom: '3px solid #ffcc33',
+            color: '#1a1a1a',
+            fontWeight: 700,
+            fontSize: '24px',
+            textAlign: 'center',
+            py: 3,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+            <LocalShipping sx={{ fontSize: 28 }} />
+            Détails du colis
+          </Box>
+        </DialogTitle>
+
+        {/* ================= CONTENT ================= */}
+        <DialogContent sx={{ p: 4 }}>
+          {selectedColis && (
+            <Grid container spacing={4}>
+
+              {/* ====== COLONNE GAUCHE ====== */}
+              <Grid item xs={12} md={6}>
+
+                {/* Infos Colis */}
+                <Box sx={{ mb: 4 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      mb: 3,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <Inventory sx={{ color: '#ffcc33' }} />
+                    Informations du colis
+                  </Typography>
+
+                  <Box sx={{ display: 'grid', gap: 2 }}>
+                    <InfoRow label="Statut">
+                      <Chip
+                        icon={getStatusIcon(selectedColis.status)}
+                        label={getStatusText(selectedColis.status)}
+                        color={getStatusColor(selectedColis.status)}
+                        sx={{ fontWeight: 600 }}
+                      />
+                    </InfoRow>
+
+                    <InfoRow label="Description">
+                      {selectedColis.description || 'Aucune description'}
+                    </InfoRow>
+
+                    <InfoRow label="Créé le">
+                      {new Date(selectedColis.createdAt).toLocaleString('fr-FR')}
+                    </InfoRow>
+                  </Box>
+                </Box>
+
+                {/* Infos Voyage */}
+                <Box>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      mb: 3,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <Route sx={{ color: '#ffcc33' }} />
+                    Informations du voyage
+                  </Typography>
+
+                  <Box sx={{ display: 'grid', gap: 2 }}>
+                    <InfoRow label="Trajet">
+                      {selectedColis.voyage?.from} → {selectedColis.voyage?.to}
+                    </InfoRow>
+
+                    <InfoRow label="Date du voyage">
+                      {selectedColis.voyage?.date
+                        ? new Date(selectedColis.voyage.date).toLocaleString('fr-FR')
+                        : 'Non spécifiée'}
+                    </InfoRow>
+
+                    {selectedColis.voyage?.driver && (
+                      <InfoRow label="Chauffeur">
+                        {selectedColis.voyage.driver.name}
+                      </InfoRow>
+                    )}
+                  </Box>
+                </Box>
+              </Grid>
+
+              {/* ====== COLONNE DROITE ====== */}
+              <Grid item xs={12} md={6}>
+
+                {/* Destinataire */}
+                <Box sx={{ mb: 4 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      mb: 3,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <Person sx={{ color: '#ffcc33' }} />
+                    Destinataire
+                  </Typography>
+
+                  <Box sx={{ display: 'grid', gap: 2 }}>
+                    <InfoRow label="Nom">
+                      {selectedColis.destinataire?.nom}
+                    </InfoRow>
+
+                    <InfoRow label="Téléphone">
+                      {selectedColis.destinataire?.telephone}
+                    </InfoRow>
+
+                    {selectedColis.destinataire?.adresse && (
+                      <InfoRow label="Adresse">
+                        {selectedColis.destinataire.adresse}
+                      </InfoRow>
+                    )}
+                  </Box>
+                </Box>
+
+                {/* Image */}
+                {selectedColis.imageUrl && (
+                  <Box>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 600,
+                        mb: 3,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                      }}
+                    >
+                      <Image sx={{ color: '#ffcc33' }} />
+                      Photo du colis
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        backgroundColor: '#f8f9fa',
+                        p: 2,
+                        borderRadius: '12px',
+                        display: 'flex',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <img
+                        src={selectedColis.imageUrl}
+                        alt="Colis"
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '280px',
+                          borderRadius: '10px',
+                          objectFit: 'contain',
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                )}
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+
+        {/* ================= ACTIONS ================= */}
+        <DialogActions
+          sx={{
+            p: 3,
+            backgroundColor: '#f8f9fa',
+            borderTop: '1px solid #e0e0e0',
+          }}
+        >
+          <Button
+            onClick={handleCloseDetails}
+            variant="contained"
+            sx={{
+              backgroundColor: '#ffcc33',
+              color: '#1a1a1a',
+              fontWeight: 600,
+              textTransform: 'none',
+              px: 4,
+              py: 1.5,
+              borderRadius: '12px',
+              '&:hover': {
+                backgroundColor: '#ffb300',
+              },
+            }}
+          >
+            Fermer
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+
     </Box>
   );
 }

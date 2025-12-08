@@ -275,5 +275,82 @@ const deactivateDriver = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
+// Épingler un chauffeur
+const pinDriver = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { pinnedOrder } = req.body; // Optionnel : définir l'ordre
 
-module.exports = { createDriver, getAllDrivers, updateDriver, deleteDriver, cleanFiles, activateDriver, deactivateDriver };
+    const driver = await Driver.findById(id);
+    if (!driver) {
+      return res.status(404).json({ message: 'Chauffeur non trouvé' });
+    }
+
+    driver.isPinned = true;
+    driver.pinnedAt = new Date();
+    if (pinnedOrder !== undefined) {
+      driver.pinnedOrder = pinnedOrder;
+    }
+
+    await driver.save();
+
+    res.status(200).json({ 
+      message: 'Chauffeur épinglé avec succès', 
+      driver: { 
+        _id: driver._id, 
+        name: driver.name, 
+        isPinned: driver.isPinned,
+        pinnedOrder: driver.pinnedOrder 
+      } 
+    });
+  } catch (err) {
+    console.error('Erreur pinDriver:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+// Désépingler un chauffeur
+const unpinDriver = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const driver = await Driver.findById(id);
+    if (!driver) {
+      return res.status(404).json({ message: 'Chauffeur non trouvé' });
+    }
+
+    driver.isPinned = false;
+    driver.pinnedAt = null;
+    driver.pinnedOrder = 0;
+
+    await driver.save();
+
+    res.status(200).json({ 
+      message: 'Chauffeur désépinglé avec succès', 
+      driver: { 
+        _id: driver._id, 
+        name: driver.name, 
+        isPinned: driver.isPinned 
+      } 
+    });
+  } catch (err) {
+    console.error('Erreur unpinDriver:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+// Obtenir tous les chauffeurs épinglés
+const getPinnedDrivers = async (req, res) => {
+  try {
+    const drivers = await Driver.find({ isPinned: true })
+      .select('-password')
+      .sort({ pinnedOrder: 1 });
+    
+    res.status(200).json(drivers);
+  } catch (err) {
+    console.error('Erreur getPinnedDrivers:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+module.exports = { createDriver, getAllDrivers, updateDriver, deleteDriver, cleanFiles, activateDriver, deactivateDriver, unpinDriver, pinDriver, getPinnedDrivers };

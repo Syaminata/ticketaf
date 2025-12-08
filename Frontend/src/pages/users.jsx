@@ -375,7 +375,7 @@ export default function Users() {
       <Paper sx={{ 
         borderRadius: '12px',
         overflow: 'hidden',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+        boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)'
       }}>
         <Table>
           <TableHead sx={{ 
@@ -435,8 +435,8 @@ export default function Users() {
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Avatar sx={{ 
-                      bgcolor: '#ffcc33',
-                      color: '#1a1a1a',
+                      backgroundColor: 'transparent',
+                      color: '#ffcc33',
                       width: 32,
                       height: 32,
                       fontSize: '14px',

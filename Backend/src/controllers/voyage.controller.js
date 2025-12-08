@@ -39,15 +39,29 @@ const createVoyage = async (req, res) => {
 // GET ALL VOYAGES (FUTURS UNIQUEMENT) - Pour les pages de réservation
 const getAllVoyage = async (req, res) => {
   try {
-    // Filtrer les voyages futurs uniquement
     const now = new Date();
     const voyage = await Voyage.find({
-      date: { $gt: now } // Seulement les voyages dont la date est supérieure à maintenant
+      date: { $gt: now }
     })
     .populate('driver', '-password')
-    .sort({ date: 1 }); // Trier par date croissante (plus proche en premier)
+    .sort({ date: 1 });
     
-    res.status(200).json(voyage);
+    // Trier les voyages : chauffeurs épinglés en premier
+    const sortedVoyages = voyage.sort((a, b) => {
+      // Si les deux chauffeurs ont le même statut isPinned
+      if (a.driver.isPinned === b.driver.isPinned) {
+        // Trier par pinnedOrder si les deux sont épinglés
+        if (a.driver.isPinned) {
+          return (a.driver.pinnedOrder || 0) - (b.driver.pinnedOrder || 0);
+        }
+        // Sinon garder l'ordre par date
+        return 0;
+      }
+      // Les chauffeurs épinglés en premier
+      return b.driver.isPinned - a.driver.isPinned;
+    });
+    
+    res.status(200).json(sortedVoyages);
   } catch (err) {
     console.error('Erreur getAllVoyage:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
