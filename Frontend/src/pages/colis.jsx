@@ -46,7 +46,8 @@ import {
   Visibility as VisibilityIcon,
   Inventory,
   Route,
-  Image
+  Image,
+  AttachMoney 
 } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
@@ -58,6 +59,7 @@ export default function Colis() {
   const [formData, setFormData] = useState({
     voyageId: '',
     description: '',
+    prix: '',
     destinataire: {
       nom: '',
       telephone: '',
@@ -132,7 +134,7 @@ export default function Colis() {
     setPage(0);
   }, [searchTerm, statusFilter, voyageFilter]);
 
-  const handleOpen = (colisItem = null) => {
+    const handleOpen = (colisItem = null) => {
     setError('');
     setEditColis(colisItem);
     setImageFile(null);
@@ -142,6 +144,7 @@ export default function Colis() {
       setFormData({
         voyageId: colisItem.voyage?._id || colisItem.reservation?.voyage?._id || '',
         description: colisItem.description || '',
+        prix: colisItem.prix || '', // AJOUT
         destinataire: {
           nom: colisItem.destinataire?.nom || '',
           telephone: colisItem.destinataire?.telephone || '',
@@ -155,6 +158,7 @@ export default function Colis() {
       setFormData({
         voyageId: '',
         description: '',
+        prix: '', // AJOUT
         destinataire: {
           nom: '',
           telephone: '',
@@ -234,6 +238,11 @@ export default function Colis() {
       // Ajouter les champs un par un
       submitData.append('voyageId', formData.voyageId);
       submitData.append('description', formData.description || '');
+      
+      // AJOUT : Ajouter le prix si fourni et si admin
+      if (isAdmin && formData.prix !== '' && formData.prix !== null) {
+        submitData.append('prix', parseFloat(formData.prix));
+      }
       
       // Ajouter les champs du destinataire directement
       submitData.append('destinataire[nom]', formData.destinataire.nom);
@@ -817,6 +826,38 @@ export default function Colis() {
               />
             </Box>
 
+            {/* ================== SECTION PRIX (ADMIN UNIQUEMENT) ================== */}
+            {isAdmin && (
+              <Box>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 600,
+                    mb: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    color: '#1a1a1a',
+                  }}
+                >
+                  <AttachMoney sx={{ color: '#ffcc33' }} />
+                  Prix du colis
+                </Typography>
+
+                <TextField
+                  label="Prix (FCFA)"
+                  name="prix"
+                  type="number"
+                  value={formData.prix}
+                  onChange={handleChange}
+                  fullWidth
+                  inputProps={{ min: 0, step: 100 }}
+                  helperText="Veuiller definir le prix pour ce colis"
+                  sx={inputStyle}
+                />
+              </Box>
+            )}
+
             {/* ================== SECTION IMAGE ================== */}
             <Box>
               <Typography
@@ -1010,6 +1051,13 @@ export default function Colis() {
                   <InfoRow label="Description">
                     {selectedColis.description || 'Aucune description'}
                   </InfoRow>
+                  {isAdmin && (
+                    <InfoRow label="Prix">
+                      {selectedColis.prix 
+                        ? `${selectedColis.prix.toLocaleString('fr-FR')} FCFA` 
+                        : 'Non défini'}
+                    </InfoRow>
+                  )}
 
                   <InfoRow label="Déposé le">
                     {new Date(selectedColis.createdAt).toLocaleString('fr-FR')}

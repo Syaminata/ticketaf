@@ -60,6 +60,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 const { uploadColisImage } = require('../middleware/upload');
 const colisController = require('../controllers/colis.controller');
 
@@ -252,7 +253,8 @@ router.get('/user/me', auth, colisController.getUserColis);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.get('/:id', auth, colisController.getColisById);
-
+router.put('/:id/prix', auth, adminAuth, colisController.updateColisPrix);
+router.put('/:id/valider', auth, colisController.validateColis);
 /**
  * @swagger
  * /colis/{id}:

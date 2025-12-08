@@ -138,7 +138,7 @@ const getColisById = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
-
+ 
 // Mettre à jour un colis 
 const updateColis = async (req, res) => {
   try {
@@ -151,7 +151,7 @@ const updateColis = async (req, res) => {
         });
       }
 
-      const { destinataire, ...updateData } = req.body;
+      const { destinataire, prix, ...updateData } = req.body;
       const colis = await Colis.findById(req.params.id);
 
       if (!colis) {
@@ -163,6 +163,17 @@ const updateColis = async (req, res) => {
         return res.status(400).json({ 
           message: 'Statut invalide. Les statuts valides sont: en attente, envoyé, reçu, annulé' 
         });
+      }
+
+      // Valider et mettre à jour le prix si fourni
+      if (prix !== undefined && prix !== null && prix !== '') {
+        const prixNumber = parseFloat(prix);
+        if (isNaN(prixNumber) || prixNumber < 0) {
+          return res.status(400).json({ 
+            message: 'Le prix doit être un nombre positif' 
+          });
+        }
+        updateData.prix = prixNumber;
       }
 
       // Mise à jour des champs du destinataire si fournis
@@ -293,6 +304,96 @@ const getColisStats = async (req, res) => {
   }
 };
 
+// Mettre à jour le prix d'un colis (admin)
+const updateColisPrix = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { prix } = req.body;
+
+    if (typeof prix !== 'number' || prix < 0) {
+      return res.status(400).json({ message: 'Un prix valide est requis' });
+    }
+
+    const colis = await Colis.findById(id);
+    if (!colis) {
+      return res.status(404).json({ message: 'Colis non trouvé' });
+    }
+
+    // Mettre à jour uniquement le prix, garder le statut actuel
+    colis.prix = prix;
+    await colis.save();
+
+    // Peupler les références pour la réponse
+    const updatedColis = await Colis.findById(colis._id)
+      .populate('voyage', 'from to date')
+      .populate('expediteur', 'name  numero');
+
+    res.json({ 
+      message: 'Prix mis à jour avec succès', 
+      colis: updatedColis
+    });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du prix:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors de la mise à jour du prix',
+      error: error.message 
+    });
+  }
+};
+
+// Valider un colis (client)
+const validateColis = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const colis = await Colis.findById(id);
+    if (!colis) {
+      return res.status(404).json({ message: 'Colis non trouvé' });
+    }
+
+    // Vérifier que l'utilisateur est bien le propriétaire du colis
+    if (colis.expediteur.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ 
+        message: 'Non autorisé à valider ce colis' 
+      });
+    }
+
+    // Vérifier que le prix a été défini par l'admin
+    if (!colis.prix || colis.prix <= 0) {
+      return res.status(400).json({ 
+        message: 'Le prix doit être défini par l\'administrateur avant validation' 
+      });
+    }
+
+    // Vérifier que le colis est en attente
+    if (colis.status !== 'en attente') {
+      return res.status(400).json({ 
+        message: `Impossible de valider un colis avec le statut "${colis.status}"` 
+      });
+    }
+
+    // Mettre à jour le statut à "envoyé"
+    colis.status = 'envoyé';
+    await colis.save();
+    
+    // Peupler les références pour la réponse
+    const updatedColis = await Colis.findById(colis._id)
+      .populate('voyage', 'from to date')
+      .populate('expediteur', 'name email phone');
+    
+    res.json({ 
+      message: 'Colis validé et envoyé avec succès',
+      colis: updatedColis
+    });
+  } catch (error) {
+    console.error('Erreur lors de la validation du colis:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors de la validation du colis',
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   createColis,
   getUserColis,
@@ -301,5 +402,7 @@ module.exports = {
   updateColis,
   deleteColis,
   trackColis,
-  getColisStats
+  getColisStats,
+  updateColisPrix,
+  validateColis,
 };

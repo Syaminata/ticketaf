@@ -75,7 +75,7 @@ const imageFileFilter = (req, file, cb) => {
     'image/vnd.samsung.samsungphoto',
     'image/vnd.samsung.samsung-image',
     // Types MIME génériques supplémentaires
-    'image/*'  // Accepter tout type d'image (à utiliser avec prudence)
+    'image/*'  // Accepter tout type d'image 
   ];
   
   // Vérifier également l'extension du fichier comme solution de secours
