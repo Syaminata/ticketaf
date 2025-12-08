@@ -48,9 +48,13 @@ const fileFilter = (req, file, cb) => {
 
 // Filtre pour les types de fichiers autorisés
 const imageFileFilter = (req, file, cb) => {
+  console.log('Type MIME reçu:', file.mimetype);
+  console.log('Nom du fichier:', file.originalname);
+  
   // Formats d'image supportés : JPEG, PNG, GIF, HEIC/HEIF, WebP, et formats bruts d'appareils photo
   const allowedTypes = [
     'image/jpeg',
+    'image/jpg', // Certains appareils utilisent jpg au lieu de jpeg
     'image/png',
     'image/gif',
     'image/heic',
@@ -63,13 +67,33 @@ const imageFileFilter = (req, file, cb) => {
     'image/x-panasonic-rw2',
     'image/x-olympus-orf',
     'image/x-pentax-pef',
-    'image/x-samsung-srw'
+    'image/x-samsung-srw',
+    // Types MIME spécifiques aux appareils Samsung
+    'image/jpg',
+    'image/jxr',
+    'image/vnd.ms-photo',
+    'image/vnd.samsung.samsungphoto',
+    'image/vnd.samsung.samsung-image',
+    // Types MIME génériques supplémentaires
+    'image/*'  // Accepter tout type d'image (à utiliser avec prudence)
   ];
   
-  if (allowedTypes.includes(file.mimetype.toLowerCase())) {
+  // Vérifier également l'extension du fichier comme solution de secours
+  const fileExt = file.originalname.split('.').pop().toLowerCase();
+  const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'heic', 'heif', 'webp', 'jxr', 'arw', 'nef', 'cr2', 'raf', 'rw2', 'orf', 'pef', 'srw'];
+  
+  
+  // Vérifier le type MIME ou l'extension du fichier
+  if (allowedTypes.includes(file.mimetype.toLowerCase()) || 
+      allowedExtensions.includes(fileExt)) {
     cb(null, true);
   } else {
-    cb(new Error('Type de fichier non autorisé. Formats acceptés : JPEG, PNG, GIF, HEIC, WebP et formats bruts d\'appareils photo.'));
+    console.error('Type de fichier rejeté:', {
+      mimetype: file.mimetype,
+      originalname: file.originalname,
+      extension: fileExt
+    });
+    cb(new Error(`Type de fichier non autorisé (${file.mimetype}). Formats acceptés : JPG, JPEG, PNG, GIF, HEIC, WebP et formats bruts d'appareils photo.`));
   }
 };
 
