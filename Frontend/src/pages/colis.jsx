@@ -249,9 +249,11 @@ export default function Colis() {
       submitData.append('destinataire[telephone]', formData.destinataire.telephone);
       submitData.append('destinataire[adresse]', formData.destinataire.adresse || '');
 
-      // Ajouter l'image si elle existe
       if (imageFile) {
         submitData.append('image', imageFile);
+      } else if (editColis?.imageUrl) {
+        // Si pas de nouvelle image mais qu'il y en avait une avant
+        submitData.append('imageUrl', editColis.imageUrl);
       }
 
       // Afficher les données pour le débogage
