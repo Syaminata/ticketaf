@@ -67,6 +67,22 @@ export const colisAPI = {
     return response.data;
   },
 
+  // Annuler un colis
+  cancelColis: async (id) => {
+    const token = sessionStorage.getItem('token');
+    const response = await axios.put(
+      `/colis/${id}/annuler`,
+      {},
+      {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
   // Récupérer les statistiques des colis
   getColisStats: async () => {
     const token = sessionStorage.getItem('token');
