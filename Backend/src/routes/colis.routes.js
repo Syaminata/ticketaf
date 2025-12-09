@@ -255,6 +255,7 @@ router.get('/user/me', auth, colisController.getUserColis);
 router.get('/:id', auth, colisController.getColisById);
 router.put('/:id/prix', auth, adminAuth, colisController.updateColisPrix);
 router.put('/:id/valider', auth, colisController.validateColis);
+router.put('/:id/annuler', auth, colisController.cancelColis);
 /**
  * @swagger
  * /colis/{id}:

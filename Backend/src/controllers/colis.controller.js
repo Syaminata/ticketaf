@@ -140,7 +140,6 @@ const getColisById = async (req, res) => {
 };
  
 // Mettre à jour un colis 
-// Mettre à jour un colis 
 const updateColis = async (req, res) => {
   try {
     const { destinataire, prix, description, status, voyageId } = req.body;
@@ -409,6 +408,51 @@ const validateColis = async (req, res) => {
     });
   }
 };
+// Annuler un colis (client)
+const cancelColis = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const colis = await Colis.findById(id);
+    if (!colis) {
+      return res.status(404).json({ message: 'Colis non trouvé' });
+    }
+
+    // Vérifier que l'utilisateur est bien le propriétaire du colis
+    if (colis.expediteur.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ 
+        message: 'Non autorisé à annuler ce colis' 
+      });
+    }
+
+    // Vérifier que le colis est en attente
+    if (colis.status !== 'en attente') {
+      return res.status(400).json({ 
+        message: `Impossible d'annuler un colis avec le statut "${colis.status}". Seuls les colis "en attente" peuvent être annulés.` 
+      });
+    }
+
+    // Mettre à jour le statut à "annulé"
+    colis.status = 'annulé';
+    await colis.save();
+    
+    // Peupler les références pour la réponse
+    const updatedColis = await Colis.findById(colis._id)
+      .populate('voyage', 'from to date')
+      .populate('expediteur', 'name email phone');
+    
+    res.json({ 
+      message: 'Colis annulé avec succès',
+      colis: updatedColis
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'annulation du colis:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors de l\'annulation du colis',
+      error: error.message 
+    });
+  }
+};
 
 module.exports = {
   createColis,
@@ -421,4 +465,5 @@ module.exports = {
   getColisStats,
   updateColisPrix,
   validateColis,
+  cancelColis
 };
