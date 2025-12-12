@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
+const Driver = require('../models/driver.model');
+const { ForbiddenError } = require('../utils/errors');
 
 // Dans c:\dev\ticketaf\Backend\src\middleware\auth.js
 
@@ -57,4 +59,37 @@ const superAdminAuth = (req, res, next) => {
   next();
 };
 
-module.exports = { auth, adminAuth, superAdminAuth };
+// Vérifie si l'utilisateur est un conducteur
+const isDriver = (req, res, next) => {
+  if (req.user && req.user.role === 'conducteur') {
+    return next();
+  }
+  return next(new ForbiddenError('Accès réservé aux conducteurs'));
+};
+
+// Vérifie si l'utilisateur est un client
+const isClient = (req, res, next) => {
+  if (req.user && req.user.role === 'client') {
+    return next();
+  }
+  return next(new ForbiddenError('Accès réservé aux clients'));
+};
+
+// Vérifie si l'utilisateur a un des rôles spécifiés
+const hasRole = (...roles) => {
+  return (req, res, next) => {
+    if (req.user && roles.includes(req.user.role)) {
+      return next();
+    }
+    return next(new ForbiddenError(`Accès refusé. Rôles autorisés: ${roles.join(', ')}`));
+  };
+};
+
+module.exports = { 
+  auth, 
+  adminAuth, 
+  superAdminAuth, 
+  isDriver, 
+  isClient, 
+  hasRole 
+};
