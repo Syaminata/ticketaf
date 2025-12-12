@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const voyageController = require('../controllers/voyage.controller');
 const { auth, adminAuth } = require('../middleware/auth');
-const { isDriver } = require('../middleware/role');
+const { isDriver } = require('../middleware/auth');
 
 /**
  * @swagger
