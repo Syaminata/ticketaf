@@ -12,8 +12,6 @@ class ForbiddenError extends Error {
   }
 }
 
-// Dans c:\dev\ticketaf\Backend\src\middleware\auth.js
-
 const auth = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
