@@ -235,7 +235,7 @@ router.get('/search', voyageController.searchVoyages);
 router.get('/:id', voyageController.getVoyageById);
 
 // Routes admin
-// router.get('/', adminAuth, voyageController.getAllVoyage);
-// router.delete('/:id', adminAuth, voyageController.deleteVoyage);
+ router.get('/', adminAuth, voyageController.getAllVoyage);
+ router.delete('/:id', adminAuth, voyageController.deleteVoyage);
 
 module.exports = router;
