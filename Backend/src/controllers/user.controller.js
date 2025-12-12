@@ -1,6 +1,7 @@
 const User = require('../models/user.model');
 const Driver = require('../models/driver.model');
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 
 
 const getAllUsers = async (req, res) => {
@@ -45,15 +46,14 @@ const getUserById = async (req, res) => {
 
 
 const createUser = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
-    const { name, email, password, numero, role } = req.body;
+    const { name, email, password, numero, role, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
     
     if (!name || !numero || !password) {
       return res.status(400).json({ message: 'Le nom, le numéro et le mot de passe sont requis' });
-    }
-
-    if (role === 'conducteur') {
-      return res.status(403).json({ message: 'Vous ne pouvez pas créer de conducteur ici' });
     }
 
     // Vérifie si l'email existe déjà (seulement si email fourni)
@@ -62,13 +62,90 @@ const createUser = async (req, res) => {
       if (existingUser) return res.status(400).json({ message: 'Email déjà utilisé' });
     }
 
-    
-    const user = await User.create({ name, email: email || undefined, numero, password, role });
-    const userSafe = { ...user._doc };
+    // Vérifier si le numéro est déjà utilisé
+    const existingUserByNumber = await User.findOne({ numero });
+    if (existingUserByNumber) return res.status(400).json({ message: 'Numéro déjà utilisé' });
+
+    let user;
+    let driver = null;
+
+    if (role === 'conducteur') {
+      // Vérifier les champs requis pour un conducteur
+      if (!matricule || !marque || !capacity || !capacity_coffre) {
+        return res.status(400).json({ 
+          message: 'Pour un conducteur, les champs matricule, marque, capacity et capacity_coffre sont requis',
+          requiredFields: {
+            matricule: !matricule,
+            marque: !marque,
+            capacity: !capacity,
+            capacity_coffre: !capacity_coffre
+          }
+        });
+      }
+
+      // Vérifier si le matricule est déjà utilisé
+      const existingDriver = await Driver.findOne({ matricule });
+      if (existingDriver) return res.status(400).json({ message: 'Matricule déjà utilisé' });
+
+      // Créer d'abord l'utilisateur
+      user = new User({
+        name,
+        email: email || undefined,
+        password,
+        numero,
+        role: 'conducteur'
+      });
+      await user.save({ session });
+
+      // Créer le conducteur associé
+      driver = new Driver({
+        name,
+        email: email || undefined,
+        password,
+        numero,
+        matricule,
+        marque,
+        capacity: parseInt(capacity),
+        capacity_coffre,
+        climatisation: climatisation === 'true' || climatisation === true,
+        isActive: false,
+        role: 'conducteur'
+      });
+      await driver.save({ session });
+    } else {
+      // Créer un utilisateur normal
+      user = await User.create([{
+        name,
+        email: email || undefined,
+        password,
+        numero,
+        role: role || 'client'
+      }], { session });
+      user = user[0];
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    const userSafe = user.toObject();
     delete userSafe.password;
 
-    res.status(201).json({ message: 'Utilisateur créé avec succès', user: userSafe });
+    const response = { 
+      message: role === 'conducteur' ? 'Conducteur créé avec succès' : 'Utilisateur créé avec succès',
+      user: userSafe
+    };
+
+    if (driver) {
+      const driverSafe = driver.toObject();
+      delete driverSafe.password;
+      response.driver = driverSafe;
+    }
+
+    res.status(201).json(response);
   } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    
     console.error('Erreur createUser:', err);
 
     // Gestion des erreurs de validation Mongoose
@@ -79,7 +156,14 @@ const createUser = async (req, res) => {
 
     // Gestion des erreurs de clé unique
     if (err.code === 11000) {
-      return res.status(400).json({ message: 'Email ou numéro déjà utilisé' });
+      const field = Object.keys(err.keyPattern)[0];
+      return res.status(400).json({ 
+        message: field === 'email' ? 'Email déjà utilisé' : 
+                field === 'numero' ? 'Numéro déjà utilisé' :
+                field === 'matricule' ? 'Matricule déjà utilisé' :
+                'Duplication détectée',
+        field: field
+      });
     }
 
     res.status(500).json({ message: 'Erreur serveur', error: err.message });

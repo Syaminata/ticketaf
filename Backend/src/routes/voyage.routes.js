@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const voyageController = require('../controllers/voyage.controller');
 const { auth, adminAuth } = require('../middleware/auth');
+const { isDriver } = require('../middleware/role');
 
 /**
  * @swagger
@@ -54,7 +55,7 @@ const { auth, adminAuth } = require('../middleware/auth');
  *             schema:
  *               $ref: '#/components/schemas/Voyage'
  */
-router.post('/', auth, adminAuth, voyageController.createVoyage);
+router.post('/', auth, voyageController.createVoyage);
 
 /**
  * @swagger
@@ -191,5 +192,50 @@ router.put('/:id', auth, adminAuth, voyageController.updateVoyage);
  *         description: Voyage non trouvé
  */
 router.delete('/:id', auth, adminAuth, voyageController.deleteVoyage);
+
+/**
+ * @swagger
+ * /voyages/me:
+ *   get:
+ *     summary: Récupérer les voyages du conducteur connecté
+ *     tags: [Voyages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: includeExpired
+ *         schema:
+ *           type: boolean
+ *         description: Inclure les voyages expirés
+ *     responses:
+ *       200:
+ *         description: Liste des voyages du conducteur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Voyage'
+ *       401:
+ *         description: Non autorisé
+ *       500:
+ *         description: Erreur serveur
+ */
+router.get('/me', auth, isDriver, voyageController.getMyVoyages);
+
+// Routes protégées pour les conducteurs
+router.post('/', auth, isDriver, voyageController.createVoyage);
+router.put('/:id', auth, isDriver, voyageController.updateVoyage);
+router.delete('/:id', auth, isDriver, voyageController.deleteVoyage);
+
+// Routes publiques
+router.get('/', voyageController.getAllVoyage);
+router.get('/all', voyageController.getAllVoyageIncludingExpired);
+router.get('/search', voyageController.searchVoyages);
+router.get('/:id', voyageController.getVoyageById);
+
+// Routes admin
+// router.get('/', adminAuth, voyageController.getAllVoyage);
+// router.delete('/:id', adminAuth, voyageController.deleteVoyage);
 
 module.exports = router;

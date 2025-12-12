@@ -156,4 +156,37 @@ const searchVoyages = async (req, res) => {
   }
 };
 
-module.exports = { createVoyage, getAllVoyage, getAllVoyageIncludingExpired, getVoyageById, updateVoyage, deleteVoyage, searchVoyages };
+// Récupérer les voyages d'un conducteur
+const getMyVoyages = async (req, res) => {
+  try {
+    const driverId = req.user.id; // ID du conducteur connecté
+    const { includeExpired } = req.query;
+    
+    let query = { driver: driverId };
+    
+    // Si on ne veut pas les voyages expirés, on filtre par date
+    if (!includeExpired) {
+      query.date = { $gte: new Date() };
+    }
+    
+    const voyages = await Voyage.find(query)
+      .populate('driver', '-password')
+      .sort({ date: -1 });
+      
+    res.status(200).json(voyages);
+  } catch (err) {
+    console.error('Erreur getMyVoyages:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+module.exports = { 
+  createVoyage, 
+  getAllVoyage, 
+  getAllVoyageIncludingExpired, 
+  getVoyageById, 
+  updateVoyage, 
+  deleteVoyage, 
+  searchVoyages,
+  getMyVoyages 
+};
