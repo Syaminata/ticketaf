@@ -1,7 +1,16 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
 const Driver = require('../models/driver.model');
-const { ForbiddenError } = require('../utils/errors');
+
+// Classe d'erreur personnalisée pour les accès refusés
+class ForbiddenError extends Error {
+  constructor(message = 'Accès refusé') {
+    super(message);
+    this.name = 'ForbiddenError';
+    this.statusCode = 403;
+    this.code = 'FORBIDDEN';
+  }
+}
 
 // Dans c:\dev\ticketaf\Backend\src\middleware\auth.js
 
@@ -64,7 +73,10 @@ const isDriver = (req, res, next) => {
   if (req.user && req.user.role === 'conducteur') {
     return next();
   }
-  return next(new ForbiddenError('Accès réservé aux conducteurs'));
+  return res.status(403).json({ 
+    message: 'Accès réservé aux conducteurs',
+    code: 'FORBIDDEN'
+  });
 };
 
 // Vérifie si l'utilisateur est un client
@@ -72,7 +84,10 @@ const isClient = (req, res, next) => {
   if (req.user && req.user.role === 'client') {
     return next();
   }
-  return next(new ForbiddenError('Accès réservé aux clients'));
+  return res.status(403).json({ 
+    message: 'Accès réservé aux clients',
+    code: 'FORBIDDEN'
+  });
 };
 
 // Vérifie si l'utilisateur a un des rôles spécifiés
@@ -81,7 +96,10 @@ const hasRole = (...roles) => {
     if (req.user && roles.includes(req.user.role)) {
       return next();
     }
-    return next(new ForbiddenError(`Accès refusé. Rôles autorisés: ${roles.join(', ')}`));
+    return res.status(403).json({ 
+      message: `Accès refusé. Rôles autorisés: ${roles.join(', ')}`,
+      code: 'FORBIDDEN'
+    });
   };
 };
 
