@@ -112,6 +112,48 @@ router.get('/me', auth, isDriver, voyageController.getMyVoyages);
 
 /**
  * @swagger
+ * /voyages/driver:
+ *   post:
+ *     summary: Créer un voyage depuis le compte conducteur
+ *     tags: [Voyages]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - from
+ *               - to
+ *               - date
+ *               - price
+ *               - totalSeats
+ *             properties:
+ *               from:
+ *                 type: string
+ *               to:
+ *                 type: string
+ *               date:
+ *                 type: string
+ *                 format: date-time
+ *               price:
+ *                 type: number
+ *               totalSeats:
+ *                 type: number
+ *     responses:
+ *       201:
+ *         description: Voyage créé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Voyage'
+ */
+router.post('/driver', auth, isDriver, voyageController.createVoyageByDriver);
+
+/**
+ * @swagger
  * /voyages/{id}:
  *   get:
  *     summary: Récupérer un voyage par son ID
@@ -185,7 +227,7 @@ router.get('/:id', voyageController.getVoyageById);
  *             schema:
  *               $ref: '#/components/schemas/Voyage'
  */
-router.post('/', auth, isDriver, voyageController.createVoyage);
+router.post('/', auth, adminAuth, voyageController.createVoyage);
 
 /**
  * @swagger

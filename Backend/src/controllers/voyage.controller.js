@@ -201,6 +201,52 @@ const getMyVoyages = async (req, res) => {
   }
 };
 
+// CRÉATION DE VOYAGE PAR LE CONDUCTEUR
+const createVoyageByDriver = async (req, res) => {
+  try {
+    const driverId = req.user._id; // vient du token (auth + isDriver)
+    const { from, to, date, price, totalSeats } = req.body;
+
+    if (!from || !to || !date || !price) {
+      return res.status(400).json({ message: 'Tous les champs sont requis' });
+    }
+
+    const driver = await Driver.findById(driverId);
+    if (!driver) {
+      return res.status(404).json({ message: 'Conducteur non trouvé' });
+    }
+
+    if (!driver.isActive) {
+      return res.status(403).json({
+        message: 'Conducteur inactif. Veuillez contacter l’administration.'
+      });
+    }
+
+    const seats = totalSeats || driver.capacity || 4;
+
+    const voyage = await Voyage.create({
+      driver: driverId,
+      from,
+      to,
+      date,
+      price,
+      totalSeats: seats,
+      availableSeats: seats
+    });
+
+    const populatedVoyage = await Voyage.findById(voyage._id)
+      .populate('driver', '-password');
+
+    res.status(201).json({
+      message: 'Voyage créé avec succès',
+      voyage: populatedVoyage
+    });
+  } catch (err) {
+    console.error('Erreur createVoyageByDriver:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
 module.exports = { 
   createVoyage, 
   getAllVoyage, 
@@ -209,5 +255,6 @@ module.exports = {
   updateVoyage, 
   deleteVoyage, 
   searchVoyages,
-  getMyVoyages 
+  getMyVoyages,
+  createVoyageByDriver
 };
