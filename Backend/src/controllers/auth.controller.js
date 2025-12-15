@@ -165,90 +165,78 @@ const login = async (req, res) => {
     const { email, numero, password, role } = req.body;
 
     if ((!email && !numero) || !password || !role) {
-      return res.status(400).json({
-        message: 'Email ou numéro, mot de passe et rôle requis',
-      });
+      return res.status(400).json({ message: 'Champs requis manquants' });
     }
 
-    let user = null;
-    let driver = null;
-
-    // 🔍 Recherche utilisateur
-    if (email) {
-      user = await User.findOne({ email });
-      if (!user) {
-        driver = await Driver.findOne({ email });
-      }
-    } else {
-      user = await User.findOne({ numero });
-      if (!user) {
-        driver = await Driver.findOne({ numero });
-      }
-    }
-
-    // Si trouvé dans Driver mais pas User
-    if (!user && driver) {
-      user = driver;
-    }
+    // 1️⃣ TOUJOURS chercher dans User
+    const user = email
+      ? await User.findOne({ email })
+      : await User.findOne({ numero });
 
     if (!user) {
       return res.status(404).json({ message: 'Utilisateur introuvable' });
     }
 
-    // 🔐 Vérification mot de passe
+    // 2️⃣ Vérifier mot de passe
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Mot de passe incorrect' });
     }
 
-    // 🎭 Vérification rôle
+    // 3️⃣ Vérifier rôle
     if (user.role !== role) {
-      return res.status(403).json({
-        message: `Accès refusé. Vous êtes ${user.role}`,
-      });
+      return res.status(403).json({ message: 'Rôle invalide' });
     }
 
-    // 🔑 Token
+    // 4️⃣ SI conducteur → chercher le driver associé
+    let driver = null;
+    if (user.role === 'conducteur') {
+      driver = await Driver.findById(user._id);
+
+      if (!driver) {
+        return res.status(500).json({
+          message: 'Profil conducteur introuvable',
+        });
+      }
+    }
+
+    // 5️⃣ Token
     const token = jwt.sign(
       { id: user._id, role: user.role },
-      process.env.JWT_SECRET || 'votre_secret_jwt',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    // 👤 Réponse utilisateur
-    const userResponse = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      numero: user.numero,
-      role: user.role,
+    // 6️⃣ Réponse
+    const response = {
+      message: 'Connexion réussie',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        numero: user.numero,
+        role: user.role,
+      },
     };
 
-    // 🚗 SI CONDUCTEUR → AJOUTER isActive
-    if (user.role === 'conducteur') {
-      const driverData = driver || user;
-
-      userResponse.driver = {
-        matricule: driverData.matricule,
-        marque: driverData.marque,
-        capacity: driverData.capacity,
-        capacity_coffre: driverData.capacity_coffre,
-        climatisation: driverData.climatisation,
-        isActive: driverData.isActive, 
+    // 7️⃣ Ajouter isActive UNIQUEMENT depuis Driver
+    if (driver) {
+      response.user.driver = {
+        isActive: driver.isActive,
+        matricule: driver.matricule,
+        marque: driver.marque,
       };
     }
 
-    return res.status(200).json({
-      message: 'Connexion réussie',
-      token,
-      user: userResponse,
-    });
+    return res.status(200).json(response);
 
   } catch (err) {
-    console.error('Erreur login:', err);
+    console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
+
 
 
 
