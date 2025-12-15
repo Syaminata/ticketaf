@@ -159,13 +159,23 @@ const searchVoyages = async (req, res) => {
 // Récupérer les voyages d'un conducteur
 const getMyVoyages = async (req, res) => {
   try {
-    const driverId = req.user.id; // ID du conducteur connecté
+    const userId = req.user.id; // ID de l'utilisateur connecté
     const { includeExpired } = req.query;
     
-    let query = { driver: driverId };
+    // Trouver le conducteur associé à cet utilisateur
+    const driver = await Driver.findOne({ user: userId });
+    
+    if (!driver) {
+      return res.status(404).json({ 
+        message: 'Aucun conducteur trouvé pour cet utilisateur',
+        code: 'DRIVER_NOT_FOUND'
+      });
+    }
+    
+    let query = { driver: driver._id };
     
     // Si on ne veut pas les voyages expirés, on filtre par date
-    if (!includeExpired) {
+    if (includeExpired === 'false' || includeExpired === false) {
       query.date = { $gte: new Date() };
     }
     
@@ -176,7 +186,11 @@ const getMyVoyages = async (req, res) => {
     res.status(200).json(voyages);
   } catch (err) {
     console.error('Erreur getMyVoyages:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ 
+      message: 'Erreur serveur', 
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 };
 
