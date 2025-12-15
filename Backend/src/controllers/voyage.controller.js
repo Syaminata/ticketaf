@@ -159,8 +159,8 @@ const searchVoyages = async (req, res) => {
 // Récupérer les voyages d'un conducteur
 const getMyVoyages = async (req, res) => {
   try {
-    const userEmail = req.user.email; // Email de l'utilisateur connecté
-    const userPhone = req.user.numero; // Numéro de téléphone de l'utilisateur
+    const userEmail = req.user.email; 
+    const userPhone = req.user.numero; 
     const { includeExpired } = req.query;
     
     // Trouver le conducteur associé à cet utilisateur par email ou numéro

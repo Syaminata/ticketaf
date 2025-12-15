@@ -120,10 +120,11 @@ const createDriver = async (req, res) => {
     };
 
     console.log('Création du conducteur...');
+    const hashedPassword = await bcrypt.hash(password, 10);
     const driver = await Driver.create({
       name, 
       email: email || undefined, 
-      password, 
+      password: hashedPassword, 
       numero, 
       matricule, 
       marque, 
