@@ -165,97 +165,91 @@ const login = async (req, res) => {
     const { email, numero, password, role } = req.body;
 
     if ((!email && !numero) || !password || !role) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Email ou numéro, mot de passe et rôle requis',
-        requiredFields: {
-          emailOrNumber: !email && !numero,
-          password: !password,
-          role: !role
-        }
       });
     }
 
-    // Rechercher l'utilisateur par email ou numéro
-    let user;
+    let user = null;
+    let driver = null;
+
+    // 🔍 Recherche utilisateur
     if (email) {
       user = await User.findOne({ email });
       if (!user) {
-        // Si non trouvé dans User, vérifier dans Driver
-        user = await Driver.findOne({ email });
+        driver = await Driver.findOne({ email });
       }
     } else {
       user = await User.findOne({ numero });
       if (!user) {
-        // Si non trouvé dans User, vérifier dans Driver
-        user = await Driver.findOne({ numero });
+        driver = await Driver.findOne({ numero });
       }
     }
-    
-    if (!user) {
-      return res.status(404).json({ 
-        message: 'Aucun compte trouvé avec ces identifiants',
-        code: 'USER_NOT_FOUND'
-      });
+
+    // Si trouvé dans Driver mais pas User
+    if (!user && driver) {
+      user = driver;
     }
 
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur introuvable' });
+    }
+
+    // 🔐 Vérification mot de passe
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ 
-        message: 'Mot de passe incorrect',
-        code: 'INVALID_CREDENTIALS'
-      });
+      return res.status(401).json({ message: 'Mot de passe incorrect' });
     }
 
-    // Vérifie que le rôle choisi correspond au rôle réel
+    // 🎭 Vérification rôle
     if (user.role !== role) {
-      return res.status(403).json({ 
-        message: `Accès refusé. Vous n'êtes pas enregistré en tant que ${role}`,
-        code: 'INVALID_ROLE',
-        currentRole: user.role
+      return res.status(403).json({
+        message: `Accès refusé. Vous êtes ${user.role}`,
       });
     }
 
+    // 🔑 Token
     const token = jwt.sign(
-      { 
-        id: user._id, 
-        role: user.role,
-        isDriver: user instanceof mongoose.model('Driver')
-      }, 
-      process.env.JWT_SECRET || 'votre_secret_jwt', 
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET || 'votre_secret_jwt',
       { expiresIn: '7d' }
     );
 
+    // 👤 Réponse utilisateur
     const userResponse = {
       id: user._id,
       name: user.name,
       email: user.email,
       numero: user.numero,
-      role: user.role
+      role: user.role,
     };
 
-    // Ajouter les détails spécifiques aux conducteurs si c'est un conducteur
-    if (user instanceof mongoose.model('Driver')) {
-      userResponse.driverDetails = {
-        matricule: user.matricule,
-        marque: user.marque,
-        capacity: user.capacity,
-        capacity_coffre: user.capacity_coffre,
-        climatisation: user.climatisation,
-        isActive: user.isActive
+    // 🚗 SI CONDUCTEUR → AJOUTER isActive
+    if (user.role === 'conducteur') {
+      const driverData = driver || user;
+
+      userResponse.driver = {
+        matricule: driverData.matricule,
+        marque: driverData.marque,
+        capacity: driverData.capacity,
+        capacity_coffre: driverData.capacity_coffre,
+        climatisation: driverData.climatisation,
+        isActive: driverData.isActive, 
       };
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       message: 'Connexion réussie',
       token,
-      user: userResponse
+      user: userResponse,
     });
 
   } catch (err) {
     console.error('Erreur login:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
+
 
 
 module.exports = { register, login };
