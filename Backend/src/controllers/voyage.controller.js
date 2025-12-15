@@ -159,16 +159,23 @@ const searchVoyages = async (req, res) => {
 // Récupérer les voyages d'un conducteur
 const getMyVoyages = async (req, res) => {
   try {
-    const userId = req.user.id; // ID de l'utilisateur connecté
+    const userEmail = req.user.email; // Email de l'utilisateur connecté
+    const userPhone = req.user.numero; // Numéro de téléphone de l'utilisateur
     const { includeExpired } = req.query;
     
-    // Trouver le conducteur associé à cet utilisateur
-    const driver = await Driver.findOne({ user: userId });
+    // Trouver le conducteur associé à cet utilisateur par email ou numéro
+    const driver = await Driver.findOne({ 
+      $or: [
+        { email: userEmail },
+        { numero: userPhone }
+      ]
+    });
     
     if (!driver) {
       return res.status(404).json({ 
-        message: 'Aucun conducteur trouvé pour cet utilisateur',
-        code: 'DRIVER_NOT_FOUND'
+        message: 'Aucun conducteur trouvé avec ces informations de connexion',
+        code: 'DRIVER_NOT_FOUND',
+        details: 'Veuillez vérifier que vous êtes connecté avec le bon compte conducteur'
       });
     }
     
