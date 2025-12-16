@@ -34,7 +34,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Servir les fichiers statiques (uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
 // Route documentation Swagger
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec)); 
 
