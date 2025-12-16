@@ -257,7 +257,7 @@ router.post('/', auth, adminAuth, voyageController.createVoyage);
  *             schema:
  *               $ref: '#/components/schemas/Voyage'
  */
-router.put('/:id', auth, isDriver, voyageController.updateVoyage);
+router.put('/:id', auth, isDriverOrAdmin, voyageController.updateVoyage);
 
 /**
  * @swagger
@@ -279,7 +279,7 @@ router.put('/:id', auth, isDriver, voyageController.updateVoyage);
  *       404:
  *         description: Voyage non trouvé
  */
-router.delete('/:id', auth, isDriver, voyageController.deleteVoyage);
+router.delete('/:id', auth, isDriverOrAdmin, voyageController.deleteVoyage);
 
 // =================
 // Routes admin

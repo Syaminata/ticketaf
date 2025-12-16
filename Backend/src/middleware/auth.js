@@ -88,6 +88,17 @@ const isClient = (req, res, next) => {
   });
 };
 
+// Vérifie si l'utilisateur est un conducteur ou un administrateur
+const isDriverOrAdmin = (req, res, next) => {
+  if (req.user && (req.user.role === 'conducteur' || req.user.role === 'admin' || req.user.role === 'superadmin')) {
+    return next();
+  }
+  return res.status(403).json({ 
+    message: 'Accès réservé aux conducteurs et administrateurs',
+    code: 'FORBIDDEN'
+  });
+};
+
 // Vérifie si l'utilisateur a un des rôles spécifiés
 const hasRole = (...roles) => {
   return (req, res, next) => {
@@ -105,7 +116,8 @@ module.exports = {
   auth, 
   adminAuth, 
   superAdminAuth, 
-  isDriver, 
-  isClient, 
-  hasRole 
+  isDriver,
+  isDriverOrAdmin,
+  isClient,
+  hasRole
 };
