@@ -167,47 +167,31 @@ const searchVoyages = async (req, res) => {
 // Récupérer les voyages d'un conducteur
 const getMyVoyages = async (req, res) => {
   try {
-    const userEmail = req.user.email; 
-    const userPhone = req.user.numero; 
+    const driverId = req.user._id; // ID déjà disponible via le token
     const { includeExpired } = req.query;
-    
-    // Trouver le conducteur associé à cet utilisateur par email ou numéro
-    const driver = await Driver.findOne({ 
-      $or: [
-        { email: userEmail },
-        { numero: userPhone }
-      ]
-    });
-    
-    if (!driver) {
-      return res.status(404).json({ 
-        message: 'Aucun conducteur trouvé avec ces informations de connexion',
-        code: 'DRIVER_NOT_FOUND',
-        details: 'Veuillez vérifier que vous êtes connecté avec le bon compte conducteur'
-      });
-    }
-    
-    let query = { driver: driver._id };
-    
-    // Si on ne veut pas les voyages expirés, on filtre par date
+
+    let query = { driver: driverId };
+
+    // Filtrer les voyages expirés si nécessaire
     if (includeExpired === 'false' || includeExpired === false) {
       query.date = { $gte: new Date() };
     }
-    
+
     const voyages = await Voyage.find(query)
       .populate('driver', '-password')
       .sort({ date: -1 });
-      
+
     res.status(200).json(voyages);
   } catch (err) {
     console.error('Erreur getMyVoyages:', err);
-    res.status(500).json({ 
-      message: 'Erreur serveur', 
+    res.status(500).json({
+      message: 'Erreur serveur',
       error: err.message,
       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
   }
 };
+
 
 // CRÉATION DE VOYAGE PAR LE CONDUCTEUR
 const createVoyageByDriver = async (req, res) => {
