@@ -102,6 +102,77 @@ router.get('/', auth, adminAuth, driverController.getAllDrivers);
 
 /**
  * @swagger
+ * /drivers/me:
+ *   get:
+ *     summary: Récupérer son propre profil
+ *     tags: [Drivers]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profil du conducteur
+ */
+router.get('/me', auth, driverController.getMyProfile);
+
+/**
+ * @swagger
+ * /drivers/me/profile:
+ *   put:
+ *     summary: Mettre à jour son propre profil
+ *     tags: [Drivers]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               numero:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profil mis à jour
+ */
+router.put('/me/profile', auth, driverController.updateMyProfile);
+
+/**
+ * @swagger
+ * /drivers/me/password:
+ *   put:
+ *     summary: Changer son mot de passe
+ *     tags: [Drivers]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       200:
+ *         description: Mot de passe modifié
+ */
+router.put('/me/password', auth, driverController.changePassword);
+
+/**
+ * @swagger
  * /drivers/{id}:
  *   put:
  *     summary: Mettre à jour un conducteur

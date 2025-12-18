@@ -435,5 +435,147 @@ const getPinnedDrivers = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
+// 1. Récupérer le profil du conducteur connecté
+const getMyProfile = async (req, res) => {
+  try {
+    const driver = await Driver.findById(req.user.id).select('-password');
+    if (!driver) {
+      return res.status(404).json({ message: 'Profil non trouvé' });
+    }
+    res.status(200).json(driver);
+  } catch (err) {
+    console.error('Erreur getMyProfile:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
 
-module.exports = { createDriver, getAllDrivers, updateDriver, deleteDriver, cleanFiles, activateDriver, deactivateDriver, unpinDriver, pinDriver, getPinnedDrivers };
+// 2. Mettre à jour son propre profil (sans fichiers)
+const updateMyProfile = async (req, res) => {
+  try {
+    const { name, email, numero } = req.body;
+    
+    // Vérifier si le numéro existe déjà pour un autre utilisateur
+    if (numero) {
+      const existingDriver = await Driver.findOne({ 
+        numero, 
+        _id: { $ne: req.user.id } 
+      });
+      if (existingDriver) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Ce numéro est déjà utilisé par un autre conducteur' 
+        });
+      }
+    }
+    
+    // Vérifier si l'email existe déjà pour un autre utilisateur
+    if (email && email.trim() !== '') {
+      const existingDriver = await Driver.findOne({ 
+        email, 
+        _id: { $ne: req.user.id } 
+      });
+      if (existingDriver) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Cet email est déjà utilisé par un autre conducteur' 
+        });
+      }
+    }
+
+    const updateData = {};
+    if (name) updateData.name = name.trim();
+    if (numero) updateData.numero = numero.trim();
+    if (email !== undefined) {
+      updateData.email = email.trim() || undefined;
+    }
+
+    const driver = await Driver.findByIdAndUpdate(
+      req.user.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!driver) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Profil non trouvé' 
+      });
+    }
+
+    // Mettre à jour aussi dans la collection User
+    await User.findByIdAndUpdate(req.user.id, updateData);
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Profil mis à jour avec succès', 
+      driver 
+    });
+  } catch (err) {
+    console.error('Erreur updateMyProfile:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur serveur', 
+      error: err.message 
+    });
+  }
+};
+
+// 3. Changer son mot de passe
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Tous les champs sont requis' 
+      });
+    }
+
+    if (newPassword.length < 5) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Le nouveau mot de passe doit contenir au moins 5 caractères' 
+      });
+    }
+
+    // Récupérer le conducteur avec le mot de passe
+    const driver = await Driver.findById(req.user.id);
+    if (!driver) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Conducteur non trouvé' 
+      });
+    }
+
+    // Vérifier le mot de passe actuel
+    const isMatch = await bcrypt.compare(currentPassword, driver.password);
+    if (!isMatch) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Mot de passe actuel incorrect' 
+      });
+    }
+
+    // Hasher le nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Mettre à jour le mot de passe dans Driver et User
+    await Driver.findByIdAndUpdate(req.user.id, { password: hashedPassword });
+    await User.findByIdAndUpdate(req.user.id, { password: hashedPassword });
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Mot de passe modifié avec succès' 
+    });
+  } catch (err) {
+    console.error('Erreur changePassword:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur serveur', 
+      error: err.message 
+    });
+  }
+};
+
+module.exports = { createDriver, getAllDrivers, updateDriver, deleteDriver, cleanFiles, activateDriver, deactivateDriver, unpinDriver, pinDriver, getPinnedDrivers, getMyProfile, updateMyProfile, changePassword };
