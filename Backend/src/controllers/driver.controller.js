@@ -117,11 +117,48 @@ const createDriver = async (req, res) => {
       });
     }
 
-    const existingDriver = await Driver.findOne({ $or: [{ email }, { numero }, { matricule }] }).session(session);
+    // Vérifier les doublons dans la collection Driver
+    const driverQuery = { 
+      $or: [
+        { numero: numero },
+        { matricule: matricule }
+      ]
+    };
+    if (email) {
+      driverQuery.$or.push({ email: email });
+    }
+    
+    console.log('Recherche de conducteur existant:', JSON.stringify(driverQuery));
+    const existingDriver = await Driver.findOne(driverQuery).session(session);
+    
     if (existingDriver) {
+      const numeroExists = existingDriver.numero === numero;
+      const emailExists = email && existingDriver.email === email;
+      const matriculeExists = existingDriver.matricule === matricule;
+      
+      console.log('Conducteur existant trouvé:', {
+        _id: existingDriver._id,
+        email: existingDriver.email,
+        numero: existingDriver.numero,
+        matricule: existingDriver.matricule,
+        numeroExists,
+        emailExists,
+        matriculeExists
+      });
+      
       return res.status(400).json({ 
-        message: 'Email, numéro ou matricule déjà utilisé',
-        exists: true
+        message: numeroExists ? 'Numéro déjà utilisé' : 
+                emailExists ? 'Email déjà utilisé' :
+                'Matricule déjà utilisé',
+        exists: true,
+        details: {
+          emailExists,
+          numeroExists,
+          matriculeExists,
+          existingNumero: existingDriver.numero,
+          existingMatricule: existingDriver.matricule,
+          existingEmail: existingDriver.email
+        }
       });
     }
 
