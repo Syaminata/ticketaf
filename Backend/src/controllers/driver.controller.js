@@ -1,8 +1,9 @@
+const mongoose = require('mongoose');
 const Driver = require('../models/driver.model');
 const User = require('../models/user.model');
 const fs = require('fs');
 const path = require('path');
-const bcrypt = require('bcryptjs')
+const bcrypt = require('bcryptjs');
 
 // Fonction pour nettoyer les fichiers manquants
 const cleanMissingFiles = async () => {
