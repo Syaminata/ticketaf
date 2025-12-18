@@ -40,31 +40,39 @@ const createVoyage = async (req, res) => {
 const getAllVoyage = async (req, res) => {
   try {
     const now = new Date();
-    const voyage = await Voyage.find({
+    const voyages = await Voyage.find({
       date: { $gt: now }
     })
-    .populate('driver', '-password')
+    .populate({
+      path: 'driver',
+      select: '-password',
+      options: { retainNullValues: true }
+    })
     .sort({ date: 1 });
     
-    // Trier les voyages : chauffeurs épinglés en premier
-    const sortedVoyages = voyage.sort((a, b) => {
+    // Trier les voyages
+    const sortedVoyages = voyages.sort((a, b) => {
+      // Gérer le cas où le driver est null
+      const aDriver = a.driver || { isPinned: false, pinnedOrder: 0 };
+      const bDriver = b.driver || { isPinned: false, pinnedOrder: 0 };
+      
       // Si les deux chauffeurs ont le même statut isPinned
-      if (a.driver.isPinned === b.driver.isPinned) {
+      if (aDriver.isPinned === bDriver.isPinned) {
         // Trier par pinnedOrder si les deux sont épinglés
-        if (a.driver.isPinned) {
-          return (a.driver.pinnedOrder || 0) - (b.driver.pinnedOrder || 0);
+        if (aDriver.isPinned) {
+          return (aDriver.pinnedOrder || 0) - (bDriver.pinnedOrder || 0);
         }
         // Sinon garder l'ordre par date
         return 0;
       }
       // Les chauffeurs épinglés en premier
-      return b.driver.isPinned - a.driver.isPinned;
+      return aDriver.isPinned ? -1 : 1;
     });
-    
+
     res.status(200).json(sortedVoyages);
-  } catch (err) {
-    console.error('Erreur getAllVoyage:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  } catch (error) {
+    console.error('Erreur getAllVoyage:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 

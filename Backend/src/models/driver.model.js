@@ -53,6 +53,17 @@ const driverSchema = new mongoose.Schema({
   role: { type: String, default: 'conducteur' } 
 }, { timestamps: true });
 
+// Middleware pour supprimer les voyages associés avant de supprimer un conducteur
+driverSchema.pre('remove', async function(next) {
+  try {
+    // Supprimer tous les voyages associés à ce conducteur
+    await this.model('Voyage').deleteMany({ driver: this._id });
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Hash du mot de passe avant sauvegarde
 driverSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
