@@ -118,14 +118,14 @@ router.get('/me', auth, driverController.getMyProfile);
  * @swagger
  * /drivers/me/profile:
  *   put:
- *     summary: Mettre à jour son propre profil
+ *     summary: Mettre à jour son propre profil (avec fichiers)
  *     tags: [Drivers]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -135,11 +135,28 @@ router.get('/me', auth, driverController.getMyProfile);
  *                 type: string
  *               numero:
  *                 type: string
+ *               matricule:
+ *                 type: string
+ *               marque:
+ *                 type: string
+ *               capacity:
+ *                 type: number
+ *               capacity_coffre:
+ *                 type: string
+ *                 enum: [petit, moyen, grand]
+ *               climatisation:
+ *                 type: boolean
+ *               permis:
+ *                 type: string
+ *                 format: binary
+ *               photo:
+ *                 type: string
+ *                 format: binary
  *     responses:
  *       200:
  *         description: Profil mis à jour
  */
-router.put('/me/profile', auth, driverController.updateMyProfile);
+router.put('/me/profile', auth, uploadDriverFiles, driverController.updateMyProfile);
 
 /**
  * @swagger

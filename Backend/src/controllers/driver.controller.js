@@ -452,8 +452,11 @@ const getMyProfile = async (req, res) => {
 // 2. Mettre à jour son propre profil (sans fichiers)
 const updateMyProfile = async (req, res) => {
   try {
-    const { name, email, numero } = req.body;
+    const { name, email, numero, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
     
+    console.log('Données reçues pour mise à jour profil:', req.body);
+    console.log('Fichiers reçus:', req.files);
+
     // Vérifier si le numéro existe déjà pour un autre utilisateur
     if (numero) {
       const existingDriver = await Driver.findOne({ 
@@ -482,13 +485,64 @@ const updateMyProfile = async (req, res) => {
       }
     }
 
+    // Vérifier si la matricule existe déjà pour un autre conducteur
+    if (matricule && matricule.trim() !== '') {
+      const existingDriver = await Driver.findOne({ 
+        matricule, 
+        _id: { $ne: req.user.id } 
+      });
+      if (existingDriver) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Cette matricule est déjà utilisée par un autre conducteur' 
+        });
+      }
+    }
+
+    // Construire l'objet de mise à jour
     const updateData = {};
+    
     if (name) updateData.name = name.trim();
     if (numero) updateData.numero = numero.trim();
+    if (matricule) updateData.matricule = matricule.trim();
+    if (marque) updateData.marque = marque.trim();
+    if (capacity) updateData.capacity = parseInt(capacity);
+    if (capacity_coffre) updateData.capacity_coffre = capacity_coffre;
+    if (climatisation !== undefined) {
+      updateData.climatisation = climatisation === 'true' || climatisation === true;
+    }
+    
+    // Gérer l'email (peut être vide)
     if (email !== undefined) {
       updateData.email = email.trim() || undefined;
     }
 
+    // Traiter les fichiers uploadés
+    if (req.files) {
+      if (req.files.permis && req.files.permis.length > 0) {
+        const permisData = {
+          filename: req.files.permis[0].filename,
+          originalName: req.files.permis[0].originalname,
+          path: req.files.permis[0].path,
+          uploadedAt: new Date()
+        };
+        updateData.permis = [permisData];
+      }
+
+      if (req.files.photo && req.files.photo.length > 0) {
+        const photoData = {
+          filename: req.files.photo[0].filename,
+          originalName: req.files.photo[0].originalname,
+          path: req.files.photo[0].path,
+          uploadedAt: new Date()
+        };
+        updateData.photo = [photoData];
+      }
+    }
+
+    console.log('Données à mettre à jour:', updateData);
+
+    // Mettre à jour le conducteur
     const driver = await Driver.findByIdAndUpdate(
       req.user.id,
       updateData,
@@ -503,7 +557,11 @@ const updateMyProfile = async (req, res) => {
     }
 
     // Mettre à jour aussi dans la collection User
-    await User.findByIdAndUpdate(req.user.id, updateData);
+    const userUpdateData = { name: updateData.name, numero: updateData.numero };
+    if (updateData.email !== undefined) {
+      userUpdateData.email = updateData.email;
+    }
+    await User.findByIdAndUpdate(req.user.id, userUpdateData);
 
     res.status(200).json({ 
       success: true,
