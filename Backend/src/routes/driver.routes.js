@@ -3,7 +3,6 @@ const router = express.Router();
 const driverController = require('../controllers/driver.controller');
 const { auth, adminAuth } = require('../middleware/auth');
 const { uploadDriverFiles } = require('../middleware/upload');
-const bcrypt = require('bcryptjs');
 
 /**
  * @swagger
