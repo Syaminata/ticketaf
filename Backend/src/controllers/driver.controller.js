@@ -188,11 +188,15 @@ const createDriver = async (req, res) => {
       role: 'conducteur',
       permis: [{
         filename: req.files.permis[0].filename,
-        path: req.files.permis[0].path
+        originalName: req.files.permis[0].originalname,
+        path: req.files.permis[0].path,
+        uploadedAt: new Date()
       }],
       photo: [{
         filename: req.files.photo[0].filename,
-        path: req.files.photo[0].path
+        originalName: req.files.photo[0].originalname,
+        path: req.files.photo[0].path,
+        uploadedAt: new Date()
       }]
     });
 
