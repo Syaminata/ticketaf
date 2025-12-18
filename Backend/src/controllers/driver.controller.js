@@ -45,21 +45,20 @@ const cleanMissingFiles = async () => {
 
 
 const createDriver = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
-    console.log('Données reçues:', req.body);
-    console.log('Fichiers reçus:', req.files);
-    
-    const { name, email, password, numero, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
-    
-    // Validation des champs requis (email optionnel)
-    if (!name || !password || !numero || !matricule || !marque || !capacity || !capacity_coffre) {
-      console.log('Champs manquants:', { name: !name, email: !email, password: !password, numero: !numero, matricule: !matricule, marque: !marque, capacity: !capacity, capacity_coffre: !capacity_coffre });
+    const { name, email, numero, password, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
+
+    // 1. Validation des entrées
+    if (!name || !numero || !password || !matricule || !marque || !capacity || !capacity_coffre) {
       return res.status(400).json({ 
-        message: 'Le nom, mot de passe, numéro, matricule, marque, capacité et capacité coffre sont requis',
-        missing: {
+        message: 'Tous les champs sont obligatoires',
+        required: {
           name: !name,
-          password: !password,
           numero: !numero,
+          password: !password,
           matricule: !matricule,
           marque: !marque,
           capacity: !capacity,
@@ -68,82 +67,93 @@ const createDriver = async (req, res) => {
       });
     }
 
-    // Validation des fichiers uploadés
-    if (!req.files || !req.files.permis || !req.files.photo) {
+    // Vérifier les fichiers uploadés
+    if (!req.files?.permis?.[0] || !req.files?.photo?.[0]) {
       return res.status(400).json({ 
         message: 'Les fichiers permis et photo sont requis',
         missing: {
-          permis: !req.files?.permis,
-          photo: !req.files?.photo
+          permis: !req.files?.permis?.[0],
+          photo: !req.files?.photo?.[0]
         }
       });
     }
 
-    // Validation du type de capacity
-    if (isNaN(capacity) || capacity <= 0) {
-      return res.status(400).json({ message: 'La capacité doit être un nombre positif' });
+    // 2. Vérifier les doublons
+    const existingUser = await User.findOne({ $or: [{ email }, { numero }] }).session(session);
+    if (existingUser) {
+      return res.status(400).json({ 
+        message: 'Email ou numéro déjà utilisé',
+        exists: true
+      });
     }
-    
-    // Vérifier les doublons (email seulement si fourni)
-    const orConditions = [{ numero }, { matricule }];
-    if (email) {
-      orConditions.push({ email });
-    }
-    
-    const existingDriver = await Driver.findOne({ $or: orConditions });
+
+    const existingDriver = await Driver.findOne({ $or: [{ email }, { numero }, { matricule }] }).session(session);
     if (existingDriver) {
-      console.log('Conducteur existant trouvé:', existingDriver);
-      return res.status(400).json({ message: 'Email, numéro ou matricule déjà utilisé' });
+      return res.status(400).json({ 
+        message: 'Email, numéro ou matricule déjà utilisé',
+        exists: true
+      });
     }
 
-    // Vérifier l'email dans les utilisateurs (seulement si email fourni)
-    if (email) {
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        console.log('Utilisateur existant trouvé:', existingUser);
-        return res.status(400).json({ message: 'Email déjà utilisé dans utilisateurs' });
-      }
-    }
+    // 4. Créer l'utilisateur
+    const user = new User({
+      name,
+      email: email || undefined,
+      password: password,
+      numero,
+      role: 'conducteur'
+    });
+    await user.save({ session });
 
-    // Préparer les données des fichiers
-    const permisData = {
-      filename: req.files.permis[0].filename,
-      originalName: req.files.permis[0].originalname,
-      path: req.files.permis[0].path,
-      uploadedAt: new Date()
-    };
-
-    const photoData = {
-      filename: req.files.photo[0].filename,
-      originalName: req.files.photo[0].originalname,
-      path: req.files.photo[0].path,
-      uploadedAt: new Date()
-    };
-
-    console.log('Création du conducteur...');
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const driver = await Driver.create({
-      name, 
-      email: email || undefined, 
-      password: hashedPassword, 
-      numero, 
-      matricule, 
-      marque, 
+    // 5. Créer le conducteur avec le mot de passe déjà haché
+    const driver = new Driver({
+      _id: user._id,
+      name,
+      email: email || undefined,
+      numero,
+      password: user.password, // Utiliser le mot de passe déjà haché de l'utilisateur
+      matricule,
+      marque,
       capacity: parseInt(capacity),
       capacity_coffre,
       climatisation: climatisation === 'true' || climatisation === true,
-      permis: [permisData],
-      photo: [photoData]
+      isActive: false,
+      role: 'conducteur',
+      permis: [{
+        filename: req.files.permis[0].filename,
+        path: req.files.permis[0].path
+      }],
+      photo: [{
+        filename: req.files.photo[0].filename,
+        path: req.files.photo[0].path
+      }]
     });
 
-    console.log('Conducteur créé:', driver._id);
-    const driverSafe = { ...driver._doc };
-    delete driverSafe.password;
+    await driver.save({ session });
+    await session.commitTransaction();
+    session.endSession();
 
-    res.status(201).json({ message: 'Conducteur créé avec succès', driver: driverSafe });
-  } catch (err) {
-    console.error('Erreur createDriver:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    // 6. Réponse
+    res.status(201).json({
+      message: 'Inscription réussie',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        numero: user.numero,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    
+    console.error('Erreur lors de l\'inscription du conducteur:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors de l\'inscription',
+      error: error.message 
+    });
   }
 };
 

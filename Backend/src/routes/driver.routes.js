@@ -17,7 +17,7 @@ const { uploadDriverFiles } = require('../middleware/upload');
 router.get('/pinned', driverController.getPinnedDrivers);
 /**
  * @swagger
- * /drivers:
+ * /drivers/register:
  *   post:
  *     summary: Inscription publique d'un conducteur
  *     tags: [Drivers]
@@ -77,7 +77,7 @@ router.get('/pinned', driverController.getPinnedDrivers);
  *       400:
  *         description: Erreur de validation
  */
-router.post('/', uploadDriverFiles, driverController.createDriver);
+router.post('/register', uploadDriverFiles, driverController.createDriver);
 
 
 /**
