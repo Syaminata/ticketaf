@@ -80,11 +80,24 @@ const createDriver = async (req, res) => {
     }
 
     // 2. Vérifier les doublons
+    console.log('Recherche de doublons pour:', { email, numero });
     const existingUser = await User.findOne({ $or: [{ email }, { numero }] }).session(session);
+    
     if (existingUser) {
+      console.log('Utilisateur existant trouvé:', {
+        _id: existingUser._id,
+        email: existingUser.email,
+        numero: existingUser.numero,
+        role: existingUser.role
+      });
       return res.status(400).json({ 
         message: 'Email ou numéro déjà utilisé',
-        exists: true
+        exists: true,
+        details: {
+          emailExists: existingUser.email === email,
+          numeroExists: existingUser.numero === numero,
+          userId: existingUser._id
+        }
       });
     }
 
