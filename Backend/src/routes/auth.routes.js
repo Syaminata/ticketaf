@@ -62,11 +62,10 @@ router.post('/register', register);
 
 /**
  * @swagger
- * /auth/login:
+ * /api/auth/login:
  *   post:
- *     summary: Connexion d'un utilisateur
+ *     summary: Connexion des utilisateurs (clients et admins)
  *     tags: [Auth]
- *     security: []
  *     requestBody:
  *       required: true
  *       content:
@@ -75,36 +74,53 @@ router.post('/register', register);
  *             type: object
  *             required:
  *               - password
- *               - role
  *             properties:
  *               email:
  *                 type: string
- *                 format: email
- *                 description: Email de l'utilisateur (optionnel si numero fourni)
  *               numero:
  *                 type: string
- *                 description: Numéro de téléphone (optionnel si email fourni)
  *               password:
  *                 type: string
- *                 format: password
- *               role:
- *                 type: string
- *                 enum: [client, admin, conducteur, superadmin]
  *     responses:
  *       200:
  *         description: Connexion réussie
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/LoginResponse'
+ *       400:
+ *         description: Données invalides
  *       401:
- *         description: Mot de passe incorrect
- *       403:
- *         description: Accès refusé - Rôle incorrect
- *       404:
- *         description: Utilisateur non trouvé
+ *         description: Authentification échouée
  */
 router.post('/login', login);
-
+/**
+ * @swagger
+ * /api/auth/login/driver:
+ *   post:
+ *     summary: Connexion des conducteurs
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *               numero:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Connexion réussie
+ *       400:
+ *         description: Données invalides
+ *       401:
+ *         description: Authentification échouée
+ *       403:
+ *         description: Compte désactivé
+ */
+router.post('/login/driver', loginDriver);
 module.exports = router;
 

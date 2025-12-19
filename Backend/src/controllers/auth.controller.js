@@ -162,78 +162,62 @@ const register = async (req, res) => {
 // === Connexion ===
 const login = async (req, res) => {
   try {
-    const { email, numero, password, role } = req.body;
-
-    if ((!email && !numero) || !password || !role) {
-      return res.status(400).json({ message: 'Champs requis manquants' });
+    const { email, numero, password } = req.body;
+    // Vérification des champs obligatoires
+    if ((!email && !numero) || !password) {
+      return res.status(400).json({ 
+        message: 'Email/numéro et mot de passe sont requis' 
+      });
     }
-
-    // 1️⃣ TOUJOURS chercher dans User
-    const user = email
-      ? await User.findOne({ email })
-      : await User.findOne({ numero });
-
+    // Construction de la requête
+    const query = {
+      $or: [
+        { email: email || '' },
+        { numero: numero || '' }
+      ],
+      role: { $ne: 'conducteur' } // Exclure les conducteurs
+    };
+    // Recherche de l'utilisateur
+    const user = await User.findOne(query);
     if (!user) {
-      return res.status(404).json({ message: 'Utilisateur introuvable' });
+      return res.status(404).json({ 
+        message: 'Aucun compte trouvé avec ces identifiants' 
+      });
     }
-
-    // 2️⃣ Vérifier mot de passe
+    // Vérification du mot de passe
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Mot de passe incorrect' });
     }
-
-    // 3️⃣ Vérifier rôle
-    if (user.role !== role) {
-      return res.status(403).json({ message: 'Rôle invalide' });
-    }
-
-    // 4️⃣ SI conducteur → chercher le driver associé
-    let driver = null;
-    if (user.role === 'conducteur') {
-      driver = await Driver.findById(user._id);
-
-      if (!driver) {
-        return res.status(500).json({
-          message: 'Profil conducteur introuvable',
-        });
-      }
-    }
-
-    // 5️⃣ Token
+    // Création du token JWT
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { 
+        id: user._id, 
+        role: user.role,
+        name: user.name
+      },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-
-    // 6️⃣ Réponse
-    const response = {
+    // Réponse réussie
+    const userResponse = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      numero: user.numero,
+      role: user.role
+    };
+    res.json({
       message: 'Connexion réussie',
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        numero: user.numero,
-        role: user.role,
-      },
-    };
-
-    // 7️⃣ Ajouter isActive UNIQUEMENT depuis Driver
-    if (driver) {
-      response.user.driver = {
-        isActive: driver.isActive,
-        matricule: driver.matricule,
-        marque: driver.marque,
-      };
-    }
-
-    return res.status(200).json(response);
-
+      user: userResponse
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('Erreur lors de la connexion:', err);
+    res.status(500).json({ 
+      message: 'Erreur serveur lors de la connexion',
+      error: err.message 
+    });
   }
 };
 
