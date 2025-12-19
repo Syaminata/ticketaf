@@ -9,7 +9,7 @@ const loginDriver = async (req, res) => {
     // Vérification des champs obligatoires
     if ((!email && !numero) || !password) {
       return res.status(400).json({ 
-        message: 'Numéro et mot de passe sont requis',
+        message: 'Email/numéro et mot de passe sont requis',
         required: {
           emailOrNumber: !email && !numero,
           password: !password
@@ -22,7 +22,7 @@ const loginDriver = async (req, res) => {
     if (email) query.email = email;
     if (numero) query.numero = numero;
 
-    // Recherche du conducteur
+    // 1. D'abord chercher dans la collection Driver
     const driver = await Driver.findOne(query);
     if (!driver) {
       return res.status(404).json({ 
@@ -30,13 +30,15 @@ const loginDriver = async (req, res) => {
       });
     }
 
-    // Vérification du mot de passe
+    // 2. Vérifier le mot de passe
     const isMatch = await bcrypt.compare(password, driver.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Mot de passe incorrect' });
+      return res.status(401).json({ 
+        message: 'Mot de passe incorrect' 
+      });
     }
 
-    // Vérification du statut du compte
+    // 3. Vérifier le statut du compte
     if (!driver.isActive) {
       return res.status(403).json({ 
         message: 'Votre compte est en attente de validation par un administrateur',
@@ -44,7 +46,7 @@ const loginDriver = async (req, res) => {
       });
     }
 
-    // Création du token JWT
+    // 4. Création du token JWT
     const token = jwt.sign(
       { 
         id: driver._id, 
@@ -55,7 +57,7 @@ const loginDriver = async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // Réponse réussie
+    // 5. Réponse réussie
     res.json({
       message: 'Connexion réussie',
       token,
