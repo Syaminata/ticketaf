@@ -38,7 +38,49 @@ router.get('/me', auth, async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur' });
   }
 });
-
+/**
+ * @swagger
+ * /reservations/voyage/{voyageId}:
+ *   get:
+ *     summary: Récupère les réservations pour un voyage spécifique
+ *     tags: [Reservations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: voyageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID du voyage
+ *     responses:
+ *       200:
+ *         description: Liste des réservations pour le voyage
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Reservation'
+ *       404:
+ *         description: Aucune réservation trouvée pour ce voyage
+ */
+router.get('/voyage/:voyageId', auth, async (req, res) => {
+  try {
+    const reservations = await Reservation.find({ voyage: req.params.voyageId })
+      .populate('user', '-password')
+      .populate('voyage');
+      
+    if (reservations.length === 0) {
+      return res.status(404).json({ message: 'Aucune réservation trouvée pour ce voyage' });
+    }
+    
+    res.json(reservations);
+  } catch (err) {
+    console.error('Erreur lors de la récupération des réservations:', err);
+    res.status(500).json({ message: 'Erreur serveur lors de la récupération des réservations' });
+  }
+});
 /**
  * @swagger
  * /reservations/chart:
