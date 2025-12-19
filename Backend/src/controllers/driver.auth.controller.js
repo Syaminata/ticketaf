@@ -1,6 +1,7 @@
+const User = require('../models/user.model');  // Import manquant
 const Driver = require('../models/driver.model');
-const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const loginDriver = async (req, res) => {
   try {
@@ -13,7 +14,7 @@ const loginDriver = async (req, res) => {
         ...(numero ? [{ numero }] : [])
       ],
       role: 'conducteur'
-    }).select('+password'); // Inclure le mot de passe qui est normalement exclu
+    }).select('+password');
 
     if (!user) {
       return res.status(404).json({ 
@@ -48,7 +49,7 @@ const loginDriver = async (req, res) => {
 
     // 6. Préparer la réponse
     const response = {
-      message: 'Connexion réussie',
+      message: isActive ? 'Connexion réussie' : 'Connexion réussie - Compte en attente de validation',
       token,
       user: {
         id: user._id,
@@ -57,8 +58,8 @@ const loginDriver = async (req, res) => {
         numero: user.numero,
         role: 'conducteur',
         driver: {
-          isActive, // Envoyer l'état d'activation
-          needsActivation: !isActive, // Ajout d'un champ explicite
+          isActive,
+          needsActivation: !isActive,
           matricule: driver.matricule,
           marque: driver.marque,
           capacity: driver.capacity,
