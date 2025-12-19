@@ -6,81 +6,74 @@ const loginDriver = async (req, res) => {
   try {
     const { email, numero, password } = req.body;
 
-    // Vérification des champs obligatoires
-    if ((!email && !numero) || !password) {
-      return res.status(400).json({ 
-        message: 'Email/numéro et mot de passe sont requis',
-        required: {
-          emailOrNumber: !email && !numero,
-          password: !password
-        }
-      });
-    }
+    // 1. Trouver l'utilisateur d'abord
+    const user = await User.findOne({ 
+      $or: [
+        ...(email ? [{ email }] : []),
+        ...(numero ? [{ numero }] : [])
+      ],
+      role: 'conducteur'
+    }).select('+password'); // Inclure le mot de passe qui est normalement exclu
 
-    // Construction de la requête
-    const query = {};
-    if (email) query.email = email;
-    if (numero) query.numero = numero;
-
-    // 1. D'abord chercher dans la collection Driver
-    const driver = await Driver.findOne(query);
-    if (!driver) {
+    if (!user) {
       return res.status(404).json({ 
         message: 'Aucun compte conducteur trouvé avec ces identifiants' 
       });
     }
 
-    // 2. Vérifier le mot de passe
-    const isMatch = await bcrypt.compare(password, driver.password);
+    // 2. Vérifier le mot de passe avec l'utilisateur
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ 
         message: 'Mot de passe incorrect' 
       });
     }
 
-    // 3. Vérifier le statut du compte
-    if (!driver.isActive) {
-      return res.status(403).json({ 
-        message: 'Votre compte est en attente de validation par un administrateur',
-        isActive: false
-      });
-    }
+    // 3. Récupérer les infos du conducteur
+    const driver = await Driver.findById(user._id) || {};
 
-    // 4. Création du token JWT
+    // 4. Vérifier si le compte est actif
+    const isActive = driver.isActive !== false;
+
+    // 5. Créer le token JWT
     const token = jwt.sign(
       { 
-        id: driver._id, 
+        id: user._id, 
         role: 'conducteur',
-        name: driver.name
+        name: user.name
       },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    // 5. Réponse réussie
-    res.json({
+    // 6. Préparer la réponse
+    const response = {
       message: 'Connexion réussie',
       token,
       user: {
-        id: driver._id,
-        name: driver.name,
-        email: driver.email,
-        numero: driver.numero,
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        numero: user.numero,
         role: 'conducteur',
         driver: {
-          isActive: driver.isActive,
+          isActive, // Envoyer l'état d'activation
+          needsActivation: !isActive, // Ajout d'un champ explicite
           matricule: driver.matricule,
           marque: driver.marque,
-          capacity: driver.capacity
+          capacity: driver.capacity,
         }
       }
-    });
+    };
+
+    // 7. Envoyer la réponse
+    res.json(response);
 
   } catch (err) {
-    console.error('Erreur lors de la connexion du conducteur:', err);
+    console.error('Erreur lors de la connexion:', err);
     res.status(500).json({ 
       message: 'Erreur serveur lors de la connexion',
-      error: err.message 
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }
 };
