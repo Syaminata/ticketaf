@@ -153,6 +153,52 @@ router.post('/driver', auth, isDriver, voyageController.createVoyageByDriver);
 
 /**
  * @swagger
+ * /voyages/my-voyages/{id}:
+ *   put:
+ *     summary: Mettre à jour un voyage du conducteur connecté
+ *     tags: [Voyages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID du voyage à mettre à jour
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               from:
+ *                 type: string
+ *               to:
+ *                 type: string
+ *               date:
+ *                 type: string
+ *                 format: date-time
+ *               price:
+ *                 type: number
+ *               totalSeats:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Voyage mis à jour avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Voyage'
+ *       403:
+ *         description: Accès non autorisé
+ *       404:
+ *         description: Voyage non trouvé
+ */
+router.put('/my-voyages/:id', auth, isDriver, voyageController.updateMyVoyage);
+/**
+ * @swagger
  * /voyages/{id}:
  *   get:
  *     summary: Récupérer un voyage par son ID

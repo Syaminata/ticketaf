@@ -239,6 +239,42 @@ const createVoyageByDriver = async (req, res) => {
   }
 };
 
+// Mettre à jour un voyage spécifique du conducteur connecté
+const updateMyVoyage = async (req, res) => {
+  try {
+    const driverId = req.user._id; // ID du conducteur connecté
+    const voyageId = req.params.id;
+    const updates = req.body;
+
+    // Vérifier si le voyage existe et appartient au conducteur
+    const voyage = await Voyage.findOne({ _id: voyageId, driver: driverId });
+    
+    if (!voyage) {
+      return res.status(404).json({ 
+        message: 'Voyage non trouvé ou vous n\'êtes pas autorisé à le modifier' 
+      });
+    }
+
+    // Mettre à jour le voyage
+    const updatedVoyage = await Voyage.findByIdAndUpdate(
+      voyageId,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).populate('driver', '-password');
+
+    res.status(200).json({ 
+      message: 'Voyage mis à jour avec succès', 
+      voyage: updatedVoyage 
+    });
+  } catch (err) {
+    console.error('Erreur updateMyVoyage:', err);
+    res.status(500).json({ 
+      message: 'Erreur lors de la mise à jour du voyage',
+      error: err.message 
+    });
+  }
+};
+
 module.exports = { 
   createVoyage, 
   getAllVoyage, 
@@ -248,5 +284,6 @@ module.exports = {
   deleteVoyage, 
   searchVoyages,
   getMyVoyages,
-  createVoyageByDriver
+  createVoyageByDriver,
+  updateMyVoyage
 };
