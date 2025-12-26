@@ -194,7 +194,7 @@ const createDriver = async (req, res) => {
       marque,
       capacity: parseInt(capacity),
       capacity_coffre,
-      address: address || '',
+      address: address, 
       climatisation: climatisation === 'true' || climatisation === true,
       isActive: false,
       role: 'conducteur',

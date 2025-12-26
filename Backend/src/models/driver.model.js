@@ -49,7 +49,6 @@ const driverSchema = new mongoose.Schema({
   isPinned: { type: Boolean, default: false },
   pinnedAt: { type: Date },
   pinnedOrder: { type: Number, default: 0 }, // Pour gérer l'ordre d'affichage
-  address: { type: String, default: '' }, // Adresse du conducteur
   tripCount: { type: Number, default: 0 }, // Nombre de voyages effectués
   role: { type: String, default: 'conducteur' } 
 }, { timestamps: true });
