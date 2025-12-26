@@ -6,21 +6,29 @@ const mongoose = require('mongoose');
 
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password');
-    const drivers = await Driver.find().select('-password');
-
+    // Récupérer d'abord les IDs des chauffeurs
+    const driverIds = (await Driver.find({}, '_id')).map(d => d._id);
     
+    // Récupérer les utilisateurs qui ne sont pas des chauffeurs
+    const users = await User.find({ 
+      _id: { $nin: driverIds } 
+    }).select('-password');
+
+    // Formater les chauffeurs
+    const drivers = await Driver.find().select('-password');
     const formattedDrivers = drivers.map(driver => ({
       _id: driver._id,
       name: driver.name,
       email: driver.email,
       numero: driver.numero,
       role: 'conducteur',
-      createdAt: driver.createdAt,
-      updatedAt: driver.updatedAt
+      isDriver: true,
+      driverDetails: driver
     }));
 
+    // Combiner les utilisateurs normaux et les chauffeurs formatés
     const allUsers = [...users, ...formattedDrivers];
+    
     res.status(200).json(allUsers);
   } catch (err) {
     console.error('Erreur getAllUsers:', err);

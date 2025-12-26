@@ -54,29 +54,62 @@ export default function Users() {
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [anchorEl, setAnchorEl] = useState(null);
 
   useEffect(() => {
     setPage(0);
-  }, [searchTerm]);
+  }, [searchTerm, roleFilter]);
 
   const fetchUsers = async () => {
     const token = sessionStorage.getItem('token');
     if (!token) {
-      
       console.error("Token d'authentification manquant.");
       return;
     }
     try {
-      const res = await axios.get('/users', { headers: { Authorization: `Bearer ${token}` } });
-      setUsers(res.data);
+      console.log('🔍 Récupération des utilisateurs...');
+      const res = await axios.get('/users', { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      
+      // Nettoyer les doublons en gardant la première occurrence de chaque ID
+      const uniqueUsers = res.data.reduce((acc, current) => {
+        const exists = acc.some(item => item._id === current._id);
+        if (!exists) {
+          return [...acc, current];
+        } else {
+          console.warn('Doublon détecté et ignoré:', {
+            id: current._id,
+            name: current.name,
+            email: current.email,
+            role: current.role
+          });
+          return acc;
+        }
+      }, []);
+
+      console.log('📊 Données nettoyées:', {
+        avant: res.data.length,
+        apres: uniqueUsers.length,
+        supprimes: res.data.length - uniqueUsers.length,
+        utilisateurs: uniqueUsers.map(u => ({ id: u._id, name: u.name, role: u.role }))
+      });
+      
+      setUsers(uniqueUsers);
     } catch (err) {
       console.error("Erreur lors de la récupération des utilisateurs:", err);
     }
   };
 
   useEffect(() => {
+    console.log('🚀 Initialisation du composant Users');
     fetchUsers();
     
+    // Nettoyage des logs au démontage
+    return () => {
+      console.log('🧹 Nettoyage du composant Users');
+    };
   }, []);
 
   const handleOpen = (user = null) => {
@@ -210,31 +243,74 @@ export default function Users() {
     }
   };
 
-  const displayedUsers = currentUserRole === 'admin' ? users.filter(u => u.role === 'client') : users;
+  // Gestion des utilisateurs affichés avec useMemo pour optimiser les performances
+  const displayedUsers = React.useMemo(() => {
+    console.log('🔄 Calcul de displayedUsers', {
+      usersCount: users.length,
+      searchTerm,
+      currentUserRole
+    });
+    // 1. Filtrer par rôle si nécessaire
+    let result = currentUserRole === 'admin' 
+      ? users.filter(u => u.role === 'client')
+      : [...users];
 
-  const filteredUsers = displayedUsers.filter((user) => {
-    const term = searchTerm.toLowerCase();
-    const name = (user.name || '').toLowerCase();
-    const numero = (user.numero || '').toLowerCase();
-    return name.includes(term) || numero.includes(term);
-  });
+    // 2. Filtrer par terme de recherche
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(user => {
+        const name = (user.name || '').toLowerCase();
+        const numero = (user.numero || '').toLowerCase();
+        return name.includes(term) || numero.includes(term);
+      });
+    }
 
-  const sortedUsers = [...filteredUsers].sort((a, b) =>
-    (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
-  );
-  
-  const paginatedUsers = sortedUsers.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
-  
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [anchorEl, setAnchorEl] = useState(null);
+    // 3. Trier par nom
+    result.sort((a, b) => 
+      (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
+    );
 
-  const filteredUsersByRole = paginatedUsers.filter(user => {
-    if (roleFilter === 'all') return true;
-    return user.role === roleFilter;
-  });
+    return result;
+  }, [users, currentUserRole, searchTerm]);
+
+  // Pagination des résultats
+  const paginatedUsers = React.useMemo(() => {
+    const start = page * rowsPerPage;
+    const result = displayedUsers.slice(start, start + rowsPerPage);
+    
+    console.log('📄 Pagination appliquée', {
+      page,
+      rowsPerPage,
+      start,
+      end: start + rowsPerPage,
+      displayedUsersCount: displayedUsers.length,
+      paginatedUsersCount: result.length,
+      paginatedUsers: result.map(u => ({ id: u._id, name: u.name, role: u.role }))
+    });
+    
+    return result;
+  }, [displayedUsers, page, rowsPerPage]);
+
+  // Filtrage par rôle
+  const [filteredUsers, setFilteredUsers] = useState([]);
+
+  useEffect(() => {
+    let result;
+    if (roleFilter === 'all') {
+      result = paginatedUsers;
+    } else {
+      result = paginatedUsers.filter(user => user.role === roleFilter);
+    }
+    
+    console.log('🎯 Filtrage par rôle appliqué', {
+      roleFilter,
+      beforeFilterCount: paginatedUsers.length,
+      afterFilterCount: result.length,
+      filteredUsers: result.map(u => ({ id: u._id, name: u.name, role: u.role }))
+    });
+    
+    setFilteredUsers(result);
+  }, [paginatedUsers, roleFilter]);
 
 
   const handleOpenFilter = (event) => {
@@ -424,7 +500,7 @@ export default function Users() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredUsersByRole.map((user, index) => (
+            {filteredUsers.map((user) => (
               <TableRow 
                 key={user._id}
                 sx={{ 
@@ -497,7 +573,7 @@ export default function Users() {
         </Table>
         <TablePagination
           component="div"
-          count={filteredUsersByRole.length}
+          count={displayedUsers.length}
           page={page}
           onPageChange={(event, newPage) => setPage(newPage)}
           rowsPerPage={rowsPerPage}

@@ -40,7 +40,7 @@ const Sidebar = ({ onLogout }) => {
     ...(userRole === 'superadmin' || userRole === 'admin' 
       ? [{ text: 'Utilisateurs', icon: <PeopleIcon />, path: '/users' }] 
       : []),
-    { text: 'Conducteurs', icon: <CommuteIcon />, path: '/drivers' },
+    { text: 'Chauffeurs', icon: <CommuteIcon />, path: '/drivers' },
     { text: 'Voyages', icon: <DirectionsBusIcon />, path: '/voyage' },
     { text: 'Réservations', icon: <ConfirmationNumberIcon />, path: '/reservations' },
     { text: 'Colis', icon: <LocalShippingIcon />, path: '/colis' },

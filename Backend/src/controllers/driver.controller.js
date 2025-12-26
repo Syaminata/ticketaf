@@ -234,8 +234,23 @@ const getAllDrivers = async (req, res) => {
     // Nettoyer les fichiers manquants avant de retourner les données
     await cleanMissingFiles();
     
-    const drivers = await Driver.find().select('-password');
-    res.status(200).json(drivers);
+    // Récupérer tous les conducteurs
+    const drivers = await Driver.find().select('-password').lean();
+    
+    // Pour chaque conducteur, compter le nombre de voyages
+    const driversWithTripCount = await Promise.all(drivers.map(async (driver) => {
+      const tripCount = await mongoose.model('Voyage').countDocuments({ driver: driver._id });
+      // Mettre à jour le compteur dans la base de données
+      await Driver.findByIdAndUpdate(driver._id, { tripCount });
+      
+      // Retourner le conducteur avec le nombre de voyages
+      return {
+        ...driver,
+        tripCount
+      };
+    }));
+    
+    res.status(200).json(driversWithTripCount);
   } catch (err) {
     console.error('Erreur getAllDrivers:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
@@ -427,9 +442,23 @@ const getPinnedDrivers = async (req, res) => {
   try {
     const drivers = await Driver.find({ isPinned: true })
       .select('-password')
-      .sort({ pinnedOrder: 1 });
+      .sort({ pinnedOrder: 1 })
+      .lean();
     
-    res.status(200).json(drivers);
+    // Pour chaque conducteur, compter le nombre de voyages
+    const driversWithTripCount = await Promise.all(drivers.map(async (driver) => {
+      const tripCount = await mongoose.model('Voyage').countDocuments({ driver: driver._id });
+      // Mettre à jour le compteur dans la base de données
+      await Driver.findByIdAndUpdate(driver._id, { tripCount });
+      
+      // Retourner le conducteur avec le nombre de voyages
+      return {
+        ...driver,
+        tripCount
+      };
+    }));
+    
+    res.status(200).json(driversWithTripCount);
   } catch (err) {
     console.error('Erreur getPinnedDrivers:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });

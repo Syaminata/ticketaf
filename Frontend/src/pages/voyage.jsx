@@ -31,6 +31,9 @@ import ConfirmationDialog from '../components/ConfirmationDialog';
 export default function Voyage() {
   const [voyages, setVoyages] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [cities, setCities] = useState([
+    'Dakar', 'Touba', 'Saint-Louis', 'Thies', 'Mbour', 'Kaolack'
+  ].sort());
   const [driverSearch, setDriverSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [editVoyage, setEditVoyage] = useState(null);
@@ -45,6 +48,12 @@ export default function Voyage() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateRange, setDateRange] = useState({
+    startDate: null,
+    endDate: null
+  });
+  const [showDateFilter, setShowDateFilter] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [confirmDialog, setConfirmDialog] = useState({
@@ -151,6 +160,11 @@ export default function Voyage() {
       return;
     }
 
+    if (formData.from === formData.to) {
+      setError("La ville de départ et d'arrivée doivent être différentes");
+      return;
+    }
+
     if (isNaN(formData.price) || formData.price <= 0) {
       setError("Le prix doit être un nombre positif.");
       return;
@@ -246,11 +260,14 @@ export default function Voyage() {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    const options = { 
+      day: 'numeric',
+      month: 'short',  
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    };
+    return date.toLocaleDateString('fr-FR', options);
   };
 
   const getStatusColor = (dateString) => {
@@ -282,20 +299,30 @@ export default function Voyage() {
     : drivers.filter(d => d.isActive);
 
 
-  const filteredVoyages = voyages.filter((voyage) => {
-    const term = searchTerm.toLowerCase();
+  const filteredVoyages = voyages.filter(voyage => {
+    if (!voyage) return false;
+    
+    const searchTermLower = searchTerm ? searchTerm.toLowerCase() : '';
+    const driverName = typeof voyage.driverName === 'string' ? voyage.driverName : '';
+    const from = typeof voyage.from === 'string' ? voyage.from : '';
+    const to = typeof voyage.to === 'string' ? voyage.to : '';
+    
+    const matchesSearch = searchTerm === '' || 
+      driverName.toLowerCase().includes(searchTermLower) ||
+      from.toLowerCase().includes(searchTermLower) ||
+      to.toLowerCase().includes(searchTermLower);
+      
+    const voyageDate = voyage.date ? new Date(voyage.date) : null;
+    const now = new Date();
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'upcoming' && voyageDate && voyageDate > now) ||
+      (statusFilter === 'past' && voyageDate && voyageDate <= now);
 
-    const from = (voyage.from || '').toLowerCase();
-    const to = (voyage.to || '').toLowerCase();
-    const driverName = (voyage.driver?.name || '').toLowerCase();
-    const dateText = formatDate(voyage.date).toLowerCase(); // utilise déjà ta fonction formatDate
-
-    return (
-      from.includes(term) ||
-      to.includes(term) ||
-      driverName.includes(term) ||
-      dateText.includes(term)
-    );
+    const matchesDateRange = !dateRange.startDate || !dateRange.endDate || !voyageDate || 
+      (voyageDate >= new Date(dateRange.startDate) && 
+       voyageDate <= new Date(new Date(dateRange.endDate).setHours(23, 59, 59, 999)));
+      
+    return matchesSearch && matchesStatus && matchesDateRange;
   });
 
   const paginatedVoyages = filteredVoyages.slice(
@@ -395,7 +422,7 @@ export default function Voyage() {
         justifyContent: 'space-between'
       }}>
         <TextField
-          placeholder="Rechercher par trajet ou date..."
+          placeholder="Rechercher un voyage..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           size="small"
@@ -419,6 +446,103 @@ export default function Voyage() {
             },
           }}
         />
+        <Button
+          variant="outlined"
+          onClick={() => setShowDateFilter(!showDateFilter)}
+          startIcon={<FilterIcon />}
+          sx={{
+            borderRadius: '12px',
+            textTransform: 'none',
+            borderColor: '#ffcc33',
+            color: '#1a1a1a',
+            '&:hover': {
+              borderColor: '#e6b800',
+              backgroundColor: 'rgba(255, 204, 51, 0.08)',
+            },
+          }}
+        >
+          Filtre par date
+        </Button>
+        
+        {showDateFilter && (
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 2, 
+            alignItems: 'center',
+            p: 2, 
+            bgcolor: 'background.paper',
+            borderRadius: '12px',
+            mt: 1,
+            width: '100%',
+            flexWrap: 'wrap'
+          }}>
+            <TextField
+              label="Date de début"
+              type="date"
+              size="small"
+              value={dateRange.startDate || ''}
+              onChange={(e) => setDateRange({...dateRange, startDate: e.target.value})}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '12px',
+                  '&:hover fieldset': {
+                    borderColor: '#ffcc33',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#ffcc33',
+                    borderWidth: 2,
+                  },
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#ffcc33',
+                },
+              }}
+            />
+            <Typography>au</Typography>
+            <TextField
+              label="Date de fin"
+              type="date"
+              size="small"
+              value={dateRange.endDate || ''}
+              onChange={(e) => setDateRange({...dateRange, endDate: e.target.value})}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '12px',
+                  '&:hover fieldset': {
+                    borderColor: '#ffcc33',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#ffcc33',
+                    borderWidth: 2,
+                  },
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#ffcc33',
+                },
+              }}
+            />
+            <Button
+              variant="contained"
+              onClick={() => setDateRange({ startDate: null, endDate: null })}
+              sx={{
+                borderRadius: '12px',
+                textTransform: 'none',
+                backgroundColor: '#ff4d4d',
+                '&:hover': {
+                  backgroundColor: '#ff1a1a',
+                },
+              }}
+            >
+              Réinitialiser
+            </Button>
+          </Box>
+        )}
       </Box>
 
       {/* Table */}
@@ -516,7 +640,7 @@ export default function Voyage() {
                         {voyage.driver?.name}
                       </Typography>
                       <Typography variant="body2" sx={{ color: '#666666' }}>
-                        {voyage.driver?.matricule}
+                        {voyage.driver?.numero}
                       </Typography>
                     </Box>
                   </TableCell>
@@ -711,51 +835,59 @@ export default function Voyage() {
                 Détails du trajet
               </Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
-                <TextField
-                  label="Ville de départ"
-                  name="from"
+                <Autocomplete
+                  options={cities}
                   value={formData.from}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '12px',
-                      '&:hover fieldset': {
-                        borderColor: '#ffcc33',
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#ffcc33',
-                        borderWidth: 2,
-                      },
-                    },
-                    '& .MuiInputLabel-root.Mui-focused': {
-                      color: '#ffcc33',
-                    },
+                  onChange={(_, newValue) => {
+                    setFormData(prev => ({ ...prev, from: newValue || '' }));
                   }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Ville de départ"
+                      required
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          '&:hover fieldset': { borderColor: '#ffcc33' },
+                          '&.Mui-focused fieldset': { 
+                            borderColor: '#ffcc33', 
+                            borderWidth: 2 
+                          },
+                        },
+                        '& .MuiInputLabel-root.Mui-focused': { 
+                          color: '#ffcc33' 
+                        },
+                      }}
+                    />
+                  )}
                 />
-                <TextField
-                  label="Ville de destination"
-                  name="to"
+                <Autocomplete
+                  options={cities.filter(city => city !== formData.from)}
                   value={formData.to}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '12px',
-                      '&:hover fieldset': {
-                        borderColor: '#ffcc33',
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#ffcc33',
-                        borderWidth: 2,
-                      },
-                    },
-                    '& .MuiInputLabel-root.Mui-focused': {
-                      color: '#ffcc33',
-                    },
+                  onChange={(_, newValue) => {
+                    setFormData(prev => ({ ...prev, to: newValue || '' }));
                   }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Ville de destination"
+                      required
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          '&:hover fieldset': { borderColor: '#ffcc33' },
+                          '&.Mui-focused fieldset': { 
+                            borderColor: '#ffcc33', 
+                            borderWidth: 2 
+                          },
+                        },
+                        '& .MuiInputLabel-root.Mui-focused': { 
+                          color: '#ffcc33' 
+                        },
+                      }}
+                    />
+                  )}
                 />
               </Box>
             </Box>

@@ -510,13 +510,13 @@ export default function Drivers() {
             mb: 1,
             fontSize: '20px'
           }}>
-            Liste des Conducteurs
+            Liste des Chauffeurs
           </Typography>
           <Typography variant="body1" sx={{ 
             color: '#666666',
             fontSize: '16px'
           }}>
-            Gérez les conducteurs et leurs informations
+            Gérez les chauffeurs et leurs informations
           </Typography>
         </Box>
         <Button 
@@ -540,7 +540,7 @@ export default function Drivers() {
             },
           }}
         >
-          Ajouter un conducteur
+          Ajouter un chauffeur
         </Button>
       </Box>
 
@@ -617,7 +617,7 @@ export default function Drivers() {
                 fontWeight: 700,
                 fontSize: '16px'
               }}>
-                Conducteur
+                Chauffeur
               </TableCell>
               
               <TableCell sx={{ 
@@ -1480,7 +1480,7 @@ export default function Drivers() {
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
             <Person sx={{ fontSize: 28 }} />
-            Détails du conducteur
+            Détails du chauffeur
           </Box>
         </DialogTitle>
         
@@ -1550,6 +1550,16 @@ export default function Drivers() {
                     <Typography sx={{ fontWeight: 600, color: detailsDialog.driver.climatisation ? '#4caf50' : '#f44336' }}>
                       {detailsDialog.driver.climatisation ? 'Oui' : 'Non'}
                     </Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#e3f2fd', borderRadius: '8px', border: '1px solid #bbdefb' }}>
+                    <Typography variant="body2" sx={{ color: '#1976d2', fontWeight: 600 }}>Nombre de voyages effectués</Typography>
+                    <Chip 
+                      label={detailsDialog.driver.tripCount || 0} 
+                      color="primary"
+                      variant="filled"
+                      sx={{ fontWeight: 'bold', fontSize: '1rem', minWidth: '40px', justifyContent: 'center' }}
+                    />
                   </Box>
                 </Box>
               </Box>
