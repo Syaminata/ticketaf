@@ -175,26 +175,27 @@ const createDriver = async (req, res) => {
     
     const user = new User({
       name,
-      email: email || undefined,
+      email: email || undefined, // Soit un email valide, soit undefined
       password: password,
       numero,
-      address: req.body.address,
+      address: req.body.address.trim(),
       role: 'conducteur'
     });
+    
     await user.save({ session });
 
     // 5. Créer le conducteur avec le mot de passe déjà haché
     const driver = new Driver({
       _id: user._id,
       name,
-      email: email || undefined, 
+      email: email || undefined, // Même logique que pour l'utilisateur
       numero,
       password: user.password, 
       matricule,
       marque,
       capacity: parseInt(capacity),
       capacity_coffre,
-      address: address, 
+      address: req.body.address.trim(), // Utiliser la même adresse que l'utilisateur
       climatisation: climatisation === 'true' || climatisation === true,
       isActive: false,
       role: 'conducteur',
