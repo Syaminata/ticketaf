@@ -16,6 +16,7 @@ const userSchema = new mongoose.Schema({
     enum: ['client', 'admin', 'conducteur', 'superadmin'], 
     default: 'client' 
   },
+  address: { type: String, required: true, trim: true },
 }, { timestamps: true });
 
 // Hash du mot de passe avant sauvegarde

@@ -101,7 +101,8 @@ const createUser = async (req, res) => {
         email: email || undefined,
         password,
         numero,
-        role: 'conducteur'
+        role: 'conducteur',
+        address: req.body.address
       });
       await user.save({ session });
 
@@ -127,6 +128,7 @@ const createUser = async (req, res) => {
         email: email || undefined,
         password,
         numero,
+        address: req.body.address,
         role: role || 'client'
       }], { session });
       user = user[0];
@@ -180,10 +182,15 @@ const createUser = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    const { name, email, password, numero, role } = req.body;
+    const { name, email, password, numero, role, address } = req.body;
 
     // Construction des champs à mettre à jour
     const updateData = { name, numero, role };
+    
+    // Ajouter l'adresse si elle est fournie
+    if (address !== undefined) {
+      updateData.address = address;
+    }
     
     // Gérer l'email optionnel
     if (email !== undefined) {
@@ -243,12 +250,17 @@ const deleteUser = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const { name, email, numero } = req.body;
+    const { name, email, numero, address } = req.body;
     const userId = req.user.id; // L'ID de l'utilisateur connecté
     const isDriver = req.user.role === 'conducteur';
 
     // Construction des champs à mettre à jour
     const updateData = { name, numero };
+    
+    // Ajouter l'adresse si elle est fournie
+    if (address !== undefined) {
+      updateData.address = address;
+    }
     
     // Gérer l'email optionnel
     if (email !== undefined) {

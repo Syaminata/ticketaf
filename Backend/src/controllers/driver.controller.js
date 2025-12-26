@@ -163,11 +163,21 @@ const createDriver = async (req, res) => {
     }
 
     // 4. Créer l'utilisateur
+    if (!req.body.address) {
+      return res.status(400).json({ 
+        message: 'Le champ adresse est obligatoire',
+        required: {
+          address: true
+        }
+      });
+    }
+    
     const user = new User({
       name,
       email: email || undefined,
       password: password,
       numero,
+      address: req.body.address,
       role: 'conducteur'
     });
     await user.save({ session });
@@ -179,6 +189,7 @@ const createDriver = async (req, res) => {
       email: email || undefined,
       numero,
       password: user.password, // Utiliser le mot de passe déjà haché de l'utilisateur
+      address: req.body.address, // Ajout de l'adresse
       matricule,
       marque,
       capacity: parseInt(capacity),
@@ -263,9 +274,27 @@ const updateDriver = async (req, res) => {
     console.log('Données reçues pour mise à jour:', req.body);
     console.log('Fichiers reçus pour mise à jour:', req.files);
     
-    const { name, email, password, numero, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
+    const { name, email, password, numero, matricule, marque, capacity, capacity_coffre, climatisation, address } = req.body;
 
-    const updateData = { name, numero, matricule, marque, capacity, capacity_coffre, climatisation: climatisation === 'true' || climatisation === true };
+    // Vérifier que l'adresse est fournie
+    if (address !== undefined && (!address || address.trim() === '')) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Le champ adresse est obligatoire' 
+      });
+    }
+
+    const updateData = { 
+      name, 
+      email: email && email.trim() !== '' ? email.trim() : undefined, 
+      numero, 
+      matricule, 
+      marque, 
+      capacity, 
+      capacity_coffre, 
+      climatisation: climatisation === 'true' || climatisation === true,
+      address: address ? address.trim() : undefined
+    };
     
     // Gérer l'email optionnel
     if (email !== undefined) {
@@ -481,7 +510,15 @@ const getMyProfile = async (req, res) => {
 // 2. Mettre à jour son propre profil (sans fichiers)
 const updateMyProfile = async (req, res) => {
   try {
-    const { name, email, numero, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
+    const { name, email, numero, matricule, marque, capacity, capacity_coffre, climatisation, address } = req.body;
+    
+    // Vérifier que l'adresse est fournie
+    if (address !== undefined && (!address || address.trim() === '')) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Le champ adresse est obligatoire' 
+      });
+    }
     
     console.log('Données reçues pour mise à jour profil:', req.body);
     console.log('Fichiers reçus:', req.files);

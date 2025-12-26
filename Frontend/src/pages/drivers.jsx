@@ -30,8 +30,25 @@ import {
   TablePagination,
   Menu
 } from '@mui/material';
-import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge, Search as SearchIcon, FilterList as FilterIcon, Star, StarBorder } from '@mui/icons-material';
+import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge, Search as SearchIcon, FilterList as FilterIcon, Star, StarBorder, Assessment } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+
+// Composant pour afficher une ligne d'information
+const InfoRow = ({ label, children }) => (
+  <Box sx={{ 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    p: 2, 
+    backgroundColor: '#f8f9fa', 
+    borderRadius: '8px' 
+  }}>
+    <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>{label}</Typography>
+    <Box sx={{ textAlign: 'right' }}>
+      {children}
+    </Box>
+  </Box>
+);
 
 export default function Drivers() {
   const [drivers, setDrivers] = useState([]);
@@ -1484,83 +1501,131 @@ export default function Drivers() {
           </Box>
         </DialogTitle>
         
-        <DialogContent sx={{ p: 4 }}>
+        <DialogContent sx={{ p: 0 }}>
           {detailsDialog.driver && (
             <Box>
-              {/* Informations principales */}
-              <Box sx={{ mb: 4 }}>
-                <Typography variant="h6" sx={{ 
-                  color: '#1a1a1a', 
-                  fontWeight: 600, 
-                  mb: 3,
-                  pt: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1
-                }}>
-                  <Person sx={{ color: '#ffcc33' }} />
-                  {detailsDialog.driver.name}
-                </Typography>
+              {/* Section Informations personnelles */}
+              <Box sx={{ p: 4, borderBottom: '1px solid #f0f0f0' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="h6" sx={{ 
+                    color: '#1a1a1a', 
+                    fontWeight: 600, 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <Person sx={{ color: '#ffcc33' }} />
+                    Informations personnelles
+                  </Typography>
+                </Box>
                 
-                <Box sx={{ display: 'grid', gap: 3 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-                    <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Email</Typography>
-                    <Typography sx={{ fontWeight: 600, color: detailsDialog.driver.email ? '#1a1a1a' : '#999999' }}>
+                <Box sx={{ display: 'grid', gap: 2, mt: 2 }}>
+                  <InfoRow label="Nom complet">
+                    <Typography sx={{ fontWeight: 500 }}>{detailsDialog.driver.name}</Typography>
+                  </InfoRow>
+                  
+                  <InfoRow label="Email">
+                    <Typography sx={{ color: detailsDialog.driver.email ? '#1a1a1a' : '#999999' }}>
                       {detailsDialog.driver.email || 'Non renseigné'}
                     </Typography>
-                  </Box>
+                  </InfoRow>
                   
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-                    <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Numéro de téléphone</Typography>
-                    <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                      {detailsDialog.driver.numero}
+                  <InfoRow label="Téléphone">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontWeight: 500 }}>
+                        {detailsDialog.driver.numero || 'Non renseigné'}
+                      </Typography>
+                    </Box>
+                  </InfoRow>
+                  
+                  <InfoRow label="Matricule">
+                    <Typography sx={{ fontWeight: 500 }}>
+                      {detailsDialog.driver.matricule || 'Non renseigné'}
                     </Typography>
-                  </Box>
+                  </InfoRow>
                   
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-                    <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Matricule</Typography>
-                    <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                      {detailsDialog.driver.matricule}
+                  <InfoRow label="Adresse">
+                    <Typography sx={{ fontWeight: 500 }}>
+                      {detailsDialog.driver.address || 'Non renseignée'}
                     </Typography>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-                    <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Marque du véhicule</Typography>
-                    <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                      {detailsDialog.driver.marque}
+                  </InfoRow>
+                </Box>
+              </Box>
+              
+              {/* Section Informations du véhicule */}
+              <Box sx={{ p: 4, borderBottom: '1px solid #f0f0f0' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="h6" sx={{ 
+                    color: '#1a1a1a', 
+                    fontWeight: 600, 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <DirectionsCar sx={{ color: '#ffcc33' }} />
+                    Informations du véhicule
+                  </Typography>
+                </Box>
+                
+                <Box sx={{ display: 'grid', gap: 2, mt: 2 }}>
+                  <InfoRow label="Marque et modèle">
+                    <Typography sx={{ fontWeight: 500 }}>
+                      {detailsDialog.driver.marque || 'Non renseigné'}
                     </Typography>
-                  </Box>
+                  </InfoRow>
                   
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-                    <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Capacité</Typography>
-                    <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                      {detailsDialog.driver.capacity} places
+                  <InfoRow label="Capacité">
+                    <Typography sx={{ fontWeight: 500 }}>
+                      {detailsDialog.driver.capacity ? `${detailsDialog.driver.capacity} places` : 'Non renseigné'}
                     </Typography>
-                  </Box>
+                  </InfoRow>
                   
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-                    <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Capacité du coffre</Typography>
-                    <Typography sx={{ fontWeight: 600, color: '#1a1a1a', textTransform: 'capitalize' }}>
-                      {detailsDialog.driver.capacity_coffre}
+                  <InfoRow label="Capacité du coffre">
+                    <Typography sx={{ fontWeight: 500, textTransform: 'capitalize' }}>
+                      {detailsDialog.driver.capacity_coffre || 'Non renseigné'}
                     </Typography>
-                  </Box>
+                  </InfoRow>
                   
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-                    <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Climatisation</Typography>
-                    <Typography sx={{ fontWeight: 600, color: detailsDialog.driver.climatisation ? '#4caf50' : '#f44336' }}>
-                      {detailsDialog.driver.climatisation ? 'Oui' : 'Non'}
-                    </Typography>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#e3f2fd', borderRadius: '8px', border: '1px solid #bbdefb' }}>
-                    <Typography variant="body2" sx={{ color: '#1976d2', fontWeight: 600 }}>Nombre de voyages effectués</Typography>
+                  <InfoRow label="Climatisation">
                     <Chip 
-                      label={detailsDialog.driver.tripCount || 0} 
-                      color="primary"
-                      variant="filled"
-                      sx={{ fontWeight: 'bold', fontSize: '1rem', minWidth: '40px', justifyContent: 'center' }}
+                      label={detailsDialog.driver.climatisation ? 'Oui' : 'Non'} 
+                      color={detailsDialog.driver.climatisation ? 'success' : 'default'}
+                      size="small"
+                      sx={{ fontWeight: 600 }}
                     />
-                  </Box>
+                  </InfoRow>
+                </Box>
+              </Box>
+              
+              {/* Section Statistiques */}
+              <Box sx={{ p: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="h6" sx={{ 
+                    color: '#1a1a1a', 
+                    fontWeight: 600, 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <Assessment sx={{ color: '#ffcc33' }} />
+                    Statistiques
+                  </Typography>
+                </Box>
+                
+                <Box sx={{ display: 'grid', gap: 2, mt: 2 }}>
+                  <InfoRow label="Nombre de collaboration">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Chip 
+                        label={detailsDialog.driver.tripCount || 0} 
+                        variant="outlined"
+                        sx={{ fontWeight: 'bold', minWidth: '40px', justifyContent: 'center',borderColor: '#C26E60', 
+    color: '#D4710F',}}
+                      />
+                      <Typography variant="body2" color="textSecondary">
+                        voyage{detailsDialog.driver.tripCount !== 1 ? 's' : ''} effectué{detailsDialog.driver.tripCount !== 1 ? 's' : ''}
+                      </Typography>
+                    </Box>
+                  </InfoRow>
                 </Box>
               </Box>
             </Box>

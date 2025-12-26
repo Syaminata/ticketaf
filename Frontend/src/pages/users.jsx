@@ -24,7 +24,7 @@ import {
   TablePagination,
   Menu
 } from '@mui/material';
-import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search as SearchIcon, FilterList as FilterIcon  } from '@mui/icons-material';
+import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search as SearchIcon, FilterList as FilterIcon, LocationOn } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import storage from '../utils/storage';
 
@@ -37,6 +37,7 @@ export default function Users() {
     name: '',
     email: '',
     numero: '',
+    address: '',
     password: '',
     role: 'client'
   });
@@ -116,10 +117,9 @@ export default function Users() {
     setError('');
     setEditUser(user);
     if (user) {
-      
-      setFormData({ ...user, numero: user.numero || '', password: '' });
+      setFormData({ ...user, numero: user.numero || '', password: '', address: user.address || '' });
     } else {
-      setFormData({ name: '', email: '', numero: '', password: '', role: 'client' });
+      setFormData({ name: '', email: '', numero: '', address: '', password: '', role: 'client' });
     }
     setOpen(true);
   };
@@ -473,14 +473,18 @@ export default function Users() {
                 fontWeight: 700,
                 fontSize: '16px'
               }}>
-                Email
+                Numéro
               </TableCell>
               <TableCell sx={{ 
                 color: '#1a1a1a', 
                 fontWeight: 700,
-                fontSize: '16px'
+                fontSize: '16px',
+                maxWidth: '200px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
               }}>
-                Numéro
+                Adresse
               </TableCell>
               <TableCell sx={{ 
                 color: '#1a1a1a', 
@@ -529,10 +533,16 @@ export default function Users() {
                   </Box>
                 </TableCell>
                 <TableCell sx={{ color: '#666666' }}>
-                  {user.email}
-                </TableCell>
-                <TableCell sx={{ color: '#666666' }}>
                   {user.numero || 'Non renseigné'}
+                </TableCell>
+                <TableCell sx={{ 
+                  color: '#666666',
+                  maxWidth: '200px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {user.address || 'Non renseignée'}
                 </TableCell>
                 <TableCell>
                   <Chip 
@@ -679,7 +689,7 @@ export default function Users() {
                 },
               }}
             />
-            {/* Ligne 2: Téléphone et Rôle */}
+            {/* Ligne 2: Téléphone et Adresse */}
             <TextField
               label="Numéro de téléphone"
               name="numero"
@@ -687,10 +697,40 @@ export default function Users() {
               value={formData.numero}
               onChange={handleChange}
               fullWidth
+              required
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <Phone sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px',
+                  '&:hover fieldset': {
+                    borderColor: '#ffcc33',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#ffcc33',
+                  },
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#ffcc33',
+                },
+              }}
+            />
+            <TextField
+              label="Adresse"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              fullWidth
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LocationOn sx={{ color: '#ffcc33' }} />
                   </InputAdornment>
                 ),
               }}
