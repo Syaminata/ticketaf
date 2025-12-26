@@ -349,12 +349,6 @@ const updateDriver = async (req, res) => {
 
     // Mettre à jour l'utilisateur associé avec les mêmes informations
     const userUpdate = {};
-    
-    if (address !== undefined) {
-      userUpdate.address = address.trim();
-    }
-    
-    // S'assurer que l'email est soit une chaîne valide, soit undefined (pas 'undefined')
     if (email !== undefined) {
       userUpdate.email = email && email.trim() !== '' ? email.trim() : undefined;
     }

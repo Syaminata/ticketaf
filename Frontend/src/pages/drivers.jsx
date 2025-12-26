@@ -141,6 +141,7 @@ export default function Drivers() {
         name: driver.name,
         email: driver.email,
         numero: driver.numero,
+        address: driver.address || '',
         password: '',
         matricule: driver.matricule,
         marque: driver.marque,
@@ -153,6 +154,7 @@ export default function Drivers() {
         name: '',
         email: '',
         numero: '',
+        address: '',
         password: '',
         matricule: '',
         marque: '',
@@ -242,11 +244,15 @@ export default function Drivers() {
       console.log('FormData climatisation avant envoi:', formData.climatisation);
       
       // Ajouter tous les champs du formulaire
+      console.log('Données du formulaire avant envoi:', formData);
       Object.keys(formData).forEach(key => {
         if (key === 'climatisation') {
           formDataToSubmit.append(key, formData[key]);
         } else if (formData[key] !== '' && formData[key] !== null) {
           formDataToSubmit.append(key, formData[key]);
+          console.log(`Champ ajouté à la requête: ${key} =`, formData[key]);
+        } else {
+          console.log(`Champ non ajouté (vide ou null): ${key}`);
         }
       });
       
