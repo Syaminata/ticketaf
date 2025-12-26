@@ -346,7 +346,16 @@ const updateDriver = async (req, res) => {
 
     if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
 
-    res.status(200).json({ message: 'Conducteur mis à jour', driver });
+    // Mettre à jour l'utilisateur associé avec la même adresse
+    if (address !== undefined) {
+      await User.findByIdAndUpdate(
+        req.params.id,
+        { address: address.trim() },
+        { new: true, runValidators: true }
+      );
+    }
+
+    res.status(200).json({ message: 'Conducteur et utilisateur associé mis à jour', driver });
   } catch (err) {
     console.error('Erreur updateDriver:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
