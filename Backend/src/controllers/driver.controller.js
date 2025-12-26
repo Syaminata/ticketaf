@@ -187,7 +187,7 @@ const createDriver = async (req, res) => {
     const driver = new Driver({
       _id: user._id,
       name,
-      email: email || null, 
+      email: email || undefined, 
       numero,
       password: user.password, 
       matricule,

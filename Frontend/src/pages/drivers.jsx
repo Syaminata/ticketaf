@@ -30,7 +30,7 @@ import {
   TablePagination,
   Menu
 } from '@mui/material';
-import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge, Search as SearchIcon, FilterList as FilterIcon, Star, StarBorder, Assessment } from '@mui/icons-material';
+import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge, Search as SearchIcon, FilterList as FilterIcon, Star, StarBorder, Assessment, LocationOn } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
 // Composant pour afficher une ligne d'information
@@ -59,6 +59,7 @@ export default function Drivers() {
     name: '',
     email: '',
     numero: '',
+    address: '',
     password: '',
     matricule: '',
     marque: '',
@@ -1025,6 +1026,36 @@ export default function Drivers() {
                 '& .MuiInputLabel-root.Mui-focused': {
                   color: '#ffcc33',
                 },
+              }}
+            />
+            <TextField
+              label="Adresse"
+              name="address"
+              value={formData.address || ''}
+              onChange={handleChange}
+              fullWidth
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LocationOn sx={{ color: '#ffcc33' }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px',
+                  '&:hover fieldset': {
+                    borderColor: '#ffcc33',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#ffcc33',
+                  },
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#ffcc33',
+                },
+                // Suppression du gridColumn: 'span 2' pour rester sur la même ligne
               }}
             />
             <TextField
