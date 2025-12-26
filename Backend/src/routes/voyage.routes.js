@@ -157,6 +157,7 @@ router.post('/driver', auth, isDriver, voyageController.createVoyageByDriver);
  *   put:
  *     summary: Mettre à jour un voyage du conducteur connecté
  *     tags: [Voyages]
+ *     description: Permet à un conducteur de mettre à jour un de ses voyages existants
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -168,6 +169,7 @@ router.post('/driver', auth, isDriver, voyageController.createVoyageByDriver);
  *         description: ID du voyage à mettre à jour
  *     requestBody:
  *       required: true
+ *       description: Détails du voyage à mettre à jour
  *       content:
  *         application/json:
  *           schema:
@@ -334,7 +336,7 @@ router.delete('/:id', auth, isDriverOrAdmin, voyageController.deleteVoyage);
  * @swagger
  * /voyages/admin/all:
  *   get:
- *     summary: [ADMIN] Récupérer tous les voyages (y compris expirés)
+ *     summary: '[ADMIN] Récupérer tous les voyages (y compris expirés)'
  *     tags: [Admin - Voyages]
  *     security:
  *       - bearerAuth: []
@@ -354,7 +356,7 @@ router.get('/admin/all', auth, adminAuth, voyageController.getAllVoyageIncluding
  * @swagger
  * /voyages/admin/{id}:
  *   delete:
- *     summary: [ADMIN] Supprimer un voyage
+ *     summary: '[ADMIN] Supprimer un voyage'
  *     tags: [Admin - Voyages]
  *     security:
  *       - bearerAuth: []

@@ -79,6 +79,72 @@ router.get('/pinned', driverController.getPinnedDrivers);
  */
 router.post('/register', uploadDriverFiles, driverController.createDriver);
 
+/**
+ * @swagger
+ * /drivers:
+ *   post:
+ *     summary: Créer un nouveau conducteur (Admin)
+ *     tags: [Admin - Drivers]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - numero
+ *               - password
+ *               - matricule
+ *               - marque
+ *               - capacity
+ *               - capacity_coffre
+ *               - permis
+ *               - photo
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               numero:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *                 format: password
+ *               matricule:
+ *                 type: string
+ *               marque:
+ *                 type: string
+ *               capacity:
+ *                 type: number
+ *               capacity_coffre:
+ *                 type: string
+ *                 enum: [petit, moyen, grand]
+ *               climatisation:
+ *                 type: boolean
+ *               permis:
+ *                 type: string
+ *                 format: binary
+ *                 description: Fichier du permis de conduire
+ *               photo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Photo du conducteur
+ *               isActive:
+ *                 type: boolean
+ *                 description: Statut d'activation du compte
+ *     responses:
+ *       201:
+ *         description: Conducteur créé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Driver'
+ */
+router.post('/', auth, adminAuth, uploadDriverFiles, driverController.createDriver);
 
 /**
  * @swagger
