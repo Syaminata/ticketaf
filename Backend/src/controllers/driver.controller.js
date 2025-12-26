@@ -346,11 +346,27 @@ const updateDriver = async (req, res) => {
 
     if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
 
-    // Mettre à jour l'utilisateur associé avec la même adresse
+    // Mettre à jour l'utilisateur associé avec les mêmes informations
+    const userUpdate = {};
+    
     if (address !== undefined) {
+      userUpdate.address = address.trim();
+    }
+    
+    // S'assurer que l'email est soit une chaîne valide, soit undefined (pas 'undefined')
+    if (email !== undefined) {
+      userUpdate.email = email && email.trim() !== '' ? email.trim() : undefined;
+    }
+    
+    // Mettre à jour le nom et le numéro aussi pour garder la cohérence
+    if (name !== undefined) userUpdate.name = name;
+    if (numero !== undefined) userUpdate.numero = numero;
+    
+    // Ne procéder à la mise à jour que si on a des champs à mettre à jour
+    if (Object.keys(userUpdate).length > 0) {
       await User.findByIdAndUpdate(
         req.params.id,
-        { address: address.trim() },
+        userUpdate,
         { new: true, runValidators: true }
       );
     }
