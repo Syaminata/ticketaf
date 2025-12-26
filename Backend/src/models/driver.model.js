@@ -11,6 +11,7 @@ const driverSchema = new mongoose.Schema({
   },
   password: { type: String, required: true },
   numero:{type: String, required: true, unique: true, match: [/^(77|78|76|70|75|33|71)\d{7}$/, 'Le numéro doit contenir exactement 9 chiffres']},
+  address: { type: String, required: true, trim: true },
   matricule: { type: String, required: true, unique: true },
   marque: { type: String, required: true },
   capacity: { type: Number, required: true },
@@ -48,7 +49,7 @@ const driverSchema = new mongoose.Schema({
   isPinned: { type: Boolean, default: false },
   pinnedAt: { type: Date },
   pinnedOrder: { type: Number, default: 0 }, // Pour gérer l'ordre d'affichage
-  address: { type: String, required: true, trim: true },
+  address: { type: String, default: '' }, // Adresse du conducteur
   tripCount: { type: Number, default: 0 }, // Nombre de voyages effectués
   role: { type: String, default: 'conducteur' } 
 }, { timestamps: true });

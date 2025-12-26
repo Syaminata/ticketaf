@@ -50,7 +50,7 @@ const createDriver = async (req, res) => {
   session.startTransaction();
   
   try {
-    const { name, email, numero, password, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
+    const { name, email, numero, password, matricule, marque, capacity, capacity_coffre, climatisation, address } = req.body;
 
     // 1. Validation des entrées
     if (!name || !numero || !password || !matricule || !marque || !capacity || !capacity_coffre) {
@@ -63,7 +63,8 @@ const createDriver = async (req, res) => {
           matricule: !matricule,
           marque: !marque,
           capacity: !capacity,
-          capacity_coffre: !capacity_coffre
+          capacity_coffre: !capacity_coffre,
+          address: !address
         }
       });
     }
@@ -186,14 +187,14 @@ const createDriver = async (req, res) => {
     const driver = new Driver({
       _id: user._id,
       name,
-      email: email || undefined,
+      email: email || null, 
       numero,
-      password: user.password, // Utiliser le mot de passe déjà haché de l'utilisateur
-      address: req.body.address, // Ajout de l'adresse
+      password: user.password, 
       matricule,
       marque,
       capacity: parseInt(capacity),
       capacity_coffre,
+      address: address || '',
       climatisation: climatisation === 'true' || climatisation === true,
       isActive: false,
       role: 'conducteur',
@@ -292,9 +293,13 @@ const updateDriver = async (req, res) => {
       marque, 
       capacity, 
       capacity_coffre, 
-      climatisation: climatisation === 'true' || climatisation === true,
-      address: address ? address.trim() : undefined
+      climatisation: climatisation === 'true' || climatisation === true
     };
+    
+    // Ajouter l'adresse si elle est fournie
+    if (address !== undefined) {
+      updateData.address = address.trim();
+    }
     
     // Gérer l'email optionnel
     if (email !== undefined) {
