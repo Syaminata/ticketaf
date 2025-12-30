@@ -83,7 +83,7 @@ const getUserColis = async (req, res) => {
   try {
     const colis = await Colis.find({ expediteur: req.user._id })
       .populate('voyage', 'from to date price')
-      .populate('expediteur', 'name numero')
+      .populate('expediteur', 'name email numero')
       .sort({ createdAt: -1 });
       
     res.status(200).json(colis);
@@ -126,7 +126,13 @@ const getColisById = async (req, res) => {
     const colis = await Colis.findById(req.params.id)
       .populate('expediteur', 'name email numero')
       .populate('voyage', 'from to date driver')
-      .populate('voyage.driver', 'name numero')
+      .populate({
+        path: 'voyage',
+        populate: {
+          path: 'driver',
+          select: 'name numero'
+        }
+      })
       .populate('createdBy', 'name email numero');
 
     if (!colis) {
@@ -219,7 +225,7 @@ const updateColis = async (req, res) => {
     )
     .populate('expediteur', 'name email numero')
     .populate('voyage', 'from to date driver')
-    .populate('createdBy', 'name email');
+    .populate('createdBy', 'name email numero');
 
     res.status(200).json({ 
       message: 'Colis mis à jour avec succès', 
@@ -267,7 +273,7 @@ const trackColis = async (req, res) => {
     const { trackingNumber } = req.params;
     const colis = await Colis.findOne({ trackingNumber })
       .populate('voyage', 'from to date')
-      .populate('expediteur', 'name numero')
+      .populate('expediteur', 'name email numero')
       .populate({
         path: 'voyage',
         populate: {
@@ -342,7 +348,7 @@ const updateColisPrix = async (req, res) => {
     // Peupler les références pour la réponse
     const updatedColis = await Colis.findById(colis._id)
       .populate('voyage', 'from to date')
-      .populate('expediteur', 'name  numero');
+      .populate('expediteur', 'name email numero');
 
     res.json({ 
       message: 'Prix mis à jour avec succès', 
@@ -409,6 +415,7 @@ const validateColis = async (req, res) => {
     });
   }
 };
+
 // Annuler un colis (client)
 const cancelColis = async (req, res) => {
   try {

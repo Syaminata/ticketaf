@@ -92,7 +92,7 @@ const Header = ({ adminName = 'Admin', adminRole = 'Administrateur', onLogout })
             <Typography sx={{ 
               fontSize: "18px", 
               fontWeight: "500", 
-              color: "#ffcc33",
+              color: "#b6660abd",
               fontFamily: "monospace"
             }}>
               {currentTime.toLocaleTimeString('fr-FR')}

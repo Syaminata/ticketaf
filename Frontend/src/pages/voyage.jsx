@@ -527,8 +527,8 @@ export default function Voyage() {
           startIcon={<Add />}
           sx={{ 
             backgroundColor: 'transparrent',
-            border: '2px solid #ffcc33',
-            color: '#ffcc33',
+            border: '2px solid #b6660abd',
+            color: '#b6660abd',
             fontWeight: 500,
             px: 3,
             py: 1.5,
@@ -593,7 +593,7 @@ export default function Voyage() {
           sx={{
             borderRadius: '12px',
             textTransform: 'none',
-            borderColor: '#ffcc33',
+            borderColor: '#b6660abd',
             color: '#1a1a1a',
             '&:hover': {
               borderColor: '#e6b800',

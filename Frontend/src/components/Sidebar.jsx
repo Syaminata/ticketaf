@@ -115,7 +115,7 @@ const Sidebar = ({ onLogout }) => {
             sx={{
               cursor: 'pointer',
               backgroundColor: isActive ? '#ebff3325' : 'transparent',
-              color: isActive ? '#ffc403ff' : '#000000ff',
+              color: isActive ? '#b6660abd' : '#000000ff',
               borderRadius: '10px',
               mb: 1,
               mx: 1,
@@ -133,13 +133,13 @@ const Sidebar = ({ onLogout }) => {
                 transform: 'translateY(-50%)',
                 width: isActive ? '5px' : '0px',
                 height: '80%',
-                backgroundColor: '#ffcc33',
+                backgroundColor: '#b6660abd',
                 borderRadius: '0 4px 4px 0',
                 transition: 'width 0.3s ease',
               },
             }}
           >
-            <ListItemIcon sx={{ color: isActive ? '#ffc403ff' : '#000000ff' }}>
+            <ListItemIcon sx={{ color: isActive ? '#b6660abd' : '#000000ff' }}>
               {item.icon}
             </ListItemIcon>
             <ListItemText primary={item.text} />

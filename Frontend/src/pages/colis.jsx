@@ -83,6 +83,8 @@ export default function Colis() {
     onConfirm: null,
     loading: false
   });
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedColis, setSelectedColis] = useState(null);
 
   const user = JSON.parse(sessionStorage.getItem('user') || '{}');
   const isAdmin = user.role === 'admin' || user.role === 'superadmin';
@@ -102,8 +104,7 @@ export default function Colis() {
         res = await colisAPI.getUserColis();
       }
       
-      console.log('Données brutes des colis:', res); // Ajout du console.log ici
-      console.log('Données brutes des colis:', JSON.parse(JSON.stringify(res)));
+      console.log('📦 Données des colis:', res);
       
       const now = new Date();
       const filteredColis = res.filter(colisItem => {
@@ -145,7 +146,7 @@ export default function Colis() {
     setPage(0);
   }, [searchTerm, statusFilter, voyageFilter]);
 
-    const handleOpen = (colisItem = null) => {
+  const handleOpen = (colisItem = null) => {
     setError('');
     setEditColis(colisItem);
     setImageFile(null);
@@ -155,7 +156,7 @@ export default function Colis() {
       setFormData({
         voyageId: colisItem.voyage?._id || colisItem.reservation?.voyage?._id || '',
         description: colisItem.description || '',
-        prix: colisItem.prix || '', // AJOUT
+        prix: colisItem.prix || '',
         destinataire: {
           nom: colisItem.destinataire?.nom || '',
           telephone: colisItem.destinataire?.telephone || '',
@@ -169,7 +170,7 @@ export default function Colis() {
       setFormData({
         voyageId: '',
         description: '',
-        prix: '', // AJOUT
+        prix: '',
         destinataire: {
           nom: '',
           telephone: '',
@@ -246,28 +247,19 @@ export default function Colis() {
     try {
       const submitData = new FormData();
       
-      // Ajouter les champs un par un
       submitData.append('voyageId', formData.voyageId);
       submitData.append('description', formData.description || '');
       
-      // AJOUT : Ajouter le prix si fourni et si admin
       if (isAdmin && formData.prix !== '' && formData.prix !== null) {
         submitData.append('prix', parseFloat(formData.prix));
       }
       
-      // Ajouter les champs du destinataire directement
       submitData.append('destinataire[nom]', formData.destinataire.nom);
       submitData.append('destinataire[telephone]', formData.destinataire.telephone);
       submitData.append('destinataire[adresse]', formData.destinataire.adresse || '');
 
       if (imageFile) {
         submitData.append('image', imageFile);
-      }
-
-      // Afficher les données pour le débogage
-      console.log('Données envoyées:');
-      for (let pair of submitData.entries()) {
-        console.log(pair[0] + ': ', pair[1]);
       }
 
       if (editColis) {
@@ -286,11 +278,6 @@ export default function Colis() {
       }, 5000);
     } catch (err) {
       console.error('Erreur soumission:', err);
-      if (err.response) {
-        console.error('Réponse du serveur:', err.response.data);
-        console.error('Status:', err.response.status);
-        console.error('En-têtes:', err.response.headers);
-      }
       if (err.response?.status === 401) {
         setError('Session expirée. Veuillez vous reconnecter.');
         sessionStorage.removeItem('token');
@@ -318,9 +305,6 @@ export default function Colis() {
       loading: false
     });
   };
-
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [selectedColis, setSelectedColis] = useState(null);
 
   const handleOpenDetails = (colisItem) => {
     setSelectedColis(colisItem);
@@ -378,7 +362,7 @@ export default function Colis() {
   };
 
   const getStatusText = (status) => {
-    return status.charAt(0).toUpperCase() + status.slice(1); // Met en majuscule la première lettre
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   const inputStyle = {
@@ -394,9 +378,9 @@ export default function Colis() {
       color: '#ffcc33',
     },
   };
+
   const InfoRow = ({ label, children }) => (
     <Box
-      component="div" // Ajout explicite de component="div"
       sx={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -407,19 +391,16 @@ export default function Colis() {
       }}
     >
       <Typography 
-        component="span" 
         variant="body2" 
-        sx={{ color: '#666666', fontWeight: 500,  }}
+        sx={{ color: '#666666', fontWeight: 500 }}
       >
         {label}
       </Typography>
       <Box 
-        component="span" 
         sx={{ 
           textAlign: 'right', 
           fontWeight: 600, 
           color: '#1a1a1a',
-          display: 'inline-block' ,
           fontFamily: 'Roboto, sans-serif',
         }}
       >
@@ -447,12 +428,6 @@ export default function Colis() {
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
-
-  {colis.length > 0 && (
-  <pre style={{ display: 'none' }}>
-    {JSON.stringify(colis[0], null, 2)}
-  </pre>
-)}
 
   return (
     <Box sx={{ p: 1, backgroundColor: '#ffff', minHeight: '100vh', color: '#1a1a1a' }}>
@@ -499,7 +474,7 @@ export default function Colis() {
             },
           }}
         >
-          Envoyé un colis
+          Envoyer un colis
         </Button>
       </Box>
 
@@ -627,8 +602,8 @@ export default function Colis() {
                         {colisItem.expediteur?.name || 'N/A'}
                       </Typography>
                       <Typography variant="body2" sx={{ color: '#666666' }}>
-                      {colisItem.expediteur?.numero}
-                    </Typography>
+                        {colisItem.expediteur?.numero || 'N/A'}
+                      </Typography>
                     </TableCell>
                   )}
                   <TableCell sx={{ textAlign: 'center' }}>
@@ -644,7 +619,7 @@ export default function Colis() {
                     <Button
                       variant="outlined"
                       size="small"
-                      onClick={() => handleOpenDetails(colisItem)} // ici tu gardes la fonction existante
+                      onClick={() => handleOpenDetails(colisItem)}
                       sx={{
                         borderColor: '#ffcc33',
                         color: '#ffcc33',
