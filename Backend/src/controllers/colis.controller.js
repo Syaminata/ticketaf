@@ -109,7 +109,7 @@ const getAllColis = async (req, res) => {
     const colis = await Colis.find(filter)
       .populate('expediteur', 'name email numero')
       .populate('voyage', 'from to date')
-      .populate('createdBy', 'name email')
+      .populate('createdBy', 'name email numero')
       .sort({ createdAt: -1 });
 
     res.status(200).json(colis);
@@ -126,7 +126,7 @@ const getColisById = async (req, res) => {
       .populate('expediteur', 'name email numero')
       .populate('voyage', 'from to date driver')
       .populate('voyage.driver', 'name numero')
-      .populate('createdBy', 'name numero');
+      .populate('createdBy', 'name email numero');
 
     if (!colis) {
       return res.status(404).json({ message: 'Colis/Place non trouvé' });
