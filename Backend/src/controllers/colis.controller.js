@@ -65,7 +65,7 @@ const createColis = async (req, res) => {
     // Peupler les références pour la réponse
     const newColis = await Colis.findById(colis._id)
       .populate('voyage', 'from to date')
-      .populate('expediteur', 'name email phone')
+      .populate('expediteur', 'name email numero')
       .populate('createdBy', 'name email');
 
     res.status(201).json({
@@ -107,7 +107,7 @@ const getAllColis = async (req, res) => {
     if (expediteur) filter.expediteur = expediteur;
 
     const colis = await Colis.find(filter)
-      .populate('expediteur', 'name email phone')
+      .populate('expediteur', 'name email numero')
       .populate('voyage', 'from to date')
       .populate('createdBy', 'name email')
       .sort({ createdAt: -1 });
@@ -123,10 +123,10 @@ const getAllColis = async (req, res) => {
 const getColisById = async (req, res) => {
   try {
     const colis = await Colis.findById(req.params.id)
-      .populate('expediteur', 'name email phone')
+      .populate('expediteur', 'name email numero')
       .populate('voyage', 'from to date driver')
-      .populate('voyage.driver', 'name phone')
-      .populate('createdBy', 'name email');
+      .populate('voyage.driver', 'name numero')
+      .populate('createdBy', 'name numero');
 
     if (!colis) {
       return res.status(404).json({ message: 'Colis/Place non trouvé' });
@@ -266,7 +266,7 @@ const trackColis = async (req, res) => {
     const { trackingNumber } = req.params;
     const colis = await Colis.findOne({ trackingNumber })
       .populate('voyage', 'from to date')
-      .populate('expediteur', 'name phone')
+      .populate('expediteur', 'name numero')
       .populate({
         path: 'voyage',
         populate: {
@@ -394,7 +394,7 @@ const validateColis = async (req, res) => {
     // Peupler les références pour la réponse
     const updatedColis = await Colis.findById(colis._id)
       .populate('voyage', 'from to date')
-      .populate('expediteur', 'name email phone');
+      .populate('expediteur', 'name email numero');
     
     res.json({ 
       message: 'Colis validé et envoyé avec succès',
@@ -439,7 +439,7 @@ const cancelColis = async (req, res) => {
     // Peupler les références pour la réponse
     const updatedColis = await Colis.findById(colis._id)
       .populate('voyage', 'from to date')
-      .populate('expediteur', 'name email phone');
+      .populate('expediteur', 'name email numero');
     
     res.json({ 
       message: 'Colis annulé avec succès',

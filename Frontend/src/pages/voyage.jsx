@@ -224,42 +224,66 @@ export default function Voyage() {
     }
   };
 
-  const handleDeleteVille = async (cityName, e) => {
-    e.stopPropagation(); // Empêcher l'ouverture de l'autocomplete
-    
+  const handleDeleteClick = async (cityName, e) => {
+    e.stopPropagation();
+
     try {
-      // Trouver l'ID de la ville à supprimer
       const villes = await villeAPI.getAllVilles();
-      const villeToDelete = villes.find(v => v.nom === cityName);
-      
-      if (!villeToDelete) {
+
+      const villeTrouvee = villes.find(v =>
+        v.nom.toLowerCase() === cityName.toLowerCase()
+      );
+
+      if (!villeTrouvee) {
         throw new Error('Ville non trouvée');
       }
-      
-      // Supprimer la ville via l'API
-      await villeAPI.deleteVille(villeToDelete._id);
-      
-      // Mettre à jour la liste des villes
+
+      setConfirmDialog({
+        open: true,
+        title: "Supprimer la ville",
+        message: `Êtes-vous sûr de vouloir supprimer définitivement la ville "${villeTrouvee.nom}" ?`,
+        loading: false,
+        onConfirm: () => handleConfirmDelete(villeTrouvee), 
+      });
+
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
+  const handleConfirmDelete = async (ville) => {
+    if (!ville || !ville._id) {
+      console.error('Ville invalide');
+      return;
+    }
+
+    try {
+      await villeAPI.deleteVille(ville._id);
+
       const updatedVilles = await villeAPI.getAllVilles();
       setCities(updatedVilles.map(v => v.nom).sort());
-      
-      // Si la ville supprimée était sélectionnée, réinitialiser le champ
-      if (formData.from === cityName) {
-        setFormData(prev => ({
-          ...prev,
-          from: ''
-        }));
-      }
-      
-      setSuccess(`Ville "${cityName}" supprimée avec succès`);
-      
-      setTimeout(() => {
-        setSuccess('');
-      }, 3000);
+
+      setFormData(prev => ({
+        ...prev,
+        from: prev.from === ville.nom ? '' : prev.from,
+        to: prev.to === ville.nom ? '' : prev.to
+      }));
+
+      setSuccess(`Ville "${ville.nom}" supprimée avec succès`);
+      setTimeout(() => setSuccess(''), 3000);
+
     } catch (error) {
-      console.error('Erreur lors de la suppression de la ville:', error);
-      setError('Impossible de supprimer la ville. Elle est peut-être utilisée dans des voyages.');
+      setError("Impossible de supprimer cette ville car elle est utilisée dans des voyages");
+    } finally {
+      setConfirmDialog(prev => ({ ...prev, open: false }));
     }
+  };
+
+  // Fonction pour annuler la suppression (utilisée par ConfirmDialog)
+  const handleCancelDelete = () => {
+    setConfirmDialog(prev => ({ ...prev, open: false }));
+    setVilleToDelete(null);
+    setDeleteEvent(null);
   };
 
   const handleChange = (e) => {
@@ -959,6 +983,41 @@ export default function Voyage() {
                       setFormData(prev => ({ ...prev, from: newValue || '' }));
                     }}
                     sx={{ flex: 1 }}
+                    renderOption={(props, option) => {
+                      const { key, ...otherProps } = props;
+                      return (
+                        <li
+                          key={key}
+                          {...otherProps}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            width: '100%',
+                          }}
+                        >
+                          <span>{option}</span>
+
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation(); // empêche la sélection
+                              handleDeleteClick(option, e);
+                            }}
+                            sx={{
+                              color: 'red',
+                              ml: 1,
+                              '&:hover': {
+                                color: 'darkred',
+                                backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                              },
+                            }}
+                          >
+                            <Close fontSize="small" />
+                          </IconButton>
+                        </li>
+                      );
+                    }}
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -968,18 +1027,19 @@ export default function Voyage() {
                           '& .MuiOutlinedInput-root': {
                             borderRadius: '12px',
                             '&:hover fieldset': { borderColor: '#ffcc33' },
-                            '&.Mui-focused fieldset': { 
+                            '&.Mui-focused fieldset': {
                               borderColor: '#ffcc33',
-                              borderWidth: 2 
+                              borderWidth: 2,
                             },
                           },
-                          '& .MuiInputLabel-root.Mui-focused': { 
-                            color: '#ffcc33' 
+                          '& .MuiInputLabel-root.Mui-focused': {
+                            color: '#ffcc33',
                           },
                         }}
                       />
                     )}
                   />
+
                   <Button
                     variant="outlined"
                     onClick={() => setNewCityDialogOpen(true)}
@@ -999,50 +1059,50 @@ export default function Voyage() {
                   </Button>
                 </Box>
                 <Autocomplete
-                  options={cities.filter(city => city !== formData.from)}
-                  value={formData.to}
-                  onChange={(_, newValue) => {
-                    setFormData(prev => ({ ...prev, to: newValue || '' }));
-                  }}
-                  renderOption={(props, option) => {
-                    const { key, ...otherProps } = props;
-                    return (
-                      <li key={key} {...otherProps} style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                        <span>{option}</span>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteVille(option, e);
-                          }}
-                          sx={{ '&:hover': { color: 'red' } }}
-                        >
-                          <Close fontSize="small" />
-                        </IconButton>
-                      </li>
-                    );
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Ville de destination"
-                      required
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: '12px',
-                          '&:hover fieldset': { borderColor: '#ffcc33' },
-                          '&.Mui-focused fieldset': { 
-                            borderColor: '#ffcc33', 
-                            borderWidth: 2 
-                          },
+                options={cities.filter(city => city !== formData.from)}
+                value={formData.to}
+                onChange={(_, newValue) => {
+                  setFormData(prev => ({ ...prev, to: newValue || '' }));
+                }}
+                renderOption={(props, option) => {
+                  const { key, ...otherProps } = props;
+                  return (
+                    <li key={key} {...otherProps} style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                      <span>{option}</span>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteVille(option, e);
+                        }}
+                        sx={{ '&:hover': { color: 'red' } }}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                    </li>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Ville de destination"
+                    required
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '12px',
+                        '&:hover fieldset': { borderColor: '#ffcc33' },
+                        '&.Mui-focused fieldset': { 
+                          borderColor: '#ffcc33', 
+                          borderWidth: 2 
                         },
-                        '& .MuiInputLabel-root.Mui-focused': { 
-                          color: '#ffcc33' 
-                        },
-                      }}
-                    />
-                  )}
-                />
+                      },
+                      '& .MuiInputLabel-root.Mui-focused': { 
+                        color: '#ffcc33' 
+                      },
+                    }}
+                  />
+                )}
+              />
               </Box>
             </Box>
 
@@ -1334,6 +1394,7 @@ export default function Voyage() {
         confirmText="Supprimer définitivement"
         cancelText="Annuler"
       />
+
     </Box>
   );
 }

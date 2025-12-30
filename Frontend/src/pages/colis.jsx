@@ -101,7 +101,17 @@ export default function Colis() {
       } else {
         res = await colisAPI.getUserColis();
       }
-      setColis(res);
+      
+      console.log('Données brutes des colis:', res); // Ajout du console.log ici
+      
+      const now = new Date();
+      const filteredColis = res.filter(colisItem => {
+        const voyageDate = colisItem.voyage?.date || colisItem.reservation?.voyage?.date;
+        if (!voyageDate) return true;
+        return new Date(voyageDate) >= now;
+      });
+
+      setColis(filteredColis);
       setError('');
     } catch (err) {
       console.error('Erreur récupération des colis:', err);
@@ -437,6 +447,12 @@ export default function Colis() {
     page * rowsPerPage + rowsPerPage
   );
 
+  {colis.length > 0 && (
+  <pre style={{ display: 'none' }}>
+    {JSON.stringify(colis[0], null, 2)}
+  </pre>
+)}
+
   return (
     <Box sx={{ p: 1, backgroundColor: '#ffff', minHeight: '100vh', color: '#1a1a1a' }}>
       {error && (
@@ -606,9 +622,12 @@ export default function Colis() {
                   </TableCell>
                   {isAdmin && (
                     <TableCell>
-                      <Typography variant="body2" sx={{ color: '#666666' }}>
+                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
                         {colisItem.expediteur?.name || 'N/A'}
                       </Typography>
+                      <Typography variant="body2" sx={{ color: '#666666' }}>
+                      {colisItem.expediteur?.numero}
+                    </Typography>
                     </TableCell>
                   )}
                   <TableCell sx={{ textAlign: 'center' }}>
@@ -1021,6 +1040,39 @@ export default function Colis() {
           {selectedColis && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: '400px' }}>
               
+              {/* Destinataire */}
+              <Box>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 600,
+                    mb: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  <Person sx={{ color: '#ffcc33' }} />
+                  Destinataire
+                </Typography>
+
+                <Box sx={{ display: 'grid', gap: 2 }}>
+                  <InfoRow label="Nom">
+                    {selectedColis.destinataire?.nom}
+                  </InfoRow>
+
+                  <InfoRow label="Téléphone">
+                    {selectedColis.destinataire?.telephone}
+                  </InfoRow>
+
+                  {selectedColis.destinataire?.adresse && (
+                    <InfoRow label="Adresse">
+                      {selectedColis.destinataire.adresse}
+                    </InfoRow>
+                  )}
+                </Box>
+              </Box>
+
               {/* Infos Colis */}
               <Box>
                 <Typography
@@ -1098,40 +1150,6 @@ export default function Colis() {
                   )}
                 </Box>
               </Box>
-
-              {/* Destinataire */}
-              <Box>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 600,
-                    mb: 3,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                  }}
-                >
-                  <Person sx={{ color: '#ffcc33' }} />
-                  Destinataire
-                </Typography>
-
-                <Box sx={{ display: 'grid', gap: 2 }}>
-                  <InfoRow label="Nom">
-                    {selectedColis.destinataire?.nom}
-                  </InfoRow>
-
-                  <InfoRow label="Téléphone">
-                    {selectedColis.destinataire?.telephone}
-                  </InfoRow>
-
-                  {selectedColis.destinataire?.adresse && (
-                    <InfoRow label="Adresse">
-                      {selectedColis.destinataire.adresse}
-                    </InfoRow>
-                  )}
-                </Box>
-              </Box>
-
               {/* Image */}
               {selectedColis.imageUrl && selectedColis.imageUrl.trim() !== '' && (
                 <Box>

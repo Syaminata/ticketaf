@@ -116,38 +116,4 @@ exports.deleteVille = async (req, res) => {
   }
 };
 
-exports.toggleVilleStatus = async (req, res) => {
-  try {
-    const ville = await Ville.findById(req.params.id);
-    
-    if (!ville) {
-      return res.status(404).json({ message: 'Ville non trouvée' });
-    }
 
-    // Vérifier si on essaie de désactiver une ville utilisée dans des voyages actifs
-    const usedInVoyages = await Voyage.findOne({ 
-      date: { $gte: new Date() },
-      $or: [
-        { from: ville.nom },
-        { to: ville.nom }
-      ]
-    });
-
-    if (usedInVoyages) {
-      return res.status(400).json({ 
-        message: 'Impossible de désactiver cette ville car elle est utilisée dans des voyages à venir' 
-      });
-    }
-
-    ville.statut = ville.statut === 'actif' ? 'inactif' : 'actif';
-    await ville.save();
-    
-    res.json({ 
-      message: `Ville marquée comme ${ville.statut} avec succès`,
-      statut: ville.statut
-    });
-  } catch (error) {
-    console.error('Erreur lors du changement de statut de la ville:', error);
-    res.status(500).json({ message: 'Erreur lors du changement de statut de la ville' });
-  }
-};

@@ -31,20 +31,22 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 
 export default function Historique() {
-  const [tab, setTab] = useState(0); // 0: Tous,  1: Voyages, 2: Réservations
+  const [tab, setTab] = useState(0); // 0: Voyages, 1: Réservations, 2: Colis
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [voyages, setVoyages] = useState([]);
   const [reservations, setReservations] = useState([]);
+  const [colis, setColis] = useState([]);
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   
   // Filtres avancés - Par défaut afficher uniquement les expirés
-  const [statusFilter, setStatusFilter] = useState('expired'); // all, expired, today, upcoming
+  const [statusFilter, setStatusFilter] = useState('expired');
   const [userFilter, setUserFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('');
 
@@ -54,45 +56,29 @@ export default function Historique() {
     setLoading(true);
     setError('');
     try {
-      const [vRes, rRes, uRes] = await Promise.all([
+      const [vRes, rRes, cRes, uRes] = await Promise.all([
         fetch('https://ticket-taf.itea.africa/api/voyages/all/including-expired', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('https://ticket-taf.itea.africa/api/reservations', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('https://ticket-taf.itea.africa/api/colis', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('https://ticket-taf.itea.africa/api/users', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       if (!vRes.ok) throw new Error('Erreur chargement voyages');
       if (!rRes.ok) throw new Error('Erreur chargement réservations');
+      if (!cRes.ok) throw new Error('Erreur chargement colis');
       if (!uRes.ok) throw new Error('Erreur chargement utilisateurs');
 
-      const [vData, rData, uData] = await Promise.all([vRes.json(), rRes.json(), uRes.json()]);
+      const [vData, rData, cData, uData] = await Promise.all([vRes.json(), rRes.json(), cRes.json(), uRes.json()]);
 
-      console.log(' Données chargées:');
+      console.log('📦 Données chargées:');
       console.log('  - Voyages:', vData?.length || 0);
       console.log('  - Réservations:', rData?.length || 0);
+      console.log('  - Colis:', cData?.length || 0);
       console.log('  - Utilisateurs:', uData?.length || 0);
-      
-      // Analyser les réservations
-      if (Array.isArray(rData)) {
-        const sansVoyage = rData.filter(r => !r.voyage && !r.bus);
-        const avecVoyage = rData.filter(r => r.voyage || r.bus);
-        const voyagesExpires = avecVoyage.filter(r => {
-          const date = r.voyage?.date || r.bus?.departureDate;
-          return date && new Date(date) < new Date();
-        });
-        
-        console.log(' Analyse des réservations:');
-        console.log('  - Total:', rData.length);
-        console.log('  - Sans voyage/bus:', sansVoyage.length);
-        console.log('  - Avec voyage/bus:', avecVoyage.length);
-        console.log('  - Voyages expirés:', voyagesExpires.length);
-        
-        if (sansVoyage.length > 0) {
-          console.warn('Réservations sans voyage/bus:', sansVoyage.map(r => r._id));
-        }
-      }
 
       setVoyages(Array.isArray(vData) ? vData : []);
       setReservations(Array.isArray(rData) ? rData : []);
+      setColis(Array.isArray(cData) ? cData : []);
       setUsers(Array.isArray(uData) ? uData : []);
     } catch (err) {
       setError(err.message || 'Erreur lors du chargement');
@@ -106,11 +92,8 @@ export default function Historique() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Suppression des utilisateurs et conducteurs de l'historique
-
   const formatDateTime = (d) => new Date(d).toLocaleString('fr-FR');
   
-  // Format de date court et lisible avec heure (ex: 28/10/2025 14:30)
   const formatDateShort = (dateString) => {
     if (!dateString) return 'Non définie';
     const date = new Date(dateString);
@@ -126,7 +109,6 @@ export default function Historique() {
     return `${dateStr} à ${timeStr}`;
   };
 
-  // Statut temporel: passé, aujourd'hui, à venir
   const getTemporalStatus = (date) => {
     if (!date) return { label: '—', color: 'default', status: 'unknown' };
     const dt = new Date(date);
@@ -139,14 +121,12 @@ export default function Historique() {
     return { label: 'À venir', color: 'success', status: 'upcoming' };
   };
 
-  // Fonction pour vérifier si un élément correspond au filtre de statut
   const matchesStatusFilter = (date) => {
     if (statusFilter === 'all') return true;
     const status = getTemporalStatus(date).status;
     return status === statusFilter;
   };
 
-  // Fonction pour vérifier si un élément correspond au filtre de date
   const matchesDateFilter = (date) => {
     if (!dateFilter) return true;
     if (!date) return false;
@@ -157,15 +137,10 @@ export default function Historique() {
   const filterByQuery = (text) =>
     !query || (text || '').toLowerCase().includes(query.toLowerCase());
 
-  // Filtres uniquement pour voyages et réservations
-
   const filteredVoyages = (voyages || [])
     .filter(v => {
-      // Filtre de recherche
       if (!filterByQuery(`${v.from} ${v.to}`)) return false;
-      // Filtre de statut temporel
       if (!matchesStatusFilter(v.date)) return false;
-      // Filtre de date
       if (!matchesDateFilter(v.date)) return false;
       return true;
     })
@@ -174,20 +149,12 @@ export default function Historique() {
   const filteredReservations = useMemo(() => {
     const filtered = (reservations || [])
       .filter(r => {
-        // Filtre de recherche
         const searchText = `${r.user?.name || ''} ${r.voyage ? (r.voyage.from + ' ' + r.voyage.to) : ''} ${r.bus ? (r.bus.from + ' ' + r.bus.to) : ''}`;
         if (!filterByQuery(searchText)) return false;
-        
-        // Filtre par utilisateur
         if (userFilter !== 'all' && r.user?._id !== userFilter) return false;
-        
-        // Filtre de statut temporel
         const reservationDate = r.voyage?.date || r.bus?.departureDate;
         if (!matchesStatusFilter(reservationDate)) return false;
-        
-        // Filtre de date
         if (!matchesDateFilter(reservationDate)) return false;
-        
         return true;
       })
       .sort((a, b) => {
@@ -196,14 +163,28 @@ export default function Historique() {
         return dateB - dateA;
       });
     
-    // Log de débogage
-    console.log('🔍 Filtrage des réservations:');
-    console.log('  - Total:', reservations?.length || 0);
-    console.log('  - Après filtres:', filtered.length);
-    console.log('  - Filtre statut:', statusFilter);
-    
     return filtered;
   }, [reservations, query, userFilter, statusFilter, dateFilter]);
+
+  const filteredColis = useMemo(() => {
+    const filtered = (colis || [])
+      .filter(c => {
+        const searchText = `${c.destinataire?.nom || ''} ${c.destinataire?.telephone || ''} ${c.description || ''} ${c.voyage?.from || ''} ${c.voyage?.to || ''}`;
+        if (!filterByQuery(searchText)) return false;
+        if (userFilter !== 'all' && c.expediteur?._id !== userFilter) return false;
+        const colisDate = c.voyage?.date;
+        if (!matchesStatusFilter(colisDate)) return false;
+        if (!matchesDateFilter(colisDate)) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.voyage?.date || a.createdAt);
+        const dateB = new Date(b.voyage?.date || b.createdAt);
+        return dateB - dateA;
+      });
+    
+    return filtered;
+  }, [colis, query, userFilter, statusFilter, dateFilter]);
 
   const SectionHeader = ({ icon, title, count }) => (
     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -216,8 +197,6 @@ export default function Historique() {
       </Box>
     </Box>
   );
-
-  // Composant UserRow supprimé
 
   const VoyageRow = ({ v }) => {
     const temporalStatus = getTemporalStatus(v.date);
@@ -270,14 +249,6 @@ export default function Historique() {
     const temporalStatus = getTemporalStatus(reservationDate);
     const isExpired = temporalStatus.status === 'expired';
     
-    // Log de débogage pour identifier les problèmes
-    if (!r.voyage && !r.bus) {
-      console.warn('⚠️ Réservation sans voyage ni bus:', r._id);
-    }
-    if ((r.voyage && !r.voyage.date) || (r.bus && !r.bus.departureDate)) {
-      console.warn('⚠️ Voyage/Bus sans date:', r._id, r.voyage || r.bus);
-    }
-    
     return (
       <>
         <ListItem
@@ -328,8 +299,86 @@ export default function Historique() {
                 {r.createdAt && (
                   <Typography variant="caption" sx={{ color: '#9ca3af' }}>Créée le {formatDateShort(r.createdAt)}</Typography>
                 )}
-                {r.ticket === 'colis' && (
-                  <Chip size="small" label={r.description ? `Colis: ${r.description}` : 'Colis'} sx={{ background: '#f5f5f5' }} />
+              </Box>
+            }
+          />
+        </ListItem>
+        <Divider component="li" />
+      </>
+    );
+  };
+
+  const ColisRow = ({ c }) => {
+    const colisDate = c.voyage?.date;
+    const temporalStatus = getTemporalStatus(colisDate);
+    const isExpired = temporalStatus.status === 'expired';
+    
+    const getStatusColor = (status) => {
+      switch (status) {
+        case 'envoyé': return 'info';
+        case 'reçu': return 'success';
+        case 'annulé': return 'error';
+        default: return 'warning';
+      }
+    };
+
+    const getStatusText = (status) => {
+      return status.charAt(0).toUpperCase() + status.slice(1);
+    };
+    
+    return (
+      <>
+        <ListItem
+          secondaryAction={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Chip size="small" label={getStatusText(c.status)} color={getStatusColor(c.status)} />
+              <Chip size="small" label={temporalStatus.label} color={temporalStatus.color} />
+            </Box>
+          }
+          sx={{ 
+            '&:hover': { backgroundColor: '#fafafa' }, 
+            borderRadius: '10px', 
+            px: 1.5,
+            opacity: isExpired ? 0.7 : 1,
+            backgroundColor: isExpired ? '#fef2f2' : 'transparent'
+          }}
+        >
+          <ListItemAvatar>
+            <Avatar sx={{ bgcolor: isExpired ? '#fee2e2' : '#e3f2fd', color: isExpired ? '#991b1b' : '#1976d2' }}>
+              <LocalShippingIcon fontSize="small" />
+            </Avatar>
+          </ListItemAvatar>
+          <ListItemText
+            primary={
+              <Typography sx={{ fontWeight: 700, color: isExpired ? '#991b1b' : '#1a1a1a' }}>
+                {c.destinataire?.nom || 'Destinataire inconnu'}
+                {isExpired && <Chip label="EXPIRÉ" size="small" color="error" sx={{ ml: 1, height: 20, fontSize: '10px' }} />}
+              </Typography>
+            }
+            secondary={
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', color: '#6b7280' }}>
+                <Typography variant="body2">
+                  {c.voyage ? `${c.voyage.from} → ${c.voyage.to}` : '—'}
+                </Typography>
+                {c.prix && (
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: '#2e7d32' }}>
+                    {c.prix} FCFA
+                  </Typography>
+                )}
+                <Typography variant="body2">
+                  📞 {c.destinataire?.telephone}
+                </Typography>
+                {colisDate ? (
+                  <Typography variant="body2" sx={{ color: isExpired ? '#991b1b' : '#6b7280', fontWeight: isExpired ? 600 : 400 }}>
+                    Départ: {formatDateShort(colisDate)}
+                  </Typography>
+                ) : (
+                  <Chip size="small" label="Date inconnue" color="warning" sx={{ fontSize: '11px' }} />
+                )}
+                {c.description && (
+                  <Typography variant="caption" sx={{ color: '#9ca3af' }}>
+                    {c.description}
+                  </Typography>
                 )}
               </Box>
             }
@@ -415,14 +464,37 @@ export default function Historique() {
             />
           </Box>
         );
+      case 2:
+        return (
+          <Box>
+            <SectionHeader icon={<LocalShippingIcon />} title="Colis" count={filteredColis.length} />
+            <List dense sx={{ bgcolor: '#fff', borderRadius: '12px', border: '1px solid #eee', mb: 2 }}>
+              {getPaginatedItems(filteredColis).map(c => (
+                <ColisRow key={c._id} c={c} />
+              ))}
+              {filteredColis.length === 0 && (
+                <ListItem><ListItemText primary="Aucun colis" /></ListItem>
+              )}
+            </List>
+            <TablePagination
+              component="div"
+              count={filteredColis.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25]}
+              labelRowsPerPage="Lignes par page"
+            />
+          </Box>
+        );
       default:
         return null;
     }
   };
 
-  // Statistiques pour les filtres
   const stats = useMemo(() => {
-    const allItems = [...voyages, ...reservations];
+    const allItems = [...voyages, ...reservations, ...colis.map(c => ({ ...c, date: c.voyage?.date }))];
     let expired = 0, today = 0, upcoming = 0;
     
     allItems.forEach(item => {
@@ -434,7 +506,7 @@ export default function Historique() {
     });
     
     return { expired, today, upcoming, total: allItems.length };
-  }, [voyages, reservations]);
+  }, [voyages, reservations, colis]);
 
   return (
     <Box sx={{ p: 2, backgroundColor: '#ffff', minHeight: '100vh' }}>
@@ -444,12 +516,11 @@ export default function Historique() {
             Historique
           </Typography>
           <Typography variant="body1" sx={{ color: '#70757a', fontSize: '14px' }}>
-            Vue d'ensemble des voyages et réservations
+            Vue d'ensemble des voyages, réservations et colis
           </Typography>
         </Box>
       </Box>
 
-      {/* Barre de filtres */}
       <Paper sx={{ p: 2, mb: 3, borderRadius: '12px', backgroundColor: '#fff' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
           <FilterListIcon sx={{ color: '#ffb300' }} />
@@ -567,7 +638,7 @@ export default function Historique() {
         value={tab}
         onChange={(e, v) => {
           setTab(v);
-          setPage(0); // Reset à la première page lors du changement d'onglet
+          setPage(0);
         }}
         sx={{ mb: 3, '& .MuiTab-root': { textTransform: 'none', fontWeight: 700, minHeight: 42 }, '& .MuiTabs-indicator': { backgroundColor: '#ffb300', height: 3 } }}
         variant="scrollable"
@@ -575,6 +646,7 @@ export default function Historique() {
       >
         <Tab label={`Voyages (${filteredVoyages.length})`} />
         <Tab label={`Réservations (${filteredReservations.length})`} />
+        <Tab label={`Colis (${filteredColis.length})`} />
       </Tabs>
 
       {renderSection()}
