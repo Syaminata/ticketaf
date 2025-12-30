@@ -24,7 +24,12 @@ villeSchema.index({ nom: 1 }, { unique: true });
 
 // Middleware pour s'assurer que le nom est en majuscules
 villeSchema.pre('save', function(next) {
-  this.nom = this.nom.toUpperCase();
+  // Met la première lettre de chaque mot en majuscule et le reste en minuscule
+  this.nom = this.nom
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
   next();
 });
 

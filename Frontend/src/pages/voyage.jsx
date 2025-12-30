@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { voyageAPI } from '../api/voyage';
+import { villeAPI } from '../api/ville';
 import axios from '../api/axios';
 import {
   Box,
@@ -1002,6 +1003,24 @@ export default function Voyage() {
                   value={formData.to}
                   onChange={(_, newValue) => {
                     setFormData(prev => ({ ...prev, to: newValue || '' }));
+                  }}
+                  renderOption={(props, option) => {
+                    const { key, ...otherProps } = props;
+                    return (
+                      <li key={key} {...otherProps} style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                        <span>{option}</span>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteVille(option, e);
+                          }}
+                          sx={{ '&:hover': { color: 'red' } }}
+                        >
+                          <Close fontSize="small" />
+                        </IconButton>
+                      </li>
+                    );
                   }}
                   renderInput={(params) => (
                     <TextField
