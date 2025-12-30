@@ -83,6 +83,7 @@ const getUserColis = async (req, res) => {
   try {
     const colis = await Colis.find({ expediteur: req.user._id })
       .populate('voyage', 'from to date price')
+      .populate('expediteur', 'name numero')
       .sort({ createdAt: -1 });
       
     res.status(200).json(colis);
