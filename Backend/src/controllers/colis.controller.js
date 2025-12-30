@@ -66,7 +66,7 @@ const createColis = async (req, res) => {
     const newColis = await Colis.findById(colis._id)
       .populate('voyage', 'from to date')
       .populate('expediteur', 'name email numero')
-      .populate('createdBy', 'name email');
+      .populate('createdBy', 'name email numero');
 
     res.status(201).json({
       message: 'Colis créé avec succès',
@@ -217,7 +217,7 @@ const updateColis = async (req, res) => {
       updateData,
       { new: true, runValidators: true }
     )
-    .populate('expediteur', 'name email phone')
+    .populate('expediteur', 'name email numero')
     .populate('voyage', 'from to date driver')
     .populate('createdBy', 'name email');
 
@@ -272,7 +272,7 @@ const trackColis = async (req, res) => {
         path: 'voyage',
         populate: {
           path: 'driver',
-          select: 'name phone'
+          select: 'name numero'
         }
       });
 

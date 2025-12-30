@@ -103,6 +103,7 @@ export default function Colis() {
       }
       
       console.log('Données brutes des colis:', res); // Ajout du console.log ici
+      console.log('Données brutes des colis:', JSON.parse(JSON.stringify(res)));
       
       const now = new Date();
       const filteredColis = res.filter(colisItem => {
