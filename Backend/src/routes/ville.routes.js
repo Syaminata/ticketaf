@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const auth = require('../middleware/auth');
-const admin = require('../middleware/admin');
+const adminAuth = require('../middleware/auth');
 const villeController = require('../controllers/ville.controller');
 
 // Validation des données
@@ -22,27 +22,27 @@ router.get('/:id', villeController.getVilleById);
 // Routes protégées (admin uniquement)
 router.post('/', 
   auth, 
-  admin,
+  adminAuth,
   validateVille,
   villeController.createVille
 );
 
 router.put('/:id', 
   auth, 
-  admin,
+  adminAuth,
   validateVille,
   villeController.updateVille
 );
 
 router.delete('/:id', 
   auth, 
-  admin,
+  adminAuth,
   villeController.deleteVille
 );
 
 router.patch('/:id/toggle-status', 
   auth, 
-  admin,
+  adminAuth,
   villeController.toggleVilleStatus
 );
 
