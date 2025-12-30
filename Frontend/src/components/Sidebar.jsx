@@ -9,9 +9,9 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import CommuteIcon from '@mui/icons-material/Commute';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
-import CampaignIcon from '@mui/icons-material/Campaign';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import HistoryIcon from '@mui/icons-material/History';
+import CampaignIcon from '@mui/icons-material/Campaign';
 import logo from '../images/logo.png'
 
 const Sidebar = ({ onLogout }) => {
@@ -45,8 +45,8 @@ const Sidebar = ({ onLogout }) => {
     { text: 'Réservations', icon: <ConfirmationNumberIcon />, path: '/reservations' },
     { text: 'Colis', icon: <LocalShippingIcon />, path: '/colis' },
     { text: 'Bus', icon: <DirectionsBusIcon />, path: '/buses' },
-    { text: 'Annonces', icon: <CampaignIcon/>, path: '/annonces' },
-    { text: 'Historique', icon: <HistoryIcon/>, path: '/historique' },
+    { text: 'Annonces', icon: <CampaignIcon />, path: '/annonces' },
+    { text: 'Historique', icon: <HistoryIcon />, path: '/historique' },
     { text: 'Mon Profil', icon: <PersonIcon />, path: '/profile' },
   ];
 
@@ -119,10 +119,10 @@ const Sidebar = ({ onLogout }) => {
               borderRadius: '10px',
               mb: 1,
               mx: 1,
-              position: 'relative', 
+              position: 'relative',
               transition: 'all 0.3s ease',
               '&:hover': {
-                backgroundColor: isActive ? '#ebff3325' : 'transparent',
+                backgroundColor: isActive ? '#ebff3325' : 'rgba(0, 0, 0, 0.04)',
                 transform: 'translateX(4px)',
               },
               '&::before': {
@@ -131,9 +131,9 @@ const Sidebar = ({ onLogout }) => {
                 left: 0,
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: isActive ? '5px' : '0px', // largeur de la barre
+                width: isActive ? '5px' : '0px',
                 height: '80%',
-                backgroundColor: '#ffcc33', 
+                backgroundColor: '#ffcc33',
                 borderRadius: '0 4px 4px 0',
                 transition: 'width 0.3s ease',
               },

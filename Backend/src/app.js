@@ -17,6 +17,7 @@ const reservationRoutes = require("./routes/reservation.routes");
 const annonceRoutes = require('./routes/annonce.routes');
 const notificationRoutes = require('./routes/notifications.routes');
 const colisRoutes = require('./routes/colis.routes');
+const villeRoutes = require('./routes/ville.routes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 
@@ -277,6 +278,11 @@ app.use('/api/notifications', notificationRoutes);  // route pour envoyer notifi
 // Colis Routes
 // -----------------
 app.use('/api/colis', colisRoutes);
+
+// -----------------
+// Villes Routes
+// -----------------
+app.use('/api/villes', villeRoutes);
 
 // Catch-all
 app.use((req, res) => {

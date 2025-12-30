@@ -24,16 +24,30 @@ import {
   InputAdornment,
   Menu
 } from '@mui/material';
-import { Edit, Delete, Add, DirectionsBus, LocationOn, AccessTime, AttachMoney, DoubleArrow, Search as SearchIcon, FilterList as FilterIcon } from '@mui/icons-material';
+import { 
+  Edit, 
+  Delete, 
+  Add, 
+  DirectionsBus, 
+  LocationOn, 
+  AccessTime, 
+  AttachMoney, 
+  DoubleArrow, 
+  Search as SearchIcon, 
+  FilterList as FilterIcon, 
+  AddLocation, 
+  Close 
+} from '@mui/icons-material';
 import Autocomplete from '@mui/material/Autocomplete';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
 export default function Voyage() {
   const [voyages, setVoyages] = useState([]);
   const [drivers, setDrivers] = useState([]);
-  const [cities, setCities] = useState([
-    'Dakar', 'Touba', 'Saint-Louis', 'Thies', 'Mbour', 'Kaolack'
-  ].sort());
+  const [cities, setCities] = useState([]);
+  const [loadingCities, setLoadingCities] = useState(true);
+  const [newCityDialogOpen, setNewCityDialogOpen] = useState(false);
+  const [newCityName, setNewCityName] = useState('');
   const [driverSearch, setDriverSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [editVoyage, setEditVoyage] = useState(null);
@@ -143,7 +157,108 @@ export default function Voyage() {
   const handleClose = () => {
     setOpen(false);
     setError('');
+    setEditVoyage(null);
+    setFormData({
+      driverId: '',
+      from: '',
+      to: '',
+      date: '',
+      price: ''
+    });
+  };
+
+  // Charger les villes au montage du composant
+  useEffect(() => {
+    const loadCities = async () => {
+      try {
+        const villes = await villeAPI.getAllVilles();
+        setCities(villes.map(v => v.nom).sort());
+      } catch (error) {
+        console.error('Erreur lors du chargement des villes:', error);
+        setError('Erreur lors du chargement des villes');
+      } finally {
+        setLoadingCities(false);
+      }
+    };
+    loadCities();
+  }, []);
+
+  const handleAddNewCity = async () => {
+    if (!newCityName.trim()) return;
     
+    try {
+      const cityName = newCityName.trim().charAt(0).toUpperCase() + newCityName.trim().slice(1).toLowerCase();
+      
+      // Vérifier si la ville existe déjà localement
+      if (!cities.includes(cityName)) {
+        // Créer la ville via l'API
+        await villeAPI.createVille({ nom: cityName });
+        
+        // Recharger la liste des villes depuis l'API
+        const updatedVilles = await villeAPI.getAllVilles();
+        const updatedCities = updatedVilles.map(v => v.nom).sort();
+        
+        setCities(updatedCities);
+        setFormData(prev => ({
+          ...prev,
+          from: cityName
+        }));
+        setSuccess(`Ville "${cityName}" ajoutée avec succès`);
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          from: cityName
+        }));
+      }
+      
+      setNewCityName('');
+      setNewCityDialogOpen(false);
+      
+      setTimeout(() => {
+        setSuccess('');
+      }, 3000);
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de la ville:', error);
+      setError('Erreur lors de l\'ajout de la ville');
+    }
+  };
+
+  const handleDeleteVille = async (cityName, e) => {
+    e.stopPropagation(); // Empêcher l'ouverture de l'autocomplete
+    
+    try {
+      // Trouver l'ID de la ville à supprimer
+      const villes = await villeAPI.getAllVilles();
+      const villeToDelete = villes.find(v => v.nom === cityName);
+      
+      if (!villeToDelete) {
+        throw new Error('Ville non trouvée');
+      }
+      
+      // Supprimer la ville via l'API
+      await villeAPI.deleteVille(villeToDelete._id);
+      
+      // Mettre à jour la liste des villes
+      const updatedVilles = await villeAPI.getAllVilles();
+      setCities(updatedVilles.map(v => v.nom).sort());
+      
+      // Si la ville supprimée était sélectionnée, réinitialiser le champ
+      if (formData.from === cityName) {
+        setFormData(prev => ({
+          ...prev,
+          from: ''
+        }));
+      }
+      
+      setSuccess(`Ville "${cityName}" supprimée avec succès`);
+      
+      setTimeout(() => {
+        setSuccess('');
+      }, 3000);
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la ville:', error);
+      setError('Impossible de supprimer la ville. Elle est peut-être utilisée dans des voyages.');
+    }
   };
 
   const handleChange = (e) => {
@@ -835,33 +950,53 @@ export default function Voyage() {
                 Détails du trajet
               </Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
-                <Autocomplete
-                  options={cities}
-                  value={formData.from}
-                  onChange={(_, newValue) => {
-                    setFormData(prev => ({ ...prev, from: newValue || '' }));
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Ville de départ"
-                      required
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: '12px',
-                          '&:hover fieldset': { borderColor: '#ffcc33' },
-                          '&.Mui-focused fieldset': { 
-                            borderColor: '#ffcc33', 
-                            borderWidth: 2 
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <Autocomplete
+                    options={cities}
+                    value={formData.from}
+                    onChange={(_, newValue) => {
+                      setFormData(prev => ({ ...prev, from: newValue || '' }));
+                    }}
+                    sx={{ flex: 1 }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Ville de départ"
+                        required
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '12px',
+                            '&:hover fieldset': { borderColor: '#ffcc33' },
+                            '&.Mui-focused fieldset': { 
+                              borderColor: '#ffcc33',
+                              borderWidth: 2 
+                            },
                           },
-                        },
-                        '& .MuiInputLabel-root.Mui-focused': { 
-                          color: '#ffcc33' 
-                        },
-                      }}
-                    />
-                  )}
-                />
+                          '& .MuiInputLabel-root.Mui-focused': { 
+                            color: '#ffcc33' 
+                          },
+                        }}
+                      />
+                    )}
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={() => setNewCityDialogOpen(true)}
+                    sx={{
+                      minWidth: '40px',
+                      height: '40px',
+                      borderRadius: '12px',
+                      borderColor: '#ffcc33',
+                      color: '#ffcc33',
+                      '&:hover': {
+                        borderColor: '#e6b800',
+                        backgroundColor: 'rgba(255, 204, 51, 0.08)'
+                      }
+                    }}
+                  >
+                    <AddLocation />
+                  </Button>
+                </Box>
                 <Autocomplete
                   options={cities.filter(city => city !== formData.from)}
                   value={formData.to}
@@ -1084,6 +1219,86 @@ export default function Voyage() {
             }}
           >
             {loading ? 'Traitement...' : (editVoyage ? 'Modifier le voyage' : 'Créer le voyage')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Boîte de dialogue pour ajouter une nouvelle ville */}
+      <Dialog 
+        open={newCityDialogOpen} 
+        onClose={() => setNewCityDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '12px',
+            p: 2
+          }
+        }}
+      >
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 600, color: '#1a1a1a' }}>
+          Ajouter une nouvelle ville
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Nom de la ville"
+            fullWidth
+            variant="outlined"
+            value={newCityName}
+            onChange={(e) => setNewCityName(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleAddNewCity()}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '12px',
+                '&:hover fieldset': { borderColor: '#ffcc33' },
+                '&.Mui-focused fieldset': { 
+                  borderColor: '#ffcc33',
+                  borderWidth: 2 
+                },
+              },
+              '& .MuiInputLabel-root.Mui-focused': { 
+                color: '#ffcc33' 
+              },
+              mt: 1
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button 
+            onClick={() => {
+              setNewCityDialogOpen(false);
+              setNewCityName('');
+            }}
+            sx={{
+              color: '#666',
+              textTransform: 'none',
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.04)'
+              }
+            }}
+          >
+            Annuler
+          </Button>
+          <Button 
+            onClick={handleAddNewCity}
+            variant="contained"
+            disabled={!newCityName.trim()}
+            sx={{
+              backgroundColor: '#ffcc33',
+              color: '#1a1a1a',
+              textTransform: 'none',
+              '&:hover': {
+                backgroundColor: '#e6b800',
+              },
+              '&.Mui-disabled': {
+                backgroundColor: '#f5f5f5',
+                color: '#bdbdbd'
+              }
+            }}
+          >
+            Ajouter
           </Button>
         </DialogActions>
       </Dialog>
