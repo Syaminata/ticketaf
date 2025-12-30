@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const auth = require('../middleware/auth');
-const adminAuth = require('../middleware/auth');
+const { auth, adminAuth } = require('../middleware/auth');
 const villeController = require('../controllers/ville.controller');
 
 // Validation des données
@@ -40,10 +39,5 @@ router.delete('/:id',
   villeController.deleteVille
 );
 
-router.patch('/:id/toggle-status', 
-  auth, 
-  adminAuth,
-  villeController.toggleVilleStatus
-);
 
 module.exports = router;
