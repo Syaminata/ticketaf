@@ -50,10 +50,10 @@ const auth = async (req, res, next) => {
   }
 };
 
-// Le middleware adminAuth reste inchangé
+// Middleware pour les administrateurs et gestionnaires de colis
 const adminAuth = (req, res, next) => {
-  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-    return res.status(403).json({ message: 'Accès refusé. Rôle admin ou superadmin requis.' });
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user.role !== 'gestionnaireColis') {
+    return res.status(403).json({ message: 'Accès refusé. Rôle admin, superadmin ou gestionnaire de colis requis.' });
   }
   next();
 };
@@ -112,12 +112,25 @@ const hasRole = (...roles) => {
   };
 };
 
+// Middleware spécifique pour la gestion des colis (admin et gestionnaire de colis)
+const colisManagementAuth = (req, res, next) => {
+  if (['admin', 'superadmin', 'gestionnaireColis'].includes(req.user.role)) {
+    return next();
+  }
+  return res.status(403).json({ 
+    message: 'Accès refusé. Rôle admin, superadmin ou gestionnaire de colis requis.',
+    code: 'FORBIDDEN'
+  });
+};
+
 module.exports = { 
   auth, 
   adminAuth, 
   superAdminAuth, 
-  isDriver,
-  isDriverOrAdmin,
-  isClient,
-  hasRole
+  isDriver, 
+  isClient, 
+  isDriverOrAdmin, 
+  hasRole, 
+  ForbiddenError,
+  colisManagementAuth
 };

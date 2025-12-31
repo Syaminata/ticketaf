@@ -780,6 +780,7 @@ export default function Users() {
             >
               <MenuItem value="client">Client</MenuItem>
               <MenuItem value="admin">Administrateur</MenuItem>
+              <MenuItem value="gestionnaireColis">Gestionnaire de Colis</MenuItem>
             </TextField>
 
             {/* Ligne 3: Mot de passe (pleine largeur) */}

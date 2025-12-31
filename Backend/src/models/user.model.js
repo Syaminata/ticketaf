@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
   numero:{type: String, required: true, unique: true, match: [/^(77|78|76|70|75|33|71)\d{7}$/, 'Le numéro doit contenir exactement 9 chiffres']},
   role: { 
     type: String, 
-    enum: ['client', 'admin', 'conducteur', 'superadmin'], 
+    enum: ['client', 'admin', 'conducteur', 'superadmin', 'gestionnaireColis'], 
     default: 'client' 
   },
   address: { type: String, required: true, trim: true },

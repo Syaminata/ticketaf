@@ -36,17 +36,35 @@ const Sidebar = ({ onLogout }) => {
 
   const menuItems = [
     { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/dashboard' },
-    // Admin et Superadmin peuvent voir les utilisateurs
+    // Superadmin et Admin peuvent voir les utilisateurs
     ...(userRole === 'superadmin' || userRole === 'admin' 
       ? [{ text: 'Utilisateurs', icon: <PeopleIcon />, path: '/users' }] 
       : []),
-    { text: 'Chauffeurs', icon: <CommuteIcon />, path: '/drivers' },
-    { text: 'Voyages', icon: <DirectionsBusIcon />, path: '/voyage' },
-    { text: 'Réservations', icon: <ConfirmationNumberIcon />, path: '/reservations' },
+    // Chauffeurs - accessible uniquement par admin et superadmin
+    ...(userRole === 'superadmin' || userRole === 'admin'
+      ? [{ text: 'Chauffeurs', icon: <CommuteIcon />, path: '/drivers' }]
+      : []),
+    // Voyages - accessible par tous sauf gestionnaireColis
+    ...(userRole !== 'gestionnaireColis'
+      ? [{ text: 'Voyages', icon: <DirectionsBusIcon />, path: '/voyage' }]
+      : []),
+    // Réservations - accessible par admin et superadmin
+    ...(userRole === 'superadmin' || userRole === 'admin'
+      ? [{ text: 'Réservations', icon: <ConfirmationNumberIcon />, path: '/reservations' }]
+      : []),
+    // Colis - accessible par tous les rôles
     { text: 'Colis', icon: <LocalShippingIcon />, path: '/colis' },
-    { text: 'Bus', icon: <DirectionsBusIcon />, path: '/buses' },
-    { text: 'Annonces', icon: <CampaignIcon />, path: '/annonces' },
+    // Bus - accessible par admin et superadmin
+    ...(userRole === 'superadmin' || userRole === 'admin'
+      ? [{ text: 'Bus', icon: <DirectionsBusIcon />, path: '/buses' }]
+      : []),
+    // Annonces - accessible par admin et superadmin
+    ...(userRole === 'superadmin' || userRole === 'admin'
+      ? [{ text: 'Annonces', icon: <CampaignIcon />, path: '/annonces' }]
+      : []),
+    // Historique - accessible par tous
     { text: 'Historique', icon: <HistoryIcon />, path: '/historique' },
+    // Profil - accessible par tous
     { text: 'Mon Profil', icon: <PersonIcon />, path: '/profile' },
   ];
 

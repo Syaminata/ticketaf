@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import storage from "../utils/storage";
 import "../index.css";
 import { Email, Lock } from "@mui/icons-material";
-import { ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
-import { AdminPanelSettings as AdminIcon, SupervisedUserCircle as SuperAdminIcon, Visibility, VisibilityOff } from '@mui/icons-material';
+import { FormControl, InputLabel, Select, MenuItem, Tooltip } from '@mui/material';
+import { AdminPanelSettings as AdminIcon, SupervisedUserCircle as SuperAdminIcon, LocalShipping as GestionnaireColisIcon, Visibility, VisibilityOff } from '@mui/icons-material';
 import logo from "../images/logo.png";
 
 export default function Login({ setUser }) {
@@ -29,7 +29,7 @@ export default function Login({ setUser }) {
       storage.setUser(userData);
       setUser(userData);
 
-      if (userData.role === "admin" || userData.role === "superadmin") {
+      if (userData.role === "admin" || userData.role === "superadmin" || userData.role === "gestionnaireColis") {
         navigate("/dashboard");
       } else {
         setError("Rôle non reconnu");
@@ -58,33 +58,42 @@ export default function Login({ setUser }) {
         </div>
         {error && <p className="login-error">{error}</p>}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', margin: '0 30px 10px 0' }}>
-          <ToggleButtonGroup
-            color="primary"
+        <FormControl fullWidth sx={{ mb: 2 }}>
+          <InputLabel id="role-select-label">Rôle</InputLabel>
+          <Select
+            labelId="role-select-label"
+            id="role-select"
             value={role}
-            exclusive
-            onChange={(e, newRole) => newRole && setRole(newRole)}
-            aria-label="Rôle"
-            className="role-selector"
+            label="Rôle"
+            onChange={(e) => setRole(e.target.value)}
+            sx={{
+              '& .MuiSelect-select': {
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              },
+            }}
           >
-            <ToggleButton value="admin" className="role-button">
-              <Tooltip title="Administrateur">
-                <div className="role-option">
-                  <AdminIcon />
-                  <span>Admin</span>
-                </div>
-              </Tooltip>
-            </ToggleButton>
-            <ToggleButton value="superadmin" className="role-button">
-              <Tooltip title="Super Administrateur">
-                <div className="role-option">
-                  <SuperAdminIcon />
-                  <span>Super Admin</span>
-                </div>
-              </Tooltip>
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </div>
+            <MenuItem value="admin">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AdminIcon fontSize="small" />
+                <span>Administrateur</span>
+              </div>
+            </MenuItem>
+            <MenuItem value="superadmin">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <SuperAdminIcon fontSize="small" />
+                <span>Super Administrateur</span>
+              </div>
+            </MenuItem>
+            <MenuItem value="gestionnaireColis">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <GestionnaireColisIcon fontSize="small" />
+                <span>Gestionnaire de Colis</span>
+              </div>
+            </MenuItem>
+          </Select>
+        </FormControl>
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="login-field">
