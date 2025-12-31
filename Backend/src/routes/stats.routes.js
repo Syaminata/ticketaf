@@ -53,4 +53,67 @@ router.get('/', auth, adminAuth, statsController.getStats);
  */
 router.get('/revenue', auth, adminAuth, statsController.getRevenue);
 
+/**
+ * @swagger
+ * /stats/top-drivers:
+ *   get:
+ *     summary: Récupérer les meilleurs chauffeurs par nombre de voyages
+ *     tags: [Stats]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des meilleurs chauffeurs
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                   phone:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   totalVoyages:
+ *                     type: number
+ *                   status:
+ *                     type: string
+ */
+router.get('/top-drivers', auth, adminAuth, statsController.getTopDrivers);
+
+/**
+ * @swagger
+ * /stats/top-clients:
+ *   get:
+ *     summary: Récupérer les meilleurs clients par nombre de colis envoyés
+ *     tags: [Stats]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des meilleurs clients
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                   phone:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   totalColis:
+ *                     type: number
+ *                   lastActivity:
+ *                     type: string
+ *                     format: date-time
+ */
+router.get('/top-clients', auth, adminAuth, statsController.getTopClients);
+
 module.exports = router;

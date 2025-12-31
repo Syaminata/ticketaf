@@ -66,6 +66,8 @@ function Dashboard() {
 
   const [userRoleData, setUserRoleData] = useState([]);
   const [realRevenueData, setRealRevenueData] = useState([]);
+  const [topChauffeurs, setTopChauffeurs] = useState([]);
+  const [topClientsColis, setTopClientsColis] = useState([]);
 
   // Données de démonstration pour les routes populaires et revenus (en attendant l'API)
   const demoPopularRoutes = [
@@ -253,6 +255,29 @@ function Dashboard() {
         { name: "Chauffeurs", value: 12, color: "#C0C0C0" },
         { name: "Admins", value: 3, color: "#ffcc33" }
       ]);
+    });
+
+    // Ajouter ces appels dans le useEffect existant, après les autres appels API
+    axios.get("/stats/top-drivers", {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    .then(res => {
+      console.log("Top chauffeurs reçus:", res.data);
+      setTopChauffeurs(res.data);
+    })
+    .catch(err => {
+      console.error("Erreur lors de la récupération des meilleurs chauffeurs:", err);
+    });
+
+    axios.get("/stats/top-clients", {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    .then(res => {
+      console.log("Top clients reçus:", res.data);
+      setTopClientsColis(res.data);
+    })
+    .catch(err => {
+      console.error("Erreur lors de la récupération des meilleurs clients:", err);
     });
 
   }, []);
@@ -748,6 +773,103 @@ function Dashboard() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Section des tableaux Top Chauffeurs et Top Clients */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        {/* Tableau des meilleurs chauffeurs */}
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <DriveEtaIcon className="mr-2 text-blue-500" />
+            Top 5 Chauffeurs
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voyages</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {topChauffeurs.length > 0 ? (
+                  topChauffeurs.map((chauffeur, index) => (
+                    <tr key={chauffeur._id || index} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{chauffeur.name}</div>
+                        <div className="text-xs text-gray-500">{chauffeur.phone}</div>
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                          {chauffeur.totalVoyages} voyages
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          chauffeur.status === 'actif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {chauffeur.status || 'Inconnu'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="3" className="px-4 py-4 text-center text-sm text-gray-500">
+                      Chargement des données...
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Tableau des meilleurs clients */}
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <PeopleIcon className="mr-2 text-purple-500" />
+            Top 5 Clients
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Colis</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dernière activité</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {topClientsColis.length > 0 ? (
+                  topClientsColis.map((client, index) => (
+                    <tr key={client._id || index} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{client.name}</div>
+                        <div className="text-xs text-gray-500">{client.email}</div>
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                          {client.totalColis} colis
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                        {client.lastActivity ? new Date(client.lastActivity).toLocaleDateString('fr-FR') : 'N/A'}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="3" className="px-4 py-4 text-center text-sm text-gray-500">
+                      Chargement des données...
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

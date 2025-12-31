@@ -29,7 +29,9 @@ export default function Login({ setUser }) {
       storage.setUser(userData);
       setUser(userData);
 
-      if (userData.role === "admin" || userData.role === "superadmin" || userData.role === "gestionnaireColis") {
+      if (userData.role === "gestionnaireColis") {
+        navigate("/colis-dashboard");
+      } else if (userData.role === "admin" || userData.role === "superadmin") {
         navigate("/dashboard");
       } else {
         setError("Rôle non reconnu");
