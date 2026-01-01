@@ -247,21 +247,30 @@ const getAllDrivers = async (req, res) => {
     // Nettoyer les fichiers manquants avant de retourner les données
     await cleanMissingFiles();
     
-    // Récupérer tous les conducteurs
-    const drivers = await Driver.find().select('-password').lean();
+    // Récupérer tous les conducteurs avec les informations utilisateur associées
+    const drivers = await Driver.find()
+      .select('-password')
+      .populate('user', 'isActive')
+      .lean();
     
     // Pour chaque conducteur, compter le nombre de voyages
     const driversWithTripCount = await Promise.all(drivers.map(async (driver) => {
-      const tripCount = await mongoose.model('Voyage').countDocuments({ driver: driver._id });
-      // Mettre à jour le compteur dans la base de données
-      await Driver.findByIdAndUpdate(driver._id, { tripCount });
+      const tripCount = await mongoose.model('Voyage').countDocuments({ 
+        driver: driver._id,
+        status: { $in: ['completed', 'in_progress'] } // Compter uniquement les voyages terminés ou en cours
+      });
       
-      // Retourner le conducteur avec le nombre de voyages
+      // Retourner le conducteur avec le nombre de voyages et le statut
       return {
         ...driver,
-        tripCount
+        tripCount,
+        status: driver.user?.isActive ? 'Actif' : 'Inactif',
+        isActive: driver.user?.isActive || false
       };
     }));
+    
+    // Trier les conducteurs par nombre de voyages décroissant
+    driversWithTripCount.sort((a, b) => b.tripCount - a.tripCount);
     
     res.status(200).json(driversWithTripCount);
   } catch (err) {

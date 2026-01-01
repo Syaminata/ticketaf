@@ -25,6 +25,7 @@ import SpeedIcon from '@mui/icons-material/Speed';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StarIcon from '@mui/icons-material/Star'; 
+import { Star, TrendingUp, Award, Package } from 'lucide-react';
 
 function Dashboard() {
   const user = JSON.parse(sessionStorage.getItem("user") || "{}");
@@ -257,7 +258,6 @@ function Dashboard() {
       ]);
     });
 
-    // Ajouter ces appels dans le useEffect existant, après les autres appels API
     axios.get("/stats/top-drivers", {
       headers: { Authorization: `Bearer ${token}` }
     })
@@ -450,6 +450,37 @@ function Dashboard() {
       label: "Voyages Planifiés",
     },
   };
+
+  const demoTopChauffeurs = [
+    { _id: '1', name: 'Abdoulaye Diop', phone: '+221 77 123 4567', totalVoyages: 45, status: 'actif' },
+    { _id: '2', name: 'Mamadou Sall', phone: '+221 76 234 5678', totalVoyages: 38, status: 'actif' },
+    { _id: '3', name: 'Ousmane Fall', phone: '+221 78 345 6789', totalVoyages: 32, status: 'actif' },
+    { _id: '4', name: 'Ibrahima Ndiaye', phone: '+221 77 456 7890', totalVoyages: 28, status: 'inactif' },
+    { _id: '5', name: 'Cheikh Sy', phone: '+221 76 567 8901', totalVoyages: 24, status: 'actif' }
+  ];
+
+  const demoTopClients = [
+    { _id: '1', name: 'Fatou Sarr', phone: '+221 77 111 2222', totalColis: 67, lastActivity: '2026-01-01' },
+    { _id: '2', name: 'Aïssatou Ba', phone: '+221 76 222 3333', totalColis: 54, lastActivity: '2025-12-30' },
+    { _id: '3', name: 'Coumba Diallo', phone: '+221 78 333 4444', totalColis: 48, lastActivity: '2025-12-28' },
+    { _id: '4', name: 'Mariama Gueye', phone: '+221 77 444 5555', totalColis: 42, lastActivity: '2025-12-25' },
+    { _id: '5', name: 'Khady Sow', phone: '+221 76 555 6666', totalColis: 38, lastActivity: '2025-12-22' }
+  ];
+
+  const getMedalColor = (index) => {
+    switch(index) {
+      case 0: return '#FFD700'; // Or
+      case 1: return '#C0C0C0'; // Argent
+      case 2: return '#CD7F32'; // Bronze
+      default: return '#ffcc33';
+    }
+  };
+
+  const Top5Tables = () => {
+    const topChauffeurs = demoTopChauffeurs;
+    const topClientsColis = demoTopClients;
+  };
+
   return (
     <div style={{ 
       padding: "5px", 
@@ -780,113 +811,309 @@ function Dashboard() {
       </div>
 
       {/* Section des tableaux Top Chauffeurs et Top Clients */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        {/* Tableau des meilleurs chauffeurs */}
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <DriveEtaIcon className="mr-2 text-blue-500" />
+      <div style={{ marginBottom: '24px' }}>
+        <h2 style={{
+          fontSize: '20px',
+          fontWeight: '600',
+          color: '#1a1a1a',
+          marginBottom: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <TrendingUp size={24} color="#ffcc33" />
+          Tableaux des meilleurs
+        </h2>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '2fr 1.5fr',
+          gap: '16px',
+          width: '100%',
+          '@media (max-width: 768px)': {
+            gridTemplateColumns: '1fr'
+          }
+        }}>
+          {/* Top 5 Chauffeurs */}
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '12px',
+            padding: '20px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+            border: '1px solid #e0e0e0',
+            height: 'fit-content'
+          }}>
+          <h4 style={{
+            margin: '0 0 16px 0',
+            fontSize: '18px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            color: '#1a1a1a'
+          }}>
+            <Award size={20} color="#ffcc33" style={{ marginRight: '8px' }} />
             Top 5 Chauffeurs
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voyages</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {topChauffeurs.length > 0 ? (
-                  topChauffeurs.map((chauffeur) => (
-                    <tr key={chauffeur._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {chauffeur.name || 'Chauffeur sans nom'}
-                        </div>
-                        {chauffeur.phone && (
-                          <div className="text-xs text-gray-500">
-                            {chauffeur.phone}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-2 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {chauffeur.totalVoyages} {chauffeur.totalVoyages > 1 ? 'voyages' : 'voyage'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          chauffeur.status === 'actif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {chauffeur.status || 'inconnu'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="3" className="px-4 py-4 text-center text-sm text-gray-500">
-                      Aucun chauffeur trouvé
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          </h4>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {topChauffeurs.length > 0 ? (
+              topChauffeurs.map((chauffeur, index) => (
+                <div
+                  key={chauffeur._id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '16px',
+                    background: index < 3 ? 'rgba(255, 204, 51, 0.05)' : '#fafafa',
+                    borderRadius: '12px',
+                    border: `2px solid ${index < 3 ? getMedalColor(index) + '40' : '#e0e0e0'}`,
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateX(4px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateX(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  {/* Rang avec médaille */}
+                  <div style={{
+                    minWidth: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: index < 3 ? getMedalColor(index) : '#e0e0e0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '700',
+                    fontSize: '18px',
+                    color: index < 3 ? '#1a1a1a' : '#666',
+                    marginRight: '16px',
+                    position: 'relative',
+                    boxShadow: index < 3 ? `0 4px 8px ${getMedalColor(index)}40` : 'none'
+                  }}>
+                    {index < 3 ? (
+                      <Star size={20} fill="currentColor" />
+                    ) : (
+                      index + 1
+                    )}
+                  </div>
+
+                  {/* Informations du chauffeur */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      color: '#1a1a1a',
+                      marginBottom: '4px'
+                    }}>
+                      {chauffeur.name || 'Chauffeur sans nom'}
+                    </div>
+                    {chauffeur.phone && (
+                      <div style={{
+                        fontSize: '12px',
+                        color: '#666'
+                      }}>
+                        {chauffeur.phone}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Statistiques */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: '4px'
+                  }}>
+                    <div style={{
+                      padding: '6px 12px',
+                      borderRadius: '20px',
+                      background: '#ffcc33',
+                      color: '#1a1a1a',
+                      fontSize: '14px',
+                      fontWeight: '700'
+                    }}>
+                      {chauffeur.totalVoyages} voyages
+                    </div>
+                    <span style={{
+                      padding: '4px 10px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      background: chauffeur.status === 'actif' 
+                        ? 'rgba(76, 175, 80, 0.15)' 
+                        : 'rgba(158, 158, 158, 0.15)',
+                      color: chauffeur.status === 'actif' 
+                        ? '#4caf50' 
+                        : '#9e9e9e'
+                    }}>
+                      {chauffeur.status}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                color: '#666'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>
+                  🚗
+                </div>
+                <div style={{ fontWeight: '500', marginBottom: '8px' }}>
+                  Aucun chauffeur trouvé
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Tableau des meilleurs clients */}
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <PeopleIcon className="mr-2 text-purple-500" />
-            Top 5 Clients
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Colis</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dernière activité</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {topClientsColis.length > 0 ? (
-                  topClientsColis.map((client) => (
-                    <tr key={client._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {client.name || 'Client sans nom'}
-                        </div>
-                        {client.phone && (
-                          <div className="text-xs text-gray-500">
-                            {client.phone}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-2 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
-                          {client.totalColis} {client.totalColis > 1 ? 'colis' : 'colis'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                        {client.lastActivity ? 
-                          new Date(client.lastActivity).toLocaleDateString('fr-FR') : 
-                          'Aucune activité'}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="3" className="px-4 py-4 text-center text-sm text-gray-500">
-                      Aucun client trouvé
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+        {/* Top 5 Clients */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '12px',
+          padding: '20px',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+          border: '1px solid #e0e0e0',
+          height: 'fit-content'
+        }}>
+          <h4 style={{
+            margin: '0 0 16px 0',
+            fontSize: '18px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            color: '#1a1a1a'
+          }}>
+            <Package size={20} color="#ffcc33" style={{ marginRight: '8px' }} />
+            Top 5 Clients Colis
+          </h4>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {topClientsColis.length > 0 ? (
+              topClientsColis.map((client, index) => (
+                <div
+                  key={client._id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '16px',
+                    background: index < 3 ? 'rgba(255, 204, 51, 0.05)' : '#fafafa',
+                    borderRadius: '12px',
+                    border: `2px solid ${index < 3 ? getMedalColor(index) + '40' : '#e0e0e0'}`,
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateX(4px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateX(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  {/* Rang avec médaille */}
+                  <div style={{
+                    minWidth: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: index < 3 ? getMedalColor(index) : '#e0e0e0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '700',
+                    fontSize: '18px',
+                    color: index < 3 ? '#1a1a1a' : '#666',
+                    marginRight: '16px',
+                    position: 'relative',
+                    boxShadow: index < 3 ? `0 4px 8px ${getMedalColor(index)}40` : 'none'
+                  }}>
+                    {index < 3 ? (
+                      <Star size={20} fill="currentColor" />
+                    ) : (
+                      index + 1
+                    )}
+                  </div>
+
+                  {/* Informations du client */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      color: '#1a1a1a',
+                      marginBottom: '4px'
+                    }}>
+                      {client.name || 'Client sans nom'}
+                    </div>
+                    {client.phone && (
+                      <div style={{
+                        fontSize: '12px',
+                        color: '#666'
+                      }}>
+                        {client.phone}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Statistiques */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: '4px'
+                  }}>
+                    <div style={{
+                      padding: '6px 12px',
+                      borderRadius: '20px',
+                      background: '#ffcc33',
+                      color: '#1a1a1a',
+                      fontSize: '14px',
+                      fontWeight: '700'
+                    }}>
+                      {client.totalColis} colis
+                    </div>
+                    <span style={{
+                      fontSize: '11px',
+                      color: '#666',
+                      fontWeight: '500'
+                    }}>
+                      {client.lastActivity 
+                        ? new Date(client.lastActivity).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'short'
+                          })
+                        : 'Aucune activité'}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                color: '#666'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>
+                  📦
+                </div>
+                <div style={{ fontWeight: '500', marginBottom: '8px' }}>
+                  Aucun client trouvé
+                </div>
+              </div>
+            )}
           </div>
+        </div>
         </div>
       </div>
 

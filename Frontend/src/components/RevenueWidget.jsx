@@ -94,7 +94,7 @@ export default function RevenueWidget() {
       {/* Header avec sélecteur de période */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AttachMoneyIcon sx={{ color: '#ffcc33', fontSize: 28 }} />
+          <AttachMoneyIcon sx={{ color: '#ffcc33', fontSize: 24 }} />
           <Typography variant="h5" sx={{ fontWeight: 600, color: '#1a1a1a' }}>
             Revenus
           </Typography>
