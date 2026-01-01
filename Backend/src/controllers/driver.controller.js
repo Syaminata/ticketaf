@@ -247,10 +247,9 @@ const getAllDrivers = async (req, res) => {
     // Nettoyer les fichiers manquants avant de retourner les données
     await cleanMissingFiles();
     
-    // Récupérer tous les conducteurs avec les informations utilisateur associées
+    // Récupérer tous les conducteurs
     const drivers = await Driver.find()
       .select('-password')
-      .populate('user', 'isActive')
       .lean();
     
     // Pour chaque conducteur, compter le nombre de voyages
@@ -264,8 +263,8 @@ const getAllDrivers = async (req, res) => {
       return {
         ...driver,
         tripCount,
-        status: driver.user?.isActive ? 'Actif' : 'Inactif',
-        isActive: driver.user?.isActive || false
+        status: driver.isActive ? 'Actif' : 'Inactif',
+        isActive: driver.isActive || false
       };
     }));
     
