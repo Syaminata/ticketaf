@@ -65,6 +65,18 @@ function Dashboard() {
   const [revenueData, setRevenueData] = useState([]);
   const [realPopularRoutes, setRealPopularRoutes] = useState([]);
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  
+  // Gestion du redimensionnement de la fenêtre
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const [userRoleData, setUserRoleData] = useState([]);
   const [realRevenueData, setRealRevenueData] = useState([]);
   const [topChauffeurs, setTopChauffeurs] = useState([]);
@@ -262,8 +274,40 @@ function Dashboard() {
       headers: { Authorization: `Bearer ${token}` }
     })
     .then(res => {
-      console.log("Top chauffeurs reçus:", res.data);
-      console.log("Données des topChauffeurs:", topChauffeurs);
+      console.log("=== DONNÉES DES CHAUFFEURS ===");
+      console.log("Réponse complète de l'API:", res);
+      
+      if (res.data && Array.isArray(res.data)) {
+        console.log("Nombre de chauffeurs reçus:", res.data.length);
+        
+        // Afficher les données du premier chauffeur pour débogage
+        if (res.data.length > 0) {
+          const firstDriver = res.data[0];
+          console.log("Données du premier chauffeur:", {
+            id: firstDriver._id,
+            name: firstDriver.name,
+            status: firstDriver.status,
+            isActive: firstDriver.isActive,
+            tripCount: firstDriver.tripCount,
+            totalVoyages: firstDriver.totalVoyages,
+            rawData: firstDriver
+          });
+        }
+        
+        // Vérifier si les champs nécessaires sont présents
+        const driversWithMissingFields = res.data.filter(driver => 
+          driver.status === undefined || driver.tripCount === undefined
+        );
+        
+        if (driversWithMissingFields.length > 0) {
+          console.warn("Chauffeurs avec des champs manquants:", driversWithMissingFields);
+        } else {
+          console.log("Tous les chauffeurs ont les champs status et tripCount");
+        }
+      } else {
+        console.error("Format de données inattendu pour les chauffeurs:", res.data);
+      }
+      
       setTopChauffeurs(res.data);
     })
     .catch(err => {
@@ -826,12 +870,9 @@ function Dashboard() {
         </h2>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '2fr 1.5fr',
+          gridTemplateColumns: isMobile ? '1fr' : '2fr 1.5fr',
           gap: '16px',
-          width: '100%',
-          '@media (max-width: 768px)': {
-            gridTemplateColumns: '1fr'
-          }
+          width: '100%'
         }}>
           {/* Top 5 Chauffeurs */}
           <div style={{
@@ -882,22 +923,22 @@ function Dashboard() {
                 >
                   {/* Rang avec médaille */}
                   <div style={{
-                    minWidth: '48px',
-                    height: '48px',
+                    minWidth: '40px',
+                    height: '40px',
                     borderRadius: '50%',
                     background: index < 3 ? getMedalColor(index) : '#e0e0e0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: '700',
-                    fontSize: '18px',
+                    fontSize: '14px',
                     color: index < 3 ? '#1a1a1a' : '#666',
                     marginRight: '16px',
                     position: 'relative',
                     boxShadow: index < 3 ? `0 4px 8px ${getMedalColor(index)}40` : 'none'
                   }}>
                     {index < 3 ? (
-                      <Star size={20} fill="currentColor" />
+                      index + 1
                     ) : (
                       index + 1
                     )}
@@ -906,7 +947,7 @@ function Dashboard() {
                   {/* Informations du chauffeur */}
                   <div style={{ flex: 1 }}>
                     <div style={{
-                      fontSize: '15px',
+                      fontSize: '14px',
                       fontWeight: '600',
                       color: '#1a1a1a',
                       marginBottom: '4px'
@@ -931,31 +972,37 @@ function Dashboard() {
                     gap: '4px'
                   }}>
                     <div style={{
-                      padding: '6px 12px',
-                      borderRadius: '20px',
-                      background: '#ffcc33',
-                      color: '#1a1a1a',
-                      fontSize: '14px',
-                      fontWeight: '700'
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
                     }}>
-                      {chauffeur.totalVoyages} voyages
+                      <div style={{
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        background: '#ffcc33',
+                        color: '#1a1a1a',
+                        fontSize: '14px',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        <span>{chauffeur.tripCount || chauffeur.totalVoyages || 0}</span>
+                        <span>voyage{chauffeur.tripCount !== 1 ? 's' : ''}</span>
+                      </div>
+                      <span style={{
+                        padding: '4px 10px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        background: (chauffeur.status === 'actif' || chauffeur.isActive) ? '#4caf50' : '#f44336',
+                        color: 'white'
+                      }}>
+                        {chauffeur.status || (chauffeur.isActive ? 'Actif' : 'Inactif')}
+                      </span>
                     </div>
-                    <span style={{
-                      padding: '4px 10px',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      background: chauffeur.status === 'actif' 
-                        ? 'rgba(76, 175, 80, 0.15)' 
-                        : 'rgba(158, 158, 158, 0.15)',
-                      color: chauffeur.status === 'actif' 
-                        ? '#4caf50' 
-                        : '#9e9e9e'
-                    }}>
-                      {chauffeur.status}
-                    </span>
                   </div>
                 </div>
               ))
@@ -1025,22 +1072,22 @@ function Dashboard() {
                 >
                   {/* Rang avec médaille */}
                   <div style={{
-                    minWidth: '48px',
-                    height: '48px',
+                    minWidth: '40px',
+                    height: '40px',
                     borderRadius: '50%',
                     background: index < 3 ? getMedalColor(index) : '#e0e0e0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: '700',
-                    fontSize: '18px',
+                    fontSize: '14px',
                     color: index < 3 ? '#1a1a1a' : '#666',
                     marginRight: '16px',
                     position: 'relative',
                     boxShadow: index < 3 ? `0 4px 8px ${getMedalColor(index)}40` : 'none'
                   }}>
                     {index < 3 ? (
-                      <Star size={20} fill="currentColor" />
+                      index + 1//<Star size={20} fill="currentColor" />
                     ) : (
                       index + 1
                     )}
@@ -1049,7 +1096,7 @@ function Dashboard() {
                   {/* Informations du client */}
                   <div style={{ flex: 1 }}>
                     <div style={{
-                      fontSize: '15px',
+                      fontSize: '14px',
                       fontWeight: '600',
                       color: '#1a1a1a',
                       marginBottom: '4px'

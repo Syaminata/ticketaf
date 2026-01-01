@@ -663,7 +663,7 @@ const confirmDelete = async (id) => {
           sx={{ 
             backgroundColor: 'transparrent',
             border: '2px solid #ffcc33',
-            color: '#ffcc33',
+            color: '#b6660abd',
             fontWeight: 500,
             px: 3,
             py: 1.5,
