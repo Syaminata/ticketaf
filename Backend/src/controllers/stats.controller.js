@@ -152,40 +152,7 @@ exports.getRevenue = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
-
-// Récupérer les meilleurs chauffeurs (par nombre de voyages effectués)
-exports.getTopDrivers = async (req, res) => {
-  try {
-    const topDrivers = await Driver.aggregate([
-      {
-        $lookup: {
-          from: 'voyages',
-          localField: '_id',
-          foreignField: 'chauffeur',
-          as: 'voyages'
-        }
-      },
-      {
-        $project: {
-          name: { $concat: ['$prenom', ' ', '$nom'] },
-          phone: 1,
-          email: 1,
-          totalVoyages: { $size: '$voyages' },
-          status: 1
-        }
-      },
-      { $sort: { totalVoyages: -1 } },
-      { $limit: 5 }
-    ]);
-
-    res.json(topDrivers);
-  } catch (err) {
-    console.error('Erreur lors de la récupération des meilleurs chauffeurs:', err);
-    res.status(500).json({ message: 'Erreur lors de la récupération des meilleurs chauffeurs' });
-  }
-};
-
-// Récupérer les meilleurs clients (par nombre de colis envoyés)
+// Pour les clients
 exports.getTopClients = async (req, res) => {
   try {
     const topClients = await User.aggregate([
@@ -199,9 +166,9 @@ exports.getTopClients = async (req, res) => {
       },
       {
         $project: {
-          name: { $concat: ['$prenom', ' ', '$nom'] },
-          phone: 1,
-          email: 1,
+          _id: 1,
+          name: { $ifNull: ['$name', 'Client sans nom'] },
+          phone: { $ifNull: ['$numero', 'Non renseigné'] },
           totalColis: { $size: '$colis' },
           lastActivity: { $max: '$colis.createdAt' }
         }
@@ -211,9 +178,42 @@ exports.getTopClients = async (req, res) => {
       { $limit: 5 }
     ]);
 
-    res.json(topClients);
+    res.json(topClients || []);
   } catch (err) {
     console.error('Erreur lors de la récupération des meilleurs clients:', err);
-    res.status(500).json({ message: 'Erreur lors de la récupération des meilleurs clients' });
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+// Pour les chauffeurs
+exports.getTopDrivers = async (req, res) => {
+  try {
+    const topDrivers = await User.aggregate([
+      { $match: { role: 'conducteur' } },
+      {
+        $lookup: {
+          from: 'voyages',
+          localField: '_id',
+          foreignField: 'chauffeur',
+          as: 'voyages'
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          name: { $ifNull: ['$name', 'Chauffeur sans nom'] },
+          phone: { $ifNull: ['$numero', 'Non renseigné'] },
+          totalVoyages: { $size: '$voyages' },
+          status: { $ifNull: ['$status', 'inconnu'] }
+        }
+      },
+      { $sort: { totalVoyages: -1 } },
+      { $limit: 5 }
+    ]);
+
+    res.json(topDrivers);
+  } catch (err) {
+    console.error('Erreur lors de la récupération des meilleurs chauffeurs:', err);
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };

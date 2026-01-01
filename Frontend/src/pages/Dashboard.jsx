@@ -263,6 +263,7 @@ function Dashboard() {
     })
     .then(res => {
       console.log("Top chauffeurs reçus:", res.data);
+      console.log("Données des topChauffeurs:", topChauffeurs);
       setTopChauffeurs(res.data);
     })
     .catch(err => {
@@ -274,6 +275,7 @@ function Dashboard() {
     })
     .then(res => {
       console.log("Top clients reçus:", res.data);
+      console.log("Données des topClientsColis:", topClientsColis);
       setTopClientsColis(res.data);
     })
     .catch(err => {
@@ -796,22 +798,28 @@ function Dashboard() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {topChauffeurs.length > 0 ? (
-                  topChauffeurs.map((chauffeur, index) => (
-                    <tr key={chauffeur._id || index} className="hover:bg-gray-50">
+                  topChauffeurs.map((chauffeur) => (
+                    <tr key={chauffeur._id} className="hover:bg-gray-50">
                       <td className="px-4 py-2 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{chauffeur.name}</div>
-                        <div className="text-xs text-gray-500">{chauffeur.phone}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {chauffeur.name || 'Chauffeur sans nom'}
+                        </div>
+                        {chauffeur.phone && (
+                          <div className="text-xs text-gray-500">
+                            {chauffeur.phone}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {chauffeur.totalVoyages} voyages
+                          {chauffeur.totalVoyages} {chauffeur.totalVoyages > 1 ? 'voyages' : 'voyage'}
                         </span>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           chauffeur.status === 'actif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {chauffeur.status || 'Inconnu'}
+                          {chauffeur.status || 'inconnu'}
                         </span>
                       </td>
                     </tr>
@@ -819,7 +827,7 @@ function Dashboard() {
                 ) : (
                   <tr>
                     <td colSpan="3" className="px-4 py-4 text-center text-sm text-gray-500">
-                      Chargement des données...
+                      Aucun chauffeur trouvé
                     </td>
                   </tr>
                 )}
@@ -845,26 +853,34 @@ function Dashboard() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {topClientsColis.length > 0 ? (
-                  topClientsColis.map((client, index) => (
-                    <tr key={client._id || index} className="hover:bg-gray-50">
+                  topClientsColis.map((client) => (
+                    <tr key={client._id} className="hover:bg-gray-50">
                       <td className="px-4 py-2 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{client.name}</div>
-                        <div className="text-xs text-gray-500">{client.email}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {client.name || 'Client sans nom'}
+                        </div>
+                        {client.phone && (
+                          <div className="text-xs text-gray-500">
+                            {client.phone}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
-                          {client.totalColis} colis
+                          {client.totalColis} {client.totalColis > 1 ? 'colis' : 'colis'}
                         </span>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                        {client.lastActivity ? new Date(client.lastActivity).toLocaleDateString('fr-FR') : 'N/A'}
+                        {client.lastActivity ? 
+                          new Date(client.lastActivity).toLocaleDateString('fr-FR') : 
+                          'Aucune activité'}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td colSpan="3" className="px-4 py-4 text-center text-sm text-gray-500">
-                      Chargement des données...
+                      Aucun client trouvé
                     </td>
                   </tr>
                 )}
