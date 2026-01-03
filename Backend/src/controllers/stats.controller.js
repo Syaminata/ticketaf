@@ -204,7 +204,8 @@ exports.getTopDrivers = async (req, res) => {
           name: { $ifNull: ['$name', 'Chauffeur sans nom'] },
           phone: { $ifNull: ['$numero', 'Non renseigné'] },
           totalVoyages: { $size: '$voyages' },
-          status: { $ifNull: ['$status', 'inconnu'] }
+          isActive: { $ifNull: ['$isActive', false] },  
+          tripCount: { $ifNull: ['$tripCount', 0] }     
         }
       },
       { $sort: { totalVoyages: -1 } },
@@ -212,8 +213,8 @@ exports.getTopDrivers = async (req, res) => {
     ]);
 
     res.json(topDrivers);
-  } catch (err) {
-    console.error('Erreur lors de la récupération des meilleurs chauffeurs:', err);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des meilleurs chauffeurs:', error);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };

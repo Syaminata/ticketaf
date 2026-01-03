@@ -286,23 +286,21 @@ function Dashboard() {
           console.log("Données du premier chauffeur:", {
             id: firstDriver._id,
             name: firstDriver.name,
-            status: firstDriver.status,
             isActive: firstDriver.isActive,
             tripCount: firstDriver.tripCount,
-            totalVoyages: firstDriver.totalVoyages,
             rawData: firstDriver
           });
         }
         
         // Vérifier si les champs nécessaires sont présents
         const driversWithMissingFields = res.data.filter(driver => 
-          driver.status === undefined || driver.tripCount === undefined
+          driver.isActive === undefined || driver.tripCount === undefined
         );
         
         if (driversWithMissingFields.length > 0) {
           console.warn("Chauffeurs avec des champs manquants:", driversWithMissingFields);
         } else {
-          console.log("Tous les chauffeurs ont les champs status et tripCount");
+          console.log("Tous les chauffeurs ont les champs isActive et tripCount");
         }
       } else {
         console.error("Format de données inattendu pour les chauffeurs:", res.data);
@@ -987,7 +985,7 @@ function Dashboard() {
                         alignItems: 'center',
                         gap: '4px'
                       }}>
-                        <span>{chauffeur.tripCount || chauffeur.totalVoyages || 0}</span>
+                        <span>{chauffeur.tripCount || 0}</span>
                         <span>voyage{chauffeur.tripCount !== 1 ? 's' : ''}</span>
                       </div>
                       <span style={{
@@ -997,10 +995,10 @@ function Dashboard() {
                         fontWeight: '600',
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
-                        background: (chauffeur.status === 'actif' || chauffeur.isActive) ? '#4caf50' : '#f44336',
+                        background: chauffeur.isActive ? '#4caf50' : '#f44336',
                         color: 'white'
                       }}>
-                        {chauffeur.status || (chauffeur.isActive ? 'Actif' : 'Inactif')}
+                        {chauffeur.isActive ? 'Actif' : 'Inactif'}
                       </span>
                     </div>
                   </div>
