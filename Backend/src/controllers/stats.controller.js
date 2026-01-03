@@ -190,19 +190,10 @@ exports.getTopDrivers = async (req, res) => {
   try {
     const topDrivers = await Driver.aggregate([
       {
-        $lookup: {
-          from: 'voyages',
-          localField: '_id',
-          foreignField: 'chauffeur',
-          as: 'voyages'
-        }
-      },
-      {
         $project: {
           _id: 1,
           name: { $ifNull: ['$name', 'Chauffeur sans nom'] },
           phone: { $ifNull: ['$numero', 'Non renseigné'] },
-          totalVoyages: { $size: '$voyages' },
           isActive: { $ifNull: ['$isActive', false] },
           tripCount: { $ifNull: ['$tripCount', 0] },
           status: {
@@ -214,7 +205,7 @@ exports.getTopDrivers = async (req, res) => {
           }
         }
       },
-      { $sort: { totalVoyages: -1 } },
+      { $sort: { tripCount: -1 } },
       { $limit: 5 }
     ]);
 

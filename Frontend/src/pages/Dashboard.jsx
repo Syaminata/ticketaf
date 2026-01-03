@@ -976,8 +976,6 @@ function Dashboard() {
                     }}>
                       <div style={{
                         padding: '6px 12px',
-                        borderRadius: '20px',
-                        background: '#ffcc33',
                         color: '#1a1a1a',
                         fontSize: '14px',
                         fontWeight: '700',
