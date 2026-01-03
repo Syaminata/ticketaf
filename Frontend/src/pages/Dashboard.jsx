@@ -852,11 +852,12 @@ function Dashboard() {
         </h2>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile || userRole === 'admin' ? '1fr' : '2fr 1.5fr',
+          gridTemplateColumns: isMobile || userRole === 'admin' || userRole === 'gestionnaireColis' ? '1fr' : '2fr 1.5fr',
           gap: '16px',
           width: '100%'
         }}>
-          {/* Top 5 Chauffeurs */}
+          {/* Top 5 Chauffeurs - Masqué pour admin et gestionnaireColis */}
+          {userRole !== 'gestionnaireColis' && (
           <div style={{
             background: '#ffffff',
             borderRadius: '12px',
@@ -864,7 +865,7 @@ function Dashboard() {
             boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
             border: '1px solid #e0e0e0',
             height: 'fit-content',
-            gridColumn: userRole === 'admin' ? '1 / -1' : 'auto'
+            gridColumn: 'auto'
           }}>
           <h4 style={{
             margin: '0 0 16px 0',
@@ -1005,6 +1006,7 @@ function Dashboard() {
             )}
           </div>
         </div>
+          )}
 
         {/* Top 5 Clients - Masqué pour les administrateurs */}
         {userRole !== 'admin' && (
