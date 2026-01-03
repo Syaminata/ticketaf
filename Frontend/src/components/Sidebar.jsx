@@ -37,7 +37,7 @@ const Sidebar = ({ onLogout }) => {
   const menuItems = [
     { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/dashboard' },
     // Superadmin et Admin peuvent voir les utilisateurs
-    ...(userRole === 'superadmin' || userRole === 'admin' 
+    ...(userRole === 'superadmin' || userRole === 'admin' || userRole === 'gestionnaireColis' 
       ? [{ text: 'Utilisateurs', icon: <PeopleIcon />, path: '/users' }] 
       : []),
     // Chauffeurs - accessible uniquement par admin et superadmin
@@ -52,8 +52,10 @@ const Sidebar = ({ onLogout }) => {
     ...(userRole === 'superadmin' || userRole === 'admin'
       ? [{ text: 'Réservations', icon: <ConfirmationNumberIcon />, path: '/reservations' }]
       : []),
-    // Colis - accessible par tous les rôles
-    { text: 'Colis', icon: <LocalShippingIcon />, path: '/colis' },
+    // Colis - accessible par tous les rôles sauf admin
+    ...(userRole !== 'admin' 
+      ? [{ text: 'Colis', icon: <LocalShippingIcon />, path: '/colis' }]
+      : []),
     // Bus - accessible par admin et superadmin
     ...(userRole === 'superadmin' || userRole === 'admin'
       ? [{ text: 'Bus', icon: <DirectionsBusIcon />, path: '/buses' }]
@@ -181,7 +183,7 @@ const Sidebar = ({ onLogout }) => {
         sx={{
           color: '#000000ff',
           backgroundColor: 'transparent',
-          border: '1px solid #ffcc33',
+          border: '1px solid #b6660abd',
           borderRadius: '8px',
           mx: 2,
           mb: 2,

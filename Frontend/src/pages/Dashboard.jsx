@@ -467,47 +467,31 @@ function Dashboard() {
 
   const statConfig = {
     utilisateurs: { 
-      color: "#ffcc33", 
+      color: "#b6660abd", 
       icon: PeopleIcon, 
       label: "Utilisateurs Inscrits",
     },
     conducteurs: { 
-      color: "#ffcc33", 
+      color: "#b6660abd", 
       icon: DriveEtaIcon, 
       label: "Chaufeurs Actifs",
     },
     reservations: { 
-      color: "#ffcc33", 
+      color: "#b6660abd", 
       icon: ConfirmationNumberIcon, 
       label: "Réservations Totales",
     },
     bus: { 
-      color: "#ffcc33", 
+      color: "#b6660abd", 
       icon: DirectionsBusIcon, 
       label: "Bus Disponibles",
     },
     voyages: { 
-      color: "#ffcc33", 
+      color: "#b6660abd", 
       icon: MapIcon, 
       label: "Voyages Planifiés",
     },
   };
-
-  const demoTopChauffeurs = [
-    { _id: '1', name: 'Abdoulaye Diop', phone: '+221 77 123 4567', totalVoyages: 45, status: 'actif' },
-    { _id: '2', name: 'Mamadou Sall', phone: '+221 76 234 5678', totalVoyages: 38, status: 'actif' },
-    { _id: '3', name: 'Ousmane Fall', phone: '+221 78 345 6789', totalVoyages: 32, status: 'actif' },
-    { _id: '4', name: 'Ibrahima Ndiaye', phone: '+221 77 456 7890', totalVoyages: 28, status: 'inactif' },
-    { _id: '5', name: 'Cheikh Sy', phone: '+221 76 567 8901', totalVoyages: 24, status: 'actif' }
-  ];
-
-  const demoTopClients = [
-    { _id: '1', name: 'Fatou Sarr', phone: '+221 77 111 2222', totalColis: 67, lastActivity: '2026-01-01' },
-    { _id: '2', name: 'Aïssatou Ba', phone: '+221 76 222 3333', totalColis: 54, lastActivity: '2025-12-30' },
-    { _id: '3', name: 'Coumba Diallo', phone: '+221 78 333 4444', totalColis: 48, lastActivity: '2025-12-28' },
-    { _id: '4', name: 'Mariama Gueye', phone: '+221 77 444 5555', totalColis: 42, lastActivity: '2025-12-25' },
-    { _id: '5', name: 'Khady Sow', phone: '+221 76 555 6666', totalColis: 38, lastActivity: '2025-12-22' }
-  ];
 
   const getMedalColor = (index) => {
     switch(index) {
@@ -868,7 +852,7 @@ function Dashboard() {
         </h2>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : '2fr 1.5fr',
+          gridTemplateColumns: isMobile || userRole === 'admin' ? '1fr' : '2fr 1.5fr',
           gap: '16px',
           width: '100%'
         }}>
@@ -879,7 +863,8 @@ function Dashboard() {
             padding: '20px',
             boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
             border: '1px solid #e0e0e0',
-            height: 'fit-content'
+            height: 'fit-content',
+            gridColumn: userRole === 'admin' ? '1 / -1' : 'auto'
           }}>
           <h4 style={{
             margin: '0 0 16px 0',
@@ -988,13 +973,15 @@ function Dashboard() {
                       </div>
                       <span style={{
                         padding: '4px 10px',
-                        borderRadius: '12px',
-                        fontSize: '11px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
                         fontWeight: '600',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        background: chauffeur.isActive ? '#4caf50' : '#f44336',
-                        color: 'white'
+                        background: chauffeur.isActive
+                        ? 'rgba(76, 175, 80, 0.1)'   // Actif
+                        : 'rgba(244, 67, 54, 0.1)', // Inactif
+                      color: chauffeur.isActive
+                        ? '#4caf50'
+                        : '#f44336'
                       }}>
                         {chauffeur.isActive ? 'Actif' : 'Inactif'}
                       </span>
@@ -1019,7 +1006,8 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Top 5 Clients */}
+        {/* Top 5 Clients - Masqué pour les administrateurs */}
+        {userRole !== 'admin' && (
         <div style={{
           background: '#ffffff',
           borderRadius: '12px',
@@ -1119,10 +1107,10 @@ function Dashboard() {
                     <div style={{
                       padding: '6px 12px',
                       borderRadius: '20px',
-                      background: '#ffcc33',
-                      color: '#1a1a1a',
-                      fontSize: '14px',
-                      fontWeight: '700'
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      background: 'rgba(196, 191, 180, 0.15)', // jaune soft
+                      color: '#ff9800'
                     }}>
                       {client.totalColis} colis
                     </div>
@@ -1157,6 +1145,7 @@ function Dashboard() {
             )}
           </div>
         </div>
+        )}
         </div>
       </div>
 

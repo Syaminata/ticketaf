@@ -15,7 +15,6 @@ import Annonce from './pages/annonces'
 import Profile from './pages/Profile';
 import storage from './utils/storage';
 import Colis from './pages/colis';
-import DashboardGestionnaireColis from './pages/DashboardGestionnaireColis';
 
 function ProtectedRoute({ children, user, role, allowedRoles }) {
   if (!user) return <Navigate to="/login" replace />;
@@ -83,7 +82,7 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute user={user} allowedRoles={['admin', 'superadmin']}>
+            <ProtectedRoute user={user} allowedRoles={['admin', 'superadmin', 'gestionnaireColis']}>
               <AdminLayout>
                 <Dashboard />
               </AdminLayout>
@@ -91,19 +90,9 @@ function App() {
           }
         />
         <Route
-          path="/colis-dashboard"
-          element={
-            <ProtectedRoute user={user} allowedRoles={['gestionnaireColis']}>
-              <AdminLayout>
-                <DashboardGestionnaireColis />
-              </AdminLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/users"
           element={
-            <ProtectedRoute user={user} allowedRoles={['admin','superadmin']}>
+            <ProtectedRoute user={user} allowedRoles={['admin','superadmin', , 'gestionnaireColis']}>
               <AdminLayout>
                 <Users />
               </AdminLayout>
@@ -163,7 +152,7 @@ function App() {
         <Route
           path="/profile"
           element={
-            <ProtectedRoute user={user} allowedRoles={['admin', 'superadmin']}>
+            <ProtectedRoute user={user} allowedRoles={['admin', 'superadmin', 'gestionnaireColis']}>
               <AdminLayout>
                 <Profile />
               </AdminLayout>
@@ -173,7 +162,7 @@ function App() {
         <Route
           path="/historique"
           element={
-            <ProtectedRoute user={user} allowedRoles={['admin', 'superadmin']}>
+            <ProtectedRoute user={user} allowedRoles={['admin', 'superadmin', 'gestionnaireColis']}>
               <AdminLayout>
                 <Historique />
               </AdminLayout>

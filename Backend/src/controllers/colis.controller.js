@@ -81,7 +81,15 @@ const createColis = async (req, res) => {
 // Récupérer les colis d'un utilisateur
 const getUserColis = async (req, res) => {
   try {
-    const colis = await Colis.find({ expediteur: req.user._id })
+    let query = {};
+    
+    // Si l'utilisateur est un gestionnaire de colis, on récupère tous les colis
+    // Sinon, on ne récupère que les colis de l'utilisateur connecté
+    if (req.user.role !== 'gestionnaireColis') {
+      query.expediteur = req.user._id;
+    }
+    
+    const colis = await Colis.find(query)
       .populate('voyage', 'from to date price')
       .populate('expediteur', 'name email numero')
       .sort({ createdAt: -1 });

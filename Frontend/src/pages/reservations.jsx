@@ -81,6 +81,7 @@ export default function Reservations() {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [users, setUsers] = useState([]);
   const [buses, setBuses] = useState([]);
+  const [loadingBuses, setLoadingBuses] = useState(false);
   const [open, setOpen] = useState(false);
   const [editReservation, setEditReservation] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -213,31 +214,31 @@ export default function Reservations() {
 
   const fetchBuses = async () => {
     try {
-      console.log(' Récupération des bus...');
+      setLoadingBuses(true);
+      console.log('Récupération des bus...');
       const token = sessionStorage.getItem('token');
-      console.log('Token:', token ? 'Présent' : 'Absent');
+      
+      if (!token) {
+        throw new Error('Aucun token d\'authentification trouvé');
+      }
       
       const response = await fetch('https://ticket-taf.itea.africa/api/buses', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-      
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Token d\'authentification expiré. Veuillez vous reconnecter.');
-        }
-        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+        throw new Error(`Erreur HTTP: ${response.status}`);
       }
+      
       const data = await response.json();
-      console.log('🚌 Bus récupérés:', data);
-      console.log('🚌 Nombre de bus:', data?.length || 0);
-      setBuses(data || []);
-    } catch (err) {
-      console.error(' Erreur lors de la récupération des bus:', err);
-      setError('Erreur lors du chargement des bus: ' + err.message);
-      setBuses([]); // S'assurer que buses est un tableau vide en cas d'erreur
+      setBuses(data);
+      setError('');
+      console.log(`${data.length} bus chargés avec succès`);
+    } catch (error) {
+      console.error('Erreur lors du chargement des bus:', error);
+      setError('Erreur lors du chargement des bus. Veuillez réessayer.');
+    } finally {
+      setLoadingBuses(false);
     }
   };
 
@@ -256,6 +257,18 @@ export default function Reservations() {
   const handleOpen = (reservation = null) => {
     setError('');
     setSuccess('');
+    
+    // Réinitialiser les données
+    setFormData({
+      userId: null,
+      transportMode: '',
+      voyageId: null,
+      busId: null,
+      ticket: 'place',
+      quantity: 1,
+      description: ''
+    });
+    
     setEditReservation(reservation);
     if (reservation) {
       // Déterminer le mode de transport basé sur les données existantes
@@ -268,16 +281,6 @@ export default function Reservations() {
         ticket: reservation.ticket,
         quantity: reservation.quantity || 1,
         description: reservation.description || ''
-      });
-    } else {
-      setFormData({ 
-        userId: null, 
-        transportMode: '', 
-        voyageId: null, 
-        busId: null, 
-        ticket: 'place', 
-        quantity: 1,
-        description: ''
       });
     }
     setOpen(true);
@@ -632,6 +635,27 @@ const confirmDelete = async (id) => {
     setPage(0);
   };
   
+  // Gérer le changement de type de transport
+  const handleTransportModeChange = (event) => {
+    const mode = event.target.value;
+    setFormData(prev => ({
+      ...prev,
+      transportMode: mode,
+      busId: null // Réinitialiser la sélection de bus
+    }));
+  };
+
+  // Filtrer les bus en fonction du type sélectionné
+  const filteredBuses = buses.filter(bus => {
+    if (!bus.isActive) return false;
+    if (formData.transportMode === 'minibus') {
+      return bus.capacity <= 30;
+    } else if (formData.transportMode === 'bus') {
+      return bus.capacity > 30;
+    }
+    return false;
+  });
+
   return (
     <Box sx={{ p: 1, backgroundColor: '#ffff', minHeight: '100vh' }}>
       <ConfirmationDialog
@@ -1167,15 +1191,7 @@ const confirmDelete = async (id) => {
                 select
                 label="Choisissez votre mode de transport"
                 value={formData.transportMode}
-                onChange={(e) => {
-                  const mode = e.target.value;
-                  setFormData({ 
-                    ...formData, 
-                    transportMode: mode,
-                    voyageId: null, // Réinitialiser les sélections
-                    busId: null
-                  });
-                }}
+                onChange={handleTransportModeChange}
                 fullWidth
                 required
                 sx={{
@@ -1195,10 +1211,9 @@ const confirmDelete = async (id) => {
                   },
                 }}
               >
-                <MenuItem value="voyage"> Covoiturage</MenuItem>
-                <MenuItem value="bus"> Bus</MenuItem>
-                <MenuItem value="bus"> MiniBus</MenuItem>
-                <MenuItem value="bus"> Bus</MenuItem>
+                <MenuItem value="voyage">Covoiturage</MenuItem>
+                <MenuItem value="minibus">Minibus</MenuItem>
+                <MenuItem value="bus">Bus</MenuItem>
               </TextField>
             </Box>
 
@@ -1289,8 +1304,8 @@ const confirmDelete = async (id) => {
               </Box>
             )}
 
-            {/* Section Bus  */}
-            {formData.transportMode === 'bus' && (
+            {/* Section Bus */}
+            {(formData.transportMode === 'bus' || formData.transportMode === 'minibus') && (
               <Box sx={{ mb: 4 }}>
                 <Typography variant="h6" sx={{ 
                   color: '#1a1a1a', 
@@ -1301,93 +1316,79 @@ const confirmDelete = async (id) => {
                   gap: 1
                 }}>
                   <DirectionsBus sx={{ color: '#ffcc33' }} />
-                  Sélection du bus
-                  {buses?.length === 0 && (
-                    <Typography variant="caption" sx={{ color: '#f44336', ml: 2 }}>
-                      (Aucun bus disponible)
-                    </Typography>
-                  )}
+                  {formData.transportMode === 'minibus' ? 'Sélection du Minibus' : 'Sélection du Bus'}
                 </Typography>
-                <Autocomplete
-                  options={(buses?.filter(bus => bus.isActive) || []).slice(0, 3)}
-                  getOptionLabel={(option) => `${option.name} • ${option.from} → ${option.to}`}
-                  value={formData.busId}
-                  onChange={(e, newValue) => {
-                    console.log('Bus sélectionné:', newValue);
-                    setFormData({ ...formData, busId: newValue });
+                
+                <TextField
+                  select
+                  fullWidth
+                  label={`Sélectionner un ${formData.transportMode === 'minibus' ? 'minibus' : 'bus'}`}
+                  value={formData.busId || ''}
+                  onChange={(e) => setFormData({...formData, busId: e.target.value})}
+                  margin="normal"
+                  required
+                  disabled={loadingBuses}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                      '&:hover fieldset': {
+                        borderRadius: '12px',
+                        borderColor: '#ffcc33',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderRadius: '12px',
+                        borderColor: '#ffcc33',
+                        borderWidth: 2,
+                      },
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: '#ffcc33',
+                    },
                   }}
-                  noOptionsText="Aucun bus disponible"
-                  loadingText="Chargement des bus..."
-                  isOptionEqualToValue={(option, value) => option._id === value._id}
-                  renderOption={(props, option) => (
-                    <li {...props}>
-                      <Box sx={{ width: '100%' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="body1" fontWeight="medium">
-                            {option.name}
-                          </Typography>
-                          <Chip 
-                            label={`${option.availableSeats || 0}/${option.capacity} places`} 
-                            size="small" 
-                            color={option.availableSeats > 0 ? 'success' : 'error'}
-                            variant="outlined"
-                          />
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            {option.from} → {option.to}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            {formatDateShort(option.departureDate)}
-                          </Typography>
-                          <Typography variant="body2" fontWeight="bold">
-                            {option.price} FCFA
-                          </Typography>
-                        </Box>
-                        {!option.isActive && (
-                          <Box sx={{ mt: 1 }}>
-                            <Chip 
-                              label="Non disponible" 
-                              size="small" 
-                              color="error"
-                              variant="outlined"
-                              sx={{ fontSize: '0.7rem' }}
-                            />
-                          </Box>
-                        )}
-                      </Box>
-                    </li>
+                >
+                  {loadingBuses ? (
+                    <MenuItem disabled>Chargement des véhicules...</MenuItem>
+                  ) : filteredBuses.length > 0 ? (
+                    filteredBuses.map((bus) => (
+                      <MenuItem key={bus._id} value={bus._id}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            width: '100%',
+                            fontSize: '14px'
+                          }}
+                        >
+                          <span>
+                            <strong>{bus.name}</strong> {'   '}
+                            <span style={{ color: '#666', fontWeight: 500 }}>
+                              {bus.from} → {bus.to}
+                            </span> {''}
+                            {new Date(bus.departureDate).toLocaleString('fr-FR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+
+                          <span style={{ fontWeight: 600 }}>
+                            {bus.capacity} places · {bus.price}
+                          </span>
+                        </div>
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <MenuItem disabled>
+                      Aucun véhicule disponible pour cette catégorie
+                    </MenuItem>
                   )}
-                  renderInput={(params) => (
-                    <TextField 
-                      {...params} 
-                      label="Bus" 
-                      required
-                      helperText={buses?.filter(bus => bus.isActive).length === 0 ? "Aucun bus disponible" : `${buses?.filter(bus => bus.isActive).length || 0} bus disponible(s)`}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: '12px',
-                          '&:hover fieldset': {
-                            borderColor: '#ffcc33',
-                          },
-                          '&.Mui-focused fieldset': {
-                            borderColor: '#ffcc33',
-                            borderWidth: 2,
-                          },
-                        },
-                        '& .MuiInputLabel-root.Mui-focused': {
-                          color: '#ffcc33',
-                        },
-                      }}
-                    />
-                  )}
-                />
+                </TextField>
               </Box>
             )}
 
-            {/* Section Type et Quantité */}
+            {/* Section Quantité */}
             <Box sx={{ mb: 4 }}>
               <Typography variant="h6" sx={{ 
                 color: '#1a1a1a', 

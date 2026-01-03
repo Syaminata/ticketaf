@@ -30,7 +30,7 @@ export default function Login({ setUser }) {
       setUser(userData);
 
       if (userData.role === "gestionnaireColis") {
-        navigate("/colis-dashboard");
+        navigate("/dashboard");
       } else if (userData.role === "admin" || userData.role === "superadmin") {
         navigate("/dashboard");
       } else {
