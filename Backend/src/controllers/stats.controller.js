@@ -188,8 +188,7 @@ exports.getTopClients = async (req, res) => {
 // Pour les chauffeurs
 exports.getTopDrivers = async (req, res) => {
   try {
-    const topDrivers = await User.aggregate([
-      { $match: { role: 'conducteur' } },
+    const topDrivers = await Driver.aggregate([
       {
         $lookup: {
           from: 'voyages',
@@ -204,14 +203,22 @@ exports.getTopDrivers = async (req, res) => {
           name: { $ifNull: ['$name', 'Chauffeur sans nom'] },
           phone: { $ifNull: ['$numero', 'Non renseigné'] },
           totalVoyages: { $size: '$voyages' },
-          isActive: { $ifNull: ['$isActive', false] },  
-          tripCount: { $ifNull: ['$tripCount', 0] }     
+          isActive: { $ifNull: ['$isActive', false] },
+          tripCount: { $ifNull: ['$tripCount', 0] },
+          status: {
+            $cond: {
+              if: { $ifNull: ['$isActive', false] },
+              then: 'Actif',
+              else: 'Inactif'
+            }
+          }
         }
       },
       { $sort: { totalVoyages: -1 } },
       { $limit: 5 }
     ]);
 
+    console.log('Top drivers data:', JSON.stringify(topDrivers, null, 2));
     res.json(topDrivers);
   } catch (error) {
     console.error('Erreur lors de la récupération des meilleurs chauffeurs:', error);
