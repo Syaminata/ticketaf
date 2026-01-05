@@ -33,52 +33,49 @@
 .login-card {
   position: fixed;
   z-index: 2;
-  background: rgba(255, 255, 255, 0.897); 
-  backdrop-filter: blur(10px) saturate(150%);
-  padding: 32px 28px;
+  background: rgba(255, 255, 255, 0.87);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  padding: 2rem 2rem 2.5rem;
   width: 100%;
-  max-width: 360px;
-  border-radius: 16px;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.05);
+  max-width: 500px;
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
   text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-}
-.login-card:hover {
-  transform: translate(-50%, -50%) scale(1.01);
-  box-shadow: 0 15px 48px rgba(216, 141, 29, 0.22), 0 5px 14px rgba(0, 0, 0, 0.08);
-}
-
-/* Conteneur du logo */
-.login-logo-container {
+  opacity: 1;
+  max-height: 90vh;
+  min-height: 600px;
+  overflow-y: auto;
+  animation: fadeInUp 0.6s ease-out forwards;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 300px;  
-  height: 80px; 
-  margin: 0 auto 10px auto;
-  padding: 0;
+  justify-content: space-between;
 }
 
-/* Ajustement du logo */
-.login-logo {
-  width: 280px;    
-  height: 280px;   
-  object-fit: contain; 
-  filter: drop-shadow(0 5px 15px rgba(224,139,42,0.15));
-  animation: float 2.6s ease-in-out infinite;
-  transition: transform 0.3s ease;
-  box-sizing: border-box; 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
-.login-logo:hover {
-  transform: scale(1.05);
+.login-card:hover {
+  transform: translate(-50%, -50%) scale(1.02);
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.12);
+  border-color: rgba(255, 255, 255, 0.7);
+  opacity: 1;
 }
+
 
 /* Conteneur des titres */
 .login-card > div:first-of-type {
@@ -88,108 +85,368 @@
 
 /* Titre principal */
 .login-title {
-  font-size: 24px;
+  font-size: 1.8rem;
   font-weight: 700;
-  margin: 20px 0 10px 0;
-  letter-spacing: 0.3px;
-  color: #000000d0;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  margin: 10 0 0.5rem 0;
+  letter-spacing: -0.5px;
+  color: #1a202c;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: linear-gradient(90deg, #e09c3a 0%, #e6b547 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+  display: block;
+  padding: 0;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Effet de soulignement du titre */
+.login-title::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 3px;
+  background: linear-gradient(90deg, #e09c3a 0%, #e6b547 100%);
+  border-radius: 3px;
 }
 
 /* Sous-titre */
 .login-card h4 {
-  color: #2a2a2bc5;
+  color: #000000;
   font-weight: 400;
-  font-size: 18px;
-  margin: 8px 0 20px 0;
+  font-size: 1rem;
+  margin: 0.5rem auto 1rem auto;
   letter-spacing: 0.2px;
-  line-height: 1.4;
+  line-height: 1.6;
+  max-width: 80%;
+  text-align: center;
+  padding: 0;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
 /* Labels des champs */
 .login-field label {
   color: #000000;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 14px;
   margin-bottom: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
   letter-spacing: 0.3px;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
-/* Champs du formulaire*/
-.login-field {
-  margin-bottom: 18px;
-  text-align: left;
-  margin-left: -5px;
-  margin-right: 30px;
+/* Conteneur du formulaire */
+.login-form {
+  padding: 0 1rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  margin: 1.5rem 0 0;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
+
+/* Champs du formulaire */
+.login-field {
+  margin: 0 0 1.5rem 0;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  padding: 0;
+  text-align: left;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .login-field label {
-  color: #000000d0;
+  color: #000000e5;
   font-weight: 500;
-  font-size: 14px;
-  margin-bottom: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: color 0.2s ease;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Style pour l'icône de mot de passe */
+.login-field svg {
+  color: #a0aec0;
+  transition: color 0.2s ease;
+}
+
+.login-field:focus-within label,
+.login-field:focus-within svg {
+  color: #e09c3a;
+}
+
+/* Style pour le sélecteur de rôle */
+.role-selector {
+  margin: 1.5rem 0;
+  width: 100%;
+}
+
+.role-selector .MuiFormControl-root {
+  width: 100% !important;
+  margin: 0 !important;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.MuiFormControl-root .MuiOutlinedInput-root {
+  background: white;
+  border-radius: 12px !important;
+  height: 56px;
+  width: 100% !important;
+}
+
+.MuiFormControl-root .MuiOutlinedInput-notchedOutline {
+  border-color: #e2e8f0 !important;
+}
+
+.MuiFormControl-root .Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #e6b547 !important;
+  box-shadow: 0 0 0 3px rgba(230, 181, 71, 0.15);
+}
+
+.MuiFormControl-root .MuiSelect-select {
+  display: flex !important;
+  align-items: center;
+  padding: 16.5px 14px !important;
+  height: 100% !important;
+  box-sizing: border-box;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.MuiFormControl-root .MuiSelect-icon {
+  color: #a0c0aa;
+  right: 8px;
+}
+
+.MuiInputLabel-root {
+  color: #718096 !important;
+  font-size: 0.9rem !important;
+  margin-bottom: 0.5rem !important;
+  transform: none !important;
+  position: relative !important;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.MuiInputLabel-root.Mui-focused {
+  color: #e09c3a !important;
+}
+
+/* Style pour les éléments du menu déroulant */
+.MuiMenuItem-root {
+  padding: 0.5rem 1rem !important;
+  font-size: 0.9rem !important;
+  color: #2d3748 !important;
+  transition: all 0.2s ease !important;
+  min-height: 40px;
   display: flex;
   align-items: center;
   gap: 8px;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
+
+.MuiMenuItem-root:hover {
+  background-color: #f8fafc !important;
+  color: #e09c3a !important;
+}
+
+.MuiMenuItem-root.Mui-selected {
+  background-color: rgba(224, 156, 58, 0.08) !important;
+  color: #e09c3a !important;
+  font-weight: 500 !important;
+}
+
+.MuiMenuItem-root.Mui-selected:hover {
+  background-color: rgba(224, 156, 58, 0.12) !important;
+}
+
 .login-input {
   width: 100%;
-  background: #f7fafc;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1.8px solid #e6b547;
-  font-size: 14px;
-  margin-top: 4px;
-  outline: none;
-  box-shadow: 0 1px 2px rgba(224,173,42,0.08);
-  transition: border 0.18s, background 0.2s;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  background-color: #fff;
+  color: #1a202c;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  box-sizing: border-box;
+  max-width: 100%;
 }
+
 .login-input:focus {
-  border-color: #f1c676;
-  background: #fffdf5;
+  outline: none;
+  border-color: #a0aec0;
+}
+
+.login-input:hover {
+  border-color: #cbd5e0;
+}
+
+/* Conteneur du champ de mot de passe */
+.password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Style de l'icône de visibilité */
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #657386;
+  cursor: pointer;
+  z-index: 2;
+  background: white;
+  padding: 0 5px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.password-toggle:hover {
+  color: #4a5568;
+  background-color: #f7fafc;
+}
+
+.password-toggle svg {
+  font-size: 1.2rem;
+}
+
+.login-input:focus {
+  border-color: #e6b547;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(230, 181, 71, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Placeholder style */
+.login-input::placeholder {
+  color: #6164689a;
+  opacity: 1;
+}
+
+/* Style pour le sélecteur de rôle */
+.MuiSelect-select {
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  background-color: #f8fafc !important;
+  transition: all 0.25s ease !important;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.MuiOutlinedInput-notchedOutline {
+  border-color: #e2e8f0 !important;
+  border-radius: 12px !important;
+  transition: all 0.25s ease !important;
+}
+
+.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #e6b547 !important;
+  box-shadow: 0 0 0 3px rgba(230, 181, 71, 0.15) !important;
+  border-width: 1.5px !important;
 }
 
 .login-error {
-  background: linear-gradient(93deg,#ffcaca 60%,#fff5f5 100%);
+  background: linear-gradient(135deg, rgba(255, 226, 226, 0.9) 0%, rgba(255, 241, 241, 0.9) 100%);
   color: #b71c1c;
-  border: 1.5px solid #f8b7b7;
-  border-radius: 10px;
-  margin: 0 0 25px 0;
-  padding: 12px 16px;
-  font-size: 15px;
+  border: 1.5px solid rgba(239, 68, 68, 0.2);
+  border-radius: 12px;
+  margin: 0 0 1.8rem 0;
+  padding: 0.9rem 1.2rem;
+  font-size: 0.9rem;
   font-weight: 500;
-  letter-spacing: 0.2px;
-  box-shadow: 0 2px 8px rgba(207, 45, 39, 0.1);
+  letter-spacing: 0.15px;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.08);
   text-align: center;
-  line-height: 1.4;
+  line-height: 1.5;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  transform: translate3d(0, 0, 0);
+  border-left: 4px solid #ef4444;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-3px, 0, 0); }
+  40%, 60% { transform: translate3d(3px, 0, 0); }
 }
 
 .login-button {
-  margin: 30px auto 0;
+  margin: 2rem auto 0;
   display: block;
-  width: 55%;
-  padding: 12px 16px;
-  background: linear-gradient(92deg, #e09c3a 46%, #e6b547 100%);
+  width: 60%;
+  padding: 0.9rem 1.5rem;
+  background: linear-gradient(135deg, #e09c3a 0%, #e6b547 100%);
   color: #fff;
   font-weight: 600;
-  border-radius: 30px;
+  border-radius: 50px;
   border: none;
-  font-size: 14px;
-  letter-spacing: 0.5px;
-  box-shadow: 0 4px 15px rgba(224, 156, 58, 0.3);
+  font-size: 0.95rem;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 15px rgba(224, 156, 58, 0.25);
   cursor: pointer;
-  transition: all 0.25s ease;
-  text-transform: uppercase;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: none;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  margin-top: auto;
+}
+
+.login-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(135deg, #e6b547 0%, #e09c3a 100%);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+  opacity: 0;
 }
 
 .login-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(224, 156, 58, 0.4);
-  background: linear-gradient(92deg, #e6b547 46%, #e09c3a 100%);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(224, 156, 58, 0.35);
+}
+
+.login-button:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 10px rgba(224, 156, 58, 0.3);
+}
+
+/* Effet de remplissage au survol */
+.login-button:hover::before {
+  width: 100%;
+  opacity: 1;
 }
 
 
