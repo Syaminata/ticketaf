@@ -10,7 +10,7 @@ const register = async (req, res) => {
   session.startTransaction();
   
   try {
-    const { name, email, numero, password, role, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
+    const { name, email, numero, password, address, role, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
 
     if (!name || !numero || !password) {
       return res.status(400).json({ message: 'Le nom, numéro et mot de passe sont requis' });
@@ -59,6 +59,7 @@ const register = async (req, res) => {
         email: email || undefined,
         password,
         numero,
+        address,
         role: 'conducteur'
       });
       await user.save({ session });
@@ -110,6 +111,7 @@ const register = async (req, res) => {
         email: email || undefined,
         password,
         numero,
+        address,
         role: role || 'client'
       }], { session });
       
