@@ -6,7 +6,9 @@ const villeSchema = new mongoose.Schema({
     required: true, 
     unique: true,
     trim: true,
-    uppercase: true
+    set: function(v) {
+      return v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
+    }
   },
   createdBy: { 
     type: mongoose.Schema.Types.ObjectId, 
@@ -22,13 +24,11 @@ const villeSchema = new mongoose.Schema({
 // Index pour des recherches plus rapides
 villeSchema.index({ nom: 1 }, { unique: true });
 
-// Middleware pour s'assurer que le nom est en majuscules
+// Middleware pour s'assurer que le nom est enregistré avec la première lettre en majuscule
 villeSchema.pre('save', function(next) {
-  this.nom = this.nom
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  if (this.isModified('nom')) {
+    this.nom = this.nom.charAt(0).toUpperCase() + this.nom.slice(1).toLowerCase();
+  }
   next();
 });
 
