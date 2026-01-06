@@ -304,8 +304,8 @@ const updateDriver = async (req, res) => {
       climatisation: climatisation === 'true' || climatisation === true
     };
     
-    // Only add email to updateData if it's provided and not empty
-    if (email && email.trim() !== '') {
+    // Only add email to updateData if it's provided, not empty, and not the string 'undefined'
+    if (email && email.trim() !== '' && email.trim().toLowerCase() !== 'undefined') {
       updateData.email = email.trim();
     }
     
@@ -314,13 +314,13 @@ const updateDriver = async (req, res) => {
       updateData.address = address.trim();
     }
     
-    // Gérer l'email optionnel
+    // Gérer l'email optionnel - version corrigée
     if (email !== undefined) {
-      if (email && email.trim() !== '') {
+      if (email && email.trim() !== '' && email.trim().toLowerCase() !== 'undefined') {
         updateData.email = email.trim();
       } else {
-        // on supprime le champ email si l'utilisateur l'efface
-        updateData.email = undefined;
+        // Ne pas inclure le champ email s'il est vide ou 'undefined'
+        delete updateData.email;
       }
     }
     
