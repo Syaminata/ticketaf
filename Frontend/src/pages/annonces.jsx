@@ -285,7 +285,7 @@ export default function Annonce() {
               required
               fullWidth
               multiline
-              minRows={3}
+              maxows={2}
               size="small"
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
             />
@@ -519,7 +519,7 @@ export default function Annonce() {
               required
               fullWidth
               multiline
-              minRows={4}
+              maxRows={2}
             />
             <TextField
               type="datetime-local"
