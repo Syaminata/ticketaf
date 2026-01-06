@@ -304,22 +304,18 @@ const updateDriver = async (req, res) => {
       climatisation: climatisation === 'true' || climatisation === true
     };
     
-    // Only add email to updateData if it's provided, not empty, and not the string 'undefined'
-    if (email && email.trim() !== '' && email.trim().toLowerCase() !== 'undefined') {
-      updateData.email = email.trim();
-    }
-    
     // Ajouter l'adresse si elle est fournie
     if (address !== undefined) {
       updateData.address = address.trim();
     }
     
-    // Gérer l'email optionnel - version corrigée
+    // Gérer l'email optionnel
     if (email !== undefined) {
-      if (email && email.trim() !== '' && email.trim().toLowerCase() !== 'undefined') {
-        updateData.email = email.trim();
+      const trimmedEmail = email ? email.trim() : '';
+      if (trimmedEmail !== '' && trimmedEmail.toLowerCase() !== 'undefined') {
+        updateData.email = trimmedEmail;
       } else {
-        // Ne pas inclure le champ email s'il est vide ou 'undefined'
+        // Supprimer le champ email s'il est vide, null, undefined ou 'undefined'
         delete updateData.email;
       }
     }
@@ -365,9 +361,10 @@ const updateDriver = async (req, res) => {
       userUpdate.email = email && email.trim() !== '' ? email.trim() : undefined;
     }
     
-    // Mettre à jour le nom et le numéro aussi pour garder la cohérence
+    // Mettre à jour le nom, le numéro et l'adresse pour garder la cohérence
     if (name !== undefined) userUpdate.name = name;
     if (numero !== undefined) userUpdate.numero = numero;
+    if (address !== undefined) userUpdate.address = address.trim();
     
     // Ne procéder à la mise à jour que si on a des champs à mettre à jour
     if (Object.keys(userUpdate).length > 0) {
