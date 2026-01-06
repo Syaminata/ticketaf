@@ -355,26 +355,50 @@ const updateDriver = async (req, res) => {
 
     if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
 
+
+    if (email !== undefined) {
+    const trimmedEmail = email && email !== 'undefined' ? email.trim() : undefined;
+    if (trimmedEmail) {
+      updateData.email = trimmedEmail;
+    } else {
+      // Si l'email est vide ou 'undefined', on le supprime complètement
+      delete updateData.email;
+    }
+  }
     // Mettre à jour l'utilisateur associé avec les mêmes informations
     const userUpdate = {};
-    if (email !== undefined) {
-      userUpdate.email = email && email.trim() !== '' ? email.trim() : undefined;
-    }
     
-    // Mettre à jour le nom, le numéro et l'adresse pour garder la cohérence
     if (name !== undefined) userUpdate.name = name;
     if (numero !== undefined) userUpdate.numero = numero;
     if (address !== undefined) userUpdate.address = address.trim();
-    
+    if (email !== undefined) {
+      const trimmedEmail = email ? email.trim() : undefined;
+      if (trimmedEmail === '' || trimmedEmail === 'undefined') {
+        // Pour supprimer un champ dans MongoDB, on utilise $unset
+        userUpdate.$unset = { email: 1 };
+      } else {
+        userUpdate.email = trimmedEmail;
+      }
+    }
     // Ne procéder à la mise à jour que si on a des champs à mettre à jour
     if (Object.keys(userUpdate).length > 0) {
-      await User.findByIdAndUpdate(
-        req.params.id,
-        userUpdate,
-        { new: true, runValidators: true }
-      );
+      try {
+        const updateOperation = { ...userUpdate };
+        
+        // Si on doit supprimer l'email
+        if (userUpdate.$unset) {
+          updateOperation.$unset = { email: 1 };
+        }
+        
+        await User.findByIdAndUpdate(
+          req.params.id,
+          updateOperation,
+          { new: true, runValidators: true }
+        );
+      } catch (userErr) {
+        console.error('Erreur lors de la mise à jour de l\'utilisateur:', userErr);
+      }
     }
-
     res.status(200).json({ message: 'Conducteur et utilisateur associé mis à jour', driver });
   } catch (err) {
     console.error('Erreur updateDriver:', err);

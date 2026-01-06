@@ -98,7 +98,7 @@ export default function Colis() {
 
     try {
       let res;
-      if (isAdmin) {
+      if (isAdmin || user.role === 'gestionnaireColis') {
         res = await colisAPI.getAllColis();
       } else {
         res = await colisAPI.getUserColis();
@@ -250,7 +250,8 @@ export default function Colis() {
       submitData.append('voyageId', formData.voyageId);
       submitData.append('description', formData.description || '');
       
-      if (isAdmin && formData.prix !== '' && formData.prix !== null) {
+      const userRole = storage.getUser()?.role;
+      if ((isAdmin || userRole === 'gestionnaireColis') && formData.prix !== '' && formData.prix !== null) {
         submitData.append('prix', parseFloat(formData.prix));
       }
       
@@ -450,7 +451,7 @@ export default function Colis() {
             Gestion des Colis
           </Typography>
           <Typography variant="body1" sx={{ color: '#666666', fontSize: '16px' }}>
-            {isAdmin ? 'Gérez tous les colis' : 'Gérez vos envois de colis'}
+            {isAdmin || user.role === 'gestionnaireColis' ? 'Gérez tous les colis' : 'Gérez vos envois de colis'}
           </Typography>
         </Box>
         <Button
@@ -549,7 +550,7 @@ export default function Colis() {
                 <TableCell sx={{ width: '60px' }}></TableCell>
                 <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Destinataire</TableCell>
                 <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Voyage</TableCell>
-                {isAdmin && (
+                {isAdmin || user.role === 'gestionnaireColis' && (
                   <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Expéditeur</TableCell>
                 )}
                 <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px', textAlign: 'center' }}>Statut</TableCell>
@@ -596,7 +597,7 @@ export default function Colis() {
                       {colisItem.voyage?.date ? new Date(colisItem.voyage.date).toLocaleDateString('fr-FR') : ''}
                     </Typography>
                   </TableCell>
-                  {isAdmin && (
+                  {isAdmin || user.role === 'gestionnaireColis' && (
                     <TableCell>
                       <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
                         {colisItem.expediteur?.name || 'N/A'}
@@ -821,7 +822,7 @@ export default function Colis() {
             </Box>
 
             {/* ================== SECTION PRIX (ADMIN UNIQUEMENT) ================== */}
-            {isAdmin && (
+            {isAdmin || userRole === 'gestionnaireColis' && (
               <Box>
                 <Typography
                   variant="h6"
@@ -1078,7 +1079,7 @@ export default function Colis() {
                   <InfoRow label="Description">
                     {selectedColis.description || 'Aucune description'}
                   </InfoRow>
-                  {isAdmin && (
+                  {isAdmin || userRole === 'gestionnaireColis' && (
                     <InfoRow label="Prix">
                       {selectedColis.prix 
                         ? `${selectedColis.prix.toLocaleString('fr-FR')} FCFA` 

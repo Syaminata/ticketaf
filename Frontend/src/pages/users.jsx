@@ -52,7 +52,7 @@ export default function Users() {
   });
 
   const [currentUserRole] = useState(storage.getUser()?.role || null);
-
+  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [roleFilter, setRoleFilter] = useState('all');
@@ -74,6 +74,8 @@ export default function Users() {
         headers: { Authorization: `Bearer ${token}` } 
       });
       
+      console.log('Données reçues du serveur:', res.data);
+      
       // Nettoyer les doublons en gardant la première occurrence de chaque ID
       const uniqueUsers = res.data.reduce((acc, current) => {
         const exists = acc.some(item => item._id === current._id);
@@ -94,7 +96,12 @@ export default function Users() {
         avant: res.data.length,
         apres: uniqueUsers.length,
         supprimes: res.data.length - uniqueUsers.length,
-        utilisateurs: uniqueUsers.map(u => ({ id: u._id, name: u.name, role: u.role }))
+        utilisateurs: uniqueUsers.map(u => ({ 
+          id: u._id, 
+          name: u.name, 
+          role: u.role,
+          address: u.address
+        }))
       });
       
       setUsers(uniqueUsers);
@@ -161,33 +168,56 @@ export default function Users() {
     }
 
     try {
+      setLoading(true);
+      setError('');
+
       if (editUser) {
-        
         const dataToSubmit = { ...formData };
         if (dataToSubmit.password === '') {
           delete dataToSubmit.password;
         }
         
+        // Mise à jour optimiste
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user._id === editUser._id 
+              ? { ...user, ...dataToSubmit } 
+              : user
+          )
+        );
+        
+        // Envoyer la requête de mise à jour
         await axios.put(`/users/${editUser._id}`, dataToSubmit, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        
         setSuccess('Utilisateur mis à jour avec succès');
       } else {
-        await axios.post('/users', formData, {
+        const response = await axios.post('/users', formData, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setSuccess('Utilisateur créé avec succès');
+        // Ajouter le nouvel utilisateur à la liste
+        setUsers(prevUsers => [...prevUsers, response.data.user]);
       }
-      fetchUsers();
+      
+      // Fermer la boîte de dialogue
       handleClose();
+      
+      // Rafraîchir les données depuis le serveur
+      await fetchUsers();
       
       // Effacer le message de succès après 5 secondes
       setTimeout(() => {
         setSuccess('');
       }, 5000);
     } catch (err) {
+      // En cas d'erreur, recharger les données pour récupérer l'état correct
+      await fetchUsers();
       console.error("Erreur lors de la soumission du formulaire:", err);
       setError(err.response?.data?.message || 'Erreur lors de la communication avec le serveur.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -322,6 +352,24 @@ export default function Users() {
     if (role) setRoleFilter(role);
   };
 
+  useEffect(() => {
+    console.log('🚀 Initialisation du composant Users');
+    fetchUsers();
+    
+    // Ajouter un écouteur d'événement pour les mises à jour des conducteurs
+    const handleDriverUpdated = () => {
+      console.log('Événement driverUpdated reçu, rafraîchissement des données...');
+      fetchUsers();
+    };
+
+    window.addEventListener('driverUpdated', handleDriverUpdated);
+    
+    // Nettoyage des écouteurs d'événements au démontage
+    return () => {
+      console.log('🧹 Nettoyage du composant Users');
+      window.removeEventListener('driverUpdated', handleDriverUpdated);
+    };
+  }, []);
 
   return (
     <Box sx={{ 
@@ -542,7 +590,13 @@ export default function Users() {
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
                 }}>
-                  {user.address || 'Non renseignée'}
+                  {console.log(`Affichage de l'adresse pour ${user.name}:`, {
+                  id: user._id,
+                  address: user.address,
+                  hasDriverDetails: !!user.driverDetails,
+                  driverAddress: user.driverDetails?.address
+                })}
+                  {user.address || (user.driverDetails?.address || 'Non renseignée')}
                 </TableCell>
                 <TableCell>
                   <Chip 

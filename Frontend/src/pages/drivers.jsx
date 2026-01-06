@@ -291,6 +291,8 @@ export default function Drivers() {
               : driver
           )
         );
+        // Déclencher un événement personnalisé pour informer les autres composants
+        window.dispatchEvent(new CustomEvent('driverUpdated', { detail: updatedDriver }));
       } else {
         console.log("Création d'un nouveau conducteur");
         const response = await axios.post('/drivers', formDataToSubmit, { 
