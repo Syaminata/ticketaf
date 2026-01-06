@@ -151,7 +151,7 @@ function Dashboard() {
       // Filtrer et prendre les réservations les plus récentes
       const recentReservations = res.data
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 3);
+        .slice(0, 5);
       
       console.log("Réservations récentes sélectionnées:", recentReservations);
       

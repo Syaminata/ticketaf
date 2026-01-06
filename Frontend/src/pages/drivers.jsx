@@ -269,6 +269,8 @@ export default function Drivers() {
         formDataToSubmit.delete('password');
       }
 
+      let updatedDriver;
+      
       if (editDriver) {
         console.log("Mise à jour du conducteur:", editDriver._id);
         const response = await axios.put(`/drivers/${editDriver._id}`, formDataToSubmit, { 
@@ -278,7 +280,17 @@ export default function Drivers() {
           } 
         });
         console.log("Réponse mise à jour:", response.data);
+        updatedDriver = response.data.driver;
         setSuccess('Conducteur mis à jour avec succès');
+        
+        // Mise à jour optimiste de l'interface
+        setDrivers(prevDrivers => 
+          prevDrivers.map(driver => 
+            driver._id === editDriver._id 
+              ? { ...driver, ...updatedDriver } 
+              : driver
+          )
+        );
       } else {
         console.log("Création d'un nouveau conducteur");
         const response = await axios.post('/drivers', formDataToSubmit, { 
@@ -288,9 +300,13 @@ export default function Drivers() {
           } 
         });
         setSuccess('Conducteur créé avec succès');
+        
+        // Ajout du nouveau conducteur à la liste
+        setDrivers(prevDrivers => [...prevDrivers, response.data.driver]);
       }
 
       console.log("Succès de l'opération");
+      // Rafraîchir les données depuis le serveur pour s'assurer de la cohérence
       await fetchDrivers();
       handleClose();
       setError('');

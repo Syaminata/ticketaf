@@ -201,18 +201,60 @@ const updateUser = async (req, res) => {
       updateData.password = password;
     }
 
-    // Recherche et mise à jour de l'utilisateur
+    // Mettre à jour l'utilisateur
     const user = await User.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true, runValidators: true, context: 'query' } // important pour que les validateurs Mongoose fonctionnent
+      { new: true, runValidators: true, context: 'query' }
     ).select('-password');
 
+    // Si l'utilisateur n'est pas trouvé, vérifier s'il s'agit d'un conducteur
     if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      // Si ce n'est pas un utilisateur normal, vérifier si c'est un conducteur
+      const driver = await Driver.findByIdAndUpdate(
+        req.params.id,
+        updateData,
+        { new: true, runValidators: true, context: 'query' }
+      ).select('-password');
+
+      if (!driver) {
+        return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      }
+
+      return res.status(200).json({ 
+        message: 'Conducteur mis à jour', 
+        user: { 
+          ...driver.toObject(), 
+          role: 'conducteur',
+          isDriver: true
+        } 
+      });
     }
 
-    res.status(200).json({ message: 'Utilisateur mis à jour', user });
+    // Si l'utilisateur est un conducteur, mettre à jour également la collection Driver
+    if (user.role === 'conducteur') {
+      const driverUpdate = { name, numero };
+      if (email !== undefined) {
+        driverUpdate.email = email || undefined;
+      }
+      if (address !== undefined) {
+        driverUpdate.address = address;
+      }
+      
+      await Driver.findByIdAndUpdate(
+        req.params.id,
+        driverUpdate,
+        { runValidators: true }
+      );
+    }
+
+    res.status(200).json({ 
+      message: 'Utilisateur mis à jour', 
+      user: {
+        ...user.toObject(),
+        isDriver: user.role === 'conducteur'
+      } 
+    });
   } catch (err) {
     console.error('Erreur updateUser:', err);
 
@@ -224,7 +266,7 @@ const updateUser = async (req, res) => {
 
     // Gestion des erreurs de clé unique (doublons)
     if (err.code === 11000) {
-      return res.status(400).json({ message: 'Numéro déjà utilisé' });
+      return res.status(400).json({ message: 'Numéro ou email déjà utilisé' });
     }
 
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
