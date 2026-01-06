@@ -296,7 +296,6 @@ const updateDriver = async (req, res) => {
 
     const updateData = { 
       name, 
-      email: email && email.trim() !== '' ? email.trim() : undefined, 
       numero, 
       matricule, 
       marque, 
@@ -304,6 +303,11 @@ const updateDriver = async (req, res) => {
       capacity_coffre, 
       climatisation: climatisation === 'true' || climatisation === true
     };
+    
+    // Only add email to updateData if it's provided and not empty
+    if (email && email.trim() !== '') {
+      updateData.email = email.trim();
+    }
     
     // Ajouter l'adresse si elle est fournie
     if (address !== undefined) {

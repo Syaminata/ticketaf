@@ -285,7 +285,7 @@ export default function Annonce() {
               required
               fullWidth
               multiline
-              maxows={2}
+              maxRows={2}
               size="small"
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
             />
