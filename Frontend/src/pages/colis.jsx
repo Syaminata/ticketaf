@@ -89,7 +89,6 @@ export default function Colis() {
   const [selectedColis, setSelectedColis] = useState(null);
 
   const user = JSON.parse(sessionStorage.getItem('user') || '{}');
-  const isAdmin = user.role === 'admin' || user.role === 'superadmin';
 
   const fetchColis = async () => {
     const token = sessionStorage.getItem('token');
@@ -100,7 +99,7 @@ export default function Colis() {
 
     try {
       let res;
-      if (isAdmin || user.role === 'gestionnaireColis') {
+      if (user.role === 'superadmin' || user.role === 'gestionnaireColis') {
         res = await colisAPI.getAllColis();
       } else {
         res = await colisAPI.getUserColis();
@@ -252,8 +251,7 @@ export default function Colis() {
       submitData.append('voyageId', formData.voyageId);
       submitData.append('description', formData.description || '');
       
-      const userRole = user?.role;
-      if ((isAdmin || userRole === 'gestionnaireColis') && formData.prix !== '' && formData.prix !== null) {
+      if ((user.role === 'superadmin' || user.role === 'gestionnaireColis') && formData.prix !== '' && formData.prix !== null) {
         submitData.append('prix', parseFloat(formData.prix));
       }
       
@@ -453,7 +451,7 @@ export default function Colis() {
             Gestion des Colis
           </Typography>
           <Typography variant="body1" sx={{ color: '#666666', fontSize: '16px' }}>
-            {isAdmin || user.role === 'gestionnaireColis' ? 'Gérez tous les colis' : 'Gérez vos envois de colis'}
+            {user.role === 'superadmin' || user.role === 'gestionnaireColis' ? 'Gérez tous les colis' : 'Gérez vos envois de colis'}
           </Typography>
         </Box>
         <Button
@@ -552,7 +550,7 @@ export default function Colis() {
                 <TableCell sx={{ width: '60px' }}></TableCell>
                 <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Destinataire</TableCell>
                 <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Voyage</TableCell>
-                {isAdmin || user.role === 'gestionnaireColis' && (
+                {user.role === 'superadmin' || user.role === 'gestionnaireColis' && (
                   <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Expéditeur</TableCell>
                 )}
                 <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px', textAlign: 'center' }}>Statut</TableCell>
@@ -599,7 +597,7 @@ export default function Colis() {
                       {colisItem.voyage?.date ? new Date(colisItem.voyage.date).toLocaleDateString('fr-FR') : ''}
                     </Typography>
                   </TableCell>
-                  {isAdmin || user.role === 'gestionnaireColis' && (
+                  {user.role === 'superadmin' || user.role === 'gestionnaireColis' && (
                     <TableCell>
                       <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
                         {colisItem.expediteur?.name || 'N/A'}
@@ -824,7 +822,7 @@ export default function Colis() {
             </Box>
 
             {/* ================== SECTION PRIX (ADMIN UNIQUEMENT) ================== */}
-            {isAdmin || (user && user.role === 'gestionnaireColis') && (
+            {(user.role === 'superadmin' || user.role === 'gestionnaireColis') && (
               <Box>
                 <Typography
                   variant="h6"
@@ -1081,7 +1079,7 @@ export default function Colis() {
                   <InfoRow label="Description">
                     {selectedColis.description || 'Aucune description'}
                   </InfoRow>
-                  {(isAdmin || (user && user.role === 'gestionnaireColis')) && (
+                  {(user.role === 'superadmin' || user.role === 'gestionnaireColis') && (
                     <InfoRow label="Prix">
                       {selectedColis.prix 
                         ? `${selectedColis.prix.toLocaleString('fr-FR')} FCFA` 

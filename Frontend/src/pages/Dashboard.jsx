@@ -1269,6 +1269,90 @@ function Dashboard() {
         )}
         </div>
       </div>
+      {/* top destination colis */}
+      {userRole !== 'admin' && (
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '12px',
+          padding: '20px',
+          border: "1px solid #f7f5f5ff",
+          marginBottom: '24px'
+        }}>
+          <h4 style={{
+            margin: '0 0 16px 0',
+            fontSize: '18px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            color: '#1a1a1a'
+          }}>
+            📍 Top 5 Destinations de Colis
+          </h4>
+
+          {topColisDestinations.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {topColisDestinations.map((item, index) => {
+                const maxValue = topColisDestinations[0]?.total || 1;
+                const widthPercent = (item.total / maxValue) * 100;
+
+                return (
+                  <div key={item.destination}>
+                    {/* Label */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '6px'
+                    }}>
+                      <span style={{
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: '#1a1a1a'
+                      }}>
+                        {index + 1}. {item.destination}
+                      </span>
+
+                      <span style={{
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        color: '#666'
+                      }}>
+                        {item.total} colis
+                      </span>
+                    </div>
+
+                    {/* Barre */}
+                    <div style={{
+                      height: '10px',
+                      width: '100%',
+                      background: '#f1f1f1',
+                      borderRadius: '8px',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${widthPercent}%`,
+                        background: '#e4d6aeff',
+                        borderRadius: '8px',
+                        transition: 'width 0.4s ease'
+                      }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{
+              textAlign: 'center',
+              padding: '32px',
+              color: '#666'
+            }}>
+              <div style={{ fontSize: '40px', opacity: 0.3 }}>📍</div>
+              <div>Aucune destination disponible</div>
+            </div>
+          )}
+        </div>
+      )}
+
 
       {/* Widget des revenus */}
       <div style={{ marginBottom: "24px" }}>
