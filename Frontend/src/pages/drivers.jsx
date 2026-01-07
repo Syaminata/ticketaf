@@ -448,11 +448,37 @@ export default function Drivers() {
     document.body.removeChild(link);
   };
 
-  const handleViewDetails = (driver) => {
-    setDetailsDialog({
-      open: true,
-      driver: driver
-    });
+  const handleViewDetails = async (driver) => {
+    try {
+      const token = sessionStorage.getItem('token');
+      if (!token) {
+        setError("Authentification manquante. Veuillez vous reconnecter.");
+        return;
+      }
+      
+      // Récupérer les données complètes du conducteur depuis la route /stats/top-drivers
+      const response = await axios.get(`/stats/top-drivers`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      
+      // Trouver le conducteur par son ID dans la liste des top drivers
+      const updatedDriver = response.data.find(d => d._id === driver._id) || driver;
+      
+      setDetailsDialog({
+        open: true,
+        driver: {
+          ...driver,
+          tripCount: updatedDriver.tripCount || 0
+        }
+      });
+    } catch (err) {
+      console.error("Erreur lors de la récupération des détails du chauffeur:", err);
+      // En cas d'erreur, afficher quand même la boîte de dialogue avec les données existantes
+      setDetailsDialog({
+        open: true,
+        driver: driver
+      });
+    }
   };
 
   const handleCloseDetailsDialog = () => {
@@ -1673,8 +1699,13 @@ export default function Drivers() {
                       <Chip 
                         label={detailsDialog.driver.tripCount || 0} 
                         variant="outlined"
-                        sx={{ fontWeight: 'bold', minWidth: '40px', justifyContent: 'center',borderColor: '#C26E60', 
-    color: '#D4710F',}}
+                        sx={{ 
+                          fontWeight: 'bold', 
+                          minWidth: '40px', 
+                          justifyContent: 'center',
+                          borderColor: '#C26E60', 
+                          color: '#D4710F'
+                        }}
                       />
                       <Typography variant="body2" color="textSecondary">
                         voyage{detailsDialog.driver.tripCount !== 1 ? 's' : ''} effectué{detailsDialog.driver.tripCount !== 1 ? 's' : ''}

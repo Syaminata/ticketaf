@@ -267,6 +267,7 @@ export default function Users() {
   const getRoleLabel = (role) => {
     switch (role) {
       case 'admin': return 'Admin';
+      case 'gestionnaireColis': return 'gestionnaire de colis';
       case 'conducteur': return 'Conducteur';
       case 'client': return 'Client';
       default: return role;
@@ -489,6 +490,7 @@ export default function Users() {
           >
             <MenuItem onClick={() => handleCloseFilter('all')}>Tous les rôles</MenuItem>
             <MenuItem onClick={() => handleCloseFilter('admin')}>Admin</MenuItem>
+            <MenuItem onClick={() => handleCloseFilter('gestionnaireColis')}>Gestionnaire de colis</MenuItem>
             <MenuItem onClick={() => handleCloseFilter('conducteur')}>Conducteur</MenuItem>
             <MenuItem onClick={() => handleCloseFilter('client')}>Client</MenuItem>
           </Menu>

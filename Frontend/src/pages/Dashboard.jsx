@@ -507,7 +507,7 @@ function Dashboard() {
           backgroundColor: "white",
           padding:"20px",
           borderRadius: "15px",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+          border: "1px solid #f7f5f5ff",
         }}>
         {Object.entries(animatedStats).map(([key, value]) => {
           const config = statConfig[key] || { color: "#ffcc33", icon: WarningIcon, label: key, trend: "+0%" };
@@ -583,8 +583,8 @@ function Dashboard() {
         borderRadius: "12px",
         padding: "20px",
         marginBottom: "24px",
-        border: "1px solid #e0e0e0",
-        boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
+        border: "1px solid #f7f5f5ff",
+        //boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
       }}>
         <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
           <BarChartIcon style={{ fontSize: "24px", color: "#ffcc33", marginRight: "8px" }} />
@@ -626,8 +626,8 @@ function Dashboard() {
           background: "#ffffff",
           borderRadius: "12px",
           padding: "20px",
-          border: "1px solid #e0e0e0",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
+          border: "1px solid #f7f5f5ff",
+          //boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
         }}>
           <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
             <Star size={20} color="#ffcc33" style={{ marginRight: "8px" }} />
@@ -728,103 +728,7 @@ function Dashboard() {
 
       
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "24px", marginBottom: "24px" }}>
-        
-        {/* Répartition des utilisateurs par rôle */}
-        <div style={{ 
-          background: "#ffffff",
-          borderRadius: "12px", 
-          padding: "20px",
-          color: "#1a1a1a",
-          border: "1px solid #e0e0e0",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
-        }}>
-          <h4 style={{ 
-            margin: "0 0 16px 0", 
-            fontSize: "18px", 
-            fontWeight: "600",
-            display: 'flex', 
-            alignItems: 'center',
-            color: "#1a1a1a"
-          }}>
-            <PeopleIcon style={{ marginRight: '8px', fontSize: '20px', color: '#ffcc33' }} /> 
-            Utilisateurs par Rôle
-          </h4>
-          
-          <div style={{ height: "200px" }}>
-            {userRoleData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={userRoleData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    isAnimationActive={false}
-                  >
-                    {userRoleData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                height: '100%',
-                color: '#666',
-                fontSize: '14px'
-              }}>
-              </div>
-            )}
-          </div>
-          
-          {/* Légende */}
-          {userRoleData.length > 0 && (
-            <div style={{ 
-              display: "flex", 
-              flexDirection: "column", 
-              gap: "8px", 
-              marginTop: "16px" 
-            }}>
-              {userRoleData.map((item, index) => (
-              <div key={index} style={{ 
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "space-between",
-                padding: "8px 12px",
-                background: "rgba(255, 204, 51, 0.05)",
-                borderRadius: "8px",
-                border: "1px solid rgba(255, 204, 51, 0.2)"
-              }}>
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  <div style={{ 
-                    width: "12px", 
-                    height: "12px", 
-                    borderRadius: "50%", 
-                    backgroundColor: item.color,
-                    marginRight: "8px"
-                  }} />
-                  <span style={{ fontSize: "14px", fontWeight: "500" }}>{item.name}</span>
-                </div>
-                <span style={{ 
-                  fontSize: "16px", 
-                  fontWeight: "700", 
-                  color: item.color 
-                }}>
-                  {item.value}
-                </span>
-              </div>
-            ))}
-            </div>
-          )}
-        </div>
+      
 
         {/* Section Réservations Récentes */}
         <div style={{ 
@@ -832,8 +736,7 @@ function Dashboard() {
           borderRadius: "12px", 
           padding: "20px",
           color: "#1a1a1a",
-          border: "1px solid #e0e0e0",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
+          border: "1px solid #f7f5f5ff",
         }}>
           <h4 style={{ 
             margin: "0 0 16px 0", 
@@ -847,7 +750,14 @@ function Dashboard() {
             Réservations Récentes
           </h4>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div 
+              style={{ display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                maxHeight: window.innerWidth < 768 ? '260px' : '310px', 
+                overflowY: 'auto',
+                paddingRight: '6px' 
+              }}>
             {recentReservations.length > 0 ? (
               recentReservations.map((reservation) => (
               <div key={reservation.id} style={{ 
@@ -927,6 +837,124 @@ function Dashboard() {
             )}
           </div>
         </div>
+        {/* Utilisateurs par rôle */}
+        <div style={{
+          background: "linear-gradient(180deg, #ffffff, #fafafa)",
+          borderRadius: "16px",
+          padding: "24px",
+          border: "1px solid #f7f5f5ff",
+          //boxShadow: "0 8px 24px rgba(0,0,0,0.04)"
+        }}>
+          <h4 style={{
+            marginBottom: "20px",
+            fontSize: "18px",
+            fontWeight: "600",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}>
+            <PeopleIcon style={{ color: "#ffcc33" }} />
+            Utilisateurs par rôle
+          </h4>
+
+          <div style={{ height: 220, position: "relative" }}>
+            {userRoleData.length > 0 && (
+              <>
+                {/* Centre info */}
+                <div style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  textAlign: "center",
+                  zIndex: 1
+                }}>
+                  <div style={{ fontSize: 22, fontWeight: 700 }}>
+                    {userRoleData.reduce((a, b) => a + b.value, 0)}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#888" }}>
+                    Total utilisateurs
+                  </div>
+                </div>
+
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={userRoleData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={4}
+                      dataKey="value"
+                      isAnimationActive
+                    >
+                      {userRoleData.map((entry, index) => (
+                        <Cell
+                          key={index}
+                          fill={entry.color}
+                          style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: "12px",
+                        border: "none",
+                        boxShadow: "0 8px 20px rgba(0,0,0,0.1)"
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </>
+            )}
+          </div>
+
+          {/* Légende moderne */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+            gap: "12px",
+            marginTop: "20px"
+          }}>
+            {userRoleData.map((item, index) => (
+              <div
+                key={index}
+                style={{
+                  padding: "12px",
+                  borderRadius: "12px",
+                  background: "#fff",
+                  border: "1px solid #eee",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  transition: "all .2s ease",
+                  cursor: "default"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: item.color
+                  }} />
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>
+                    {item.name}
+                  </span>
+                </div>
+
+                <span style={{
+                  fontWeight: 700,
+                  fontSize: 15,
+                  color: item.color
+                }}>
+                  {item.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Section des tableaux Top Chauffeurs et Top Clients */}
@@ -955,8 +983,7 @@ function Dashboard() {
             background: '#ffffff',
             borderRadius: '12px',
             padding: '20px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-            border: '1px solid #e0e0e0',
+            border: "1px solid #f7f5f5ff",
             height: 'fit-content',
             gridColumn: 'auto'
           }}>
@@ -1107,8 +1134,7 @@ function Dashboard() {
           background: '#ffffff',
           borderRadius: '12px',
           padding: '20px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-          border: '1px solid #e0e0e0',
+          border: "1px solid #f7f5f5ff",
           height: 'fit-content'
         }}>
           <h4 style={{
