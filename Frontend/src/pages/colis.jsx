@@ -480,36 +480,89 @@ export default function Colis() {
       </Box>
 
       {/* Filtres */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        gap: 2, 
+        mb: 3, 
+        alignItems: 'center',
+        flexWrap: 'nowrap',
+        p: 1.5,
+        borderRadius: '10px',
+        '& > *': {
+          marginBottom: '0 !important',
+          flexShrink: 0
+        }
+      }}>
         <TextField
-          placeholder="Rechercher par destinataire, description..."
+          placeholder="Destinataire, description..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           size="small"
           InputProps={{
-            startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
+            startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />,
+            sx: {
+              height: '40px',
+              '& input': {
+                padding: '10px 14px 10px 6px',
+                height: '20px'
+              }
+            }
           }}
           sx={{
-            width: 300,
+            width: 280,
             '& .MuiOutlinedInput-root': {
               borderRadius: '8px',
               '&:hover fieldset': { borderColor: '#ffcc33' },
               '&.Mui-focused fieldset': { borderColor: '#ffcc33', borderWidth: 2 },
             },
+            '& .MuiInputLabel-root': {
+              transform: 'translate(14px, 10px) scale(1)',
+              '&.MuiInputLabel-shrink': {
+                transform: 'translate(14px, -6px) scale(0.75)',
+              },
+            },
+            '& .MuiInputBase-input': {
+              padding: '8px 14px 8px 6px',
+            },
           }}
         />
 
-        <FormControl size="small" sx={{ minWidth: 150 }}>
-          <InputLabel>Statut</InputLabel>
+        <FormControl 
+          size="small" 
+          sx={{ 
+            minWidth: 150,
+            '& .MuiInputBase-root': {
+              height: '40px',
+              '& .MuiSelect-select': {
+                paddingTop: '10px',
+                paddingBottom: '10px'
+              }
+            },
+            '& .MuiInputLabel-root': {
+              transform: 'translate(14px, 10px) scale(1)',
+              '&.MuiInputLabel-shrink': {
+                transform: 'translate(14px, -6px) scale(0.75)',
+              },
+            },
+          }}
+        >
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            label="Statut"
+            displayEmpty
+            renderValue={(selected) => selected ? selected : 'Statut'}
             sx={{
               borderRadius: '8px',
+              backgroundColor: 'white',
               '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#ffcc33' },
               '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#ffcc33' },
-            }}
+              '& .MuiSelect-select': {
+                color: statusFilter ? 'inherit' : '#666',
+                
+              },
+            }
+            
+            }
           >
             <MenuItem value="">Tous</MenuItem>
             <MenuItem value="en attente">En attente</MenuItem>
@@ -519,16 +572,37 @@ export default function Colis() {
           </Select>
         </FormControl>
 
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel>Voyage</InputLabel>
+        <FormControl 
+          size="small" 
+          sx={{ 
+            minWidth: 200,
+            '& .MuiInputBase-root': {
+              height: '40px',
+              '& .MuiSelect-select': {
+                paddingTop: '10px',
+                paddingBottom: '10px'
+              }
+            },
+            '& .MuiInputLabel-root': {
+              transform: 'translate(14px, 10px) scale(1)',
+              '&.MuiInputLabel-shrink': {
+                transform: 'translate(14px, -6px) scale(0.75)',
+              },
+            },
+          }}
+        >
           <Select
             value={voyageFilter}
             onChange={(e) => setVoyageFilter(e.target.value)}
-            label="Voyage"
+            displayEmpty
+            renderValue={(selected) => selected ? selected : 'Voyage'}
             sx={{
               borderRadius: '8px',
               '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#ffcc33' },
               '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#ffcc33' },
+              '& .MuiSelect-select': {
+                color: voyageFilter ? 'inherit' : '#666',
+              }
             }}
           >
             <MenuItem value="">Tous les voyages</MenuItem>
@@ -708,7 +782,25 @@ export default function Colis() {
                 Sélection du voyage
               </Typography>
 
-              <FormControl fullWidth required>
+              <FormControl 
+                size="small" 
+                sx={{ 
+                  minWidth: 180,
+                  '& .MuiInputBase-root': {
+                    height: '40px',
+                    '& .MuiSelect-select': {
+                      paddingTop: '10px',
+                      paddingBottom: '10px'
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    transform: 'translate(14px, 10px) scale(1)',
+                    '&.MuiInputLabel-shrink': {
+                      transform: 'translate(14px, -6px) scale(0.75)',
+                    },
+                  },
+                }}
+              >
                 <InputLabel>Voyage</InputLabel>
                 <Select
                   name="voyageId"
