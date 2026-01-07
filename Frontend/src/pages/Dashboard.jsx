@@ -584,7 +584,6 @@ function Dashboard() {
         padding: "20px",
         marginBottom: "24px",
         border: "1px solid #f7f5f5ff",
-        //boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
       }}>
         <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
           <BarChartIcon style={{ fontSize: "24px", color: "#ffcc33", marginRight: "8px" }} />
@@ -621,115 +620,127 @@ function Dashboard() {
           </ResponsiveContainer>
         </div>
       </div>
-      {/* Top 5 Clients avec le plus de Réservations */}
+      {/* Utilisateurs par rôle */}
         <div style={{
-          background: "#ffffff",
-          borderRadius: "12px",
-          padding: "20px",
+          background: "linear-gradient(180deg, #ffffff, #fafafa)",
+          borderRadius: "16px",
+          padding: "24px",
           border: "1px solid #f7f5f5ff",
-          //boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
         }}>
-          <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
-            <Star size={20} color="#ffcc33" style={{ marginRight: "8px" }} />
-            <h3 style={{ color: "#1a1a1a", margin: 0, fontSize: "18px", fontWeight: "600" }}>
-              Meilleurs clients
-            </h3>
+          <h4 style={{
+            marginBottom: "20px",
+            fontSize: "18px",
+            fontWeight: "600",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}>
+            <PeopleIcon style={{ color: "#ffcc33" }} />
+            Utilisateurs par rôle
+          </h4>
+
+          <div style={{ height: 220, position: "relative" }}>
+            {userRoleData.length > 0 && (
+              <>
+                {/* Centre info */}
+                <div style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  textAlign: "center",
+                  zIndex: 1
+                }}>
+                  <div style={{ fontSize: 22, fontWeight: 700 }}>
+                    {userRoleData.reduce((a, b) => a + b.value, 0)}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#888" }}>
+                    Total utilisateurs
+                  </div>
+                </div>
+
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={userRoleData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={4}
+                      dataKey="value"
+                      isAnimationActive
+                    >
+                      {userRoleData.map((entry, index) => (
+                        <Cell
+                          key={index}
+                          fill={entry.color}
+                          style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: "12px",
+                        border: "none",
+                        boxShadow: "0 8px 20px rgba(0,0,0,0.1)"
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </>
+            )}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
-            {topReservationsClients.length > 0 ? (
-              topReservationsClients.map((client, index) => (
-                <div
-                  key={client._id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '12px',
-                    background: index < 3 ? 'rgba(255, 204, 51, 0.05)' : '#fafafa',
-                    borderRadius: '10px',
-                    border: `2px solid ${index < 3 ? getMedalColor(index) + '40' : '#e0e0e0'}`,
-                    transition: 'all 0.3s ease',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateX(4px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateX(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  <div style={{
-                    minWidth: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background: index < 3 ? getMedalColor(index) : '#e0e0e0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: '700',
-                    fontSize: '13px',
-                    color: index < 3 ? '#1a1a1a' : '#666',
-                    marginRight: '12px',
-                    boxShadow: index < 3 ? `0 4px 8px ${getMedalColor(index)}40` : 'none'
-                  }}>
-                    {index + 1}
-                  </div>
+          {/* Légende  */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+            gap: "12px",
+            marginTop: "20px"
+          }}>
+            {userRoleData.map((item, index) => (
+              <div
+                key={index}
+                style={{
+                  padding: "12px",
+                  borderRadius: "12px",
+                  background: "#fff",
+                  border: "1px solid #eee",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  transition: "all .2s ease",
+                  cursor: "default"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: item.color
+                  }} />
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>
+                    {item.name}
+                  </span>
+                </div>
 
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#1a1a1a',
-                      marginBottom: '2px'
-                    }}>
-                      {client.name}
-                    </div>
-                    {client.numero && (
-                      <div style={{
-                        fontSize: '11px',
-                        color: '#666'
-                      }}>
-                        {client.numero}
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{
-                    padding: '4px 10px',
-                    borderRadius: '16px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    background: 'rgba(182, 102, 10, 0.15)',
-                    color: '#b6660a'
-                  }}>
-                    {client.reservationCount} 🎫
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div style={{
-                textAlign: 'center',
-                padding: '40px 20px',
-                color: '#666'
-              }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>
-                  🎫
-                </div>
-                <div style={{ fontWeight: '500', marginBottom: '8px' }}>
-                  Aucun client trouvé
-                </div>
+                <span style={{
+                  fontWeight: 700,
+                  fontSize: 15,
+                  color: item.color
+                }}>
+                  {item.value}
+                </span>
               </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
 
       
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "24px", marginBottom: "24px" }}>
-      
-
         {/* Section Réservations Récentes */}
         <div style={{ 
           background: "#ffffff",
@@ -837,148 +848,336 @@ function Dashboard() {
             )}
           </div>
         </div>
-        {/* Utilisateurs par rôle */}
+        {/* Top meilleurs clients */}
         <div style={{
-          background: "linear-gradient(180deg, #ffffff, #fafafa)",
-          borderRadius: "16px",
-          padding: "24px",
+          background: "#ffffff",
+          borderRadius: "12px",
+          padding: "20px",
           border: "1px solid #f7f5f5ff",
-          //boxShadow: "0 8px 24px rgba(0,0,0,0.04)"
         }}>
-          <h4 style={{
-            marginBottom: "20px",
-            fontSize: "18px",
-            fontWeight: "600",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px"
-          }}>
-            <PeopleIcon style={{ color: "#ffcc33" }} />
-            Utilisateurs par rôle
-          </h4>
-
-          <div style={{ height: 220, position: "relative" }}>
-            {userRoleData.length > 0 && (
-              <>
-                {/* Centre info */}
-                <div style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  textAlign: "center",
-                  zIndex: 1
-                }}>
-                  <div style={{ fontSize: 22, fontWeight: 700 }}>
-                    {userRoleData.reduce((a, b) => a + b.value, 0)}
-                  </div>
-                  <div style={{ fontSize: 13, color: "#888" }}>
-                    Total utilisateurs
-                  </div>
-                </div>
-
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={userRoleData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
-                      paddingAngle={4}
-                      dataKey="value"
-                      isAnimationActive
-                    >
-                      {userRoleData.map((entry, index) => (
-                        <Cell
-                          key={index}
-                          fill={entry.color}
-                          style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: "12px",
-                        border: "none",
-                        boxShadow: "0 8px 20px rgba(0,0,0,0.1)"
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </>
-            )}
+          <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
+            <Star size={20} color="#ffcc33" style={{ marginRight: "8px" }} />
+            <h3 style={{ color: "#1a1a1a", margin: 0, fontSize: "18px", fontWeight: "600" }}>
+              Meilleurs clients
+            </h3>
           </div>
 
-          {/* Légende moderne */}
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-            gap: "12px",
-            marginTop: "20px"
-          }}>
-            {userRoleData.map((item, index) => (
-              <div
-                key={index}
-                style={{
-                  padding: "12px",
-                  borderRadius: "12px",
-                  background: "#fff",
-                  border: "1px solid #eee",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  transition: "all .2s ease",
-                  cursor: "default"
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: item.color
-                  }} />
-                  <span style={{ fontSize: 13, fontWeight: 500 }}>
-                    {item.name}
-                  </span>
-                </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
+            {topReservationsClients.length > 0 ? (
+              topReservationsClients.map((client, index) => (
+                <div
+                  key={client._id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '12px',
+                    background: index < 3 ? 'rgba(255, 204, 51, 0.05)' : '#fafafa',
+                    borderRadius: '10px',
+                    border: `2px solid ${index < 3 ? getMedalColor(index) + '40' : '#e0e0e0'}`,
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateX(4px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateX(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <div style={{
+                    minWidth: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: index < 3 ? getMedalColor(index) : '#e0e0e0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    color: index < 3 ? '#1a1a1a' : '#666',
+                    marginRight: '12px',
+                    boxShadow: index < 3 ? `0 4px 8px ${getMedalColor(index)}40` : 'none'
+                  }}>
+                    {index + 1}
+                  </div>
 
-                <span style={{
-                  fontWeight: 700,
-                  fontSize: 15,
-                  color: item.color
-                }}>
-                  {item.value}
-                </span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#1a1a1a',
+                      marginBottom: '2px'
+                    }}>
+                      {client.name}
+                    </div>
+                    {client.numero && (
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#666'
+                      }}>
+                        {client.numero}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{
+                    padding: '4px 10px',
+                    borderRadius: '16px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    background: 'rgba(182, 102, 10, 0.15)',
+                    color: '#b6660a'
+                  }}>
+                    Nombre de voyage effectué : {client.reservationCount} 
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                color: '#666'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>
+                  🎫
+                </div>
+                <div style={{ fontWeight: '500', marginBottom: '8px' }}>
+                  Aucun client trouvé
+                </div>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
 
-      {/* Section des tableaux Top Chauffeurs et Top Clients */}
+      {/* Section des tableaux Top destination colis et Top Clients clis */}
       <div style={{ marginBottom: '24px' }}>
-        <h2 style={{
-          fontSize: '20px',
-          fontWeight: '600',
-          color: '#1a1a1a',
-          marginBottom: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          <TrendingUp size={24} color="#ffcc33" />
-          Tableaux des meilleurs
-        </h2>
         <div style={{
           display: 'grid',
           gridTemplateColumns: isMobile || userRole === 'admin' || userRole === 'gestionnaireColis' ? '1fr' : '2fr 1.5fr',
           gap: '16px',
           width: '100%'
         }}>
-          {/* Top 5 Chauffeurs - Masqué pour admin et gestionnaireColis */}
-          {userRole !== 'gestionnaireColis' && (
+          
+          {/* top destination colis */}
+          {userRole !== 'admin' && topColisDestinations.length > 0 && (
+            <div style={{
+              background: "#ffffff",
+              borderRadius: "12px",
+              padding: "20px",
+              marginBottom: "24px",
+              border: "1px solid #f7f5f5ff"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
+                <LocationOnIcon style={{ fontSize: "24px", color: "#ffcc33", marginRight: "8px" }} />
+                <h3 style={{ color: "#1a1a1a", margin: 0, fontSize: "18px", fontWeight: "600" }}>
+                  Top 5 Destinations Colis
+                </h3>
+              </div>
+
+              <div style={{ height: "300px" }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart 
+                    data={topColisDestinations} 
+                    margin={{ top: 20, right: 30, left: 20, }}
+                    isAnimationActive={false}
+                  >
+                    <defs>
+                      <linearGradient id="colorColis" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ffcc33" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#ddb744ff" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="destination" 
+                      tick={{ fontSize: 12, fill: "#666" }}
+                      angle={0}
+                      textAnchor="end"
+                      height={25}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12, fill: "#666" }}
+                      label={{ value: "Nombre de colis", angle: -90, position: "insideLeft" }}
+                    />
+                    <Tooltip 
+                      cursor={{ stroke: "rgba(243, 232, 80, 1)", strokeWidth: 2 }}
+                      contentStyle={{
+                        background: '#fff',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '8px',
+                        padding: '8px 12px'
+                      }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="colisCount" 
+                      stroke="#b6660abd" 
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorColis)"
+                      dot={{ r: 5, fill: "#b6660abd", strokeWidth: 2, stroke: "#fff" }}
+                      activeDot={{ r: 7, fill: "#f3870cbd" }}
+                      isAnimationActive={false}
+                    >
+                      <LabelList 
+                        dataKey="colisCount" 
+                        position="top" 
+                        offset={10}
+                        style={{ fontSize: 13, fill: "#1a1a1a", fontWeight: '600' }} 
+                      />
+                    </Area>
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Top 5 Clients  */}
+          {userRole !== 'admin' && (
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '12px',
+            padding: '20px',
+            border: "1px solid #f7f5f5ff",
+            height: 'fit-content'
+          }}>
+            <h4 style={{
+              margin: '0 0 16px 0',
+              fontSize: '18px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              color: '#1a1a1a'
+            }}>
+              <Package size={20} color="#ffcc33" style={{ marginRight: '8px' }} />
+              Top 5 Clients Colis
+            </h4>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {topClientsColis.length > 0 ? (
+                topClientsColis.map((client, index) => (
+                  <div
+                    key={client._id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '16px',
+                      background: index < 3 ? 'rgba(255, 204, 51, 0.05)' : '#fafafa',
+                      borderRadius: '12px',
+                      border: `2px solid ${index < 3 ? getMedalColor(index) + '40' : '#e0e0e0'}`,
+                      transition: 'all 0.3s ease',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateX(4px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateX(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    {/* Rang avec médaille */}
+                    <div style={{
+                      minWidth: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      background: index < 3 ? getMedalColor(index) : '#e0e0e0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      color: index < 3 ? '#1a1a1a' : '#666',
+                      marginRight: '16px',
+                      position: 'relative',
+                      boxShadow: index < 3 ? `0 4px 8px ${getMedalColor(index)}40` : 'none'
+                    }}>
+                      {index < 3 ? (
+                        index + 1//<Star size={20} fill="currentColor" />
+                      ) : (
+                        index + 1
+                      )}
+                    </div>
+
+                    {/* Informations du client */}
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: '#1a1a1a',
+                        marginBottom: '4px'
+                      }}>
+                        {client.name || 'Client sans nom'}
+                      </div>
+                      {client.phone && (
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#666'
+                        }}>
+                          {client.phone}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Statistiques */}
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-end',
+                      gap: '4px'
+                    }}>
+                      <div style={{
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        background: 'rgba(196, 191, 180, 0.15)', // jaune soft
+                        color: '#ff9800'
+                      }}>
+                        {client.totalColis} colis
+                      </div>
+                      <span style={{
+                        fontSize: '11px',
+                        color: '#666',
+                        fontWeight: '500'
+                      }}>
+                        {client.lastActivity 
+                          ? new Date(client.lastActivity).toLocaleDateString('fr-FR', {
+                              day: 'numeric',
+                              month: 'short'
+                            })
+                          : 'Aucune activité'}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: '#666'
+                }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>
+                    📦
+                  </div>
+                  <div style={{ fontWeight: '500', marginBottom: '8px' }}>
+                    Aucun client trouvé
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          )}
+          </div>
+        </div>
+        {/* Top 5 Chauffeurs */}
+        {userRole !== 'gestionnaireColis' && (
           <div style={{
             background: '#ffffff',
             borderRadius: '12px',
@@ -999,7 +1198,7 @@ function Dashboard() {
             Top 5 Chauffeurs
           </h4>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto'}}>
             {topChauffeurs.length > 0 ? (
               topChauffeurs.map((chauffeur, index) => (
                 <div
@@ -1007,14 +1206,12 @@ function Dashboard() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '16px',
+                    padding: '12px',
                     background: index < 3 ? 'rgba(255, 204, 51, 0.05)' : '#fafafa',
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     border: `2px solid ${index < 3 ? getMedalColor(index) + '40' : '#e0e0e0'}`,
                     transition: 'all 0.3s ease',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    overflow: 'hidden'
+                    cursor: 'pointer'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateX(4px)';
@@ -1126,247 +1323,21 @@ function Dashboard() {
             )}
           </div>
         </div>
-          )}
-
-        {/* Top 5 Clients - Masqué pour les administrateurs */}
-        {userRole !== 'admin' && (
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          padding: '20px',
-          border: "1px solid #f7f5f5ff",
-          height: 'fit-content'
-        }}>
-          <h4 style={{
-            margin: '0 0 16px 0',
-            fontSize: '18px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            color: '#1a1a1a'
-          }}>
-            <Package size={20} color="#ffcc33" style={{ marginRight: '8px' }} />
-            Top 5 Clients Colis
-          </h4>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {topClientsColis.length > 0 ? (
-              topClientsColis.map((client, index) => (
-                <div
-                  key={client._id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '16px',
-                    background: index < 3 ? 'rgba(255, 204, 51, 0.05)' : '#fafafa',
-                    borderRadius: '12px',
-                    border: `2px solid ${index < 3 ? getMedalColor(index) + '40' : '#e0e0e0'}`,
-                    transition: 'all 0.3s ease',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateX(4px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateX(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  {/* Rang avec médaille */}
-                  <div style={{
-                    minWidth: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    background: index < 3 ? getMedalColor(index) : '#e0e0e0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: '700',
-                    fontSize: '14px',
-                    color: index < 3 ? '#1a1a1a' : '#666',
-                    marginRight: '16px',
-                    position: 'relative',
-                    boxShadow: index < 3 ? `0 4px 8px ${getMedalColor(index)}40` : 'none'
-                  }}>
-                    {index < 3 ? (
-                      index + 1//<Star size={20} fill="currentColor" />
-                    ) : (
-                      index + 1
-                    )}
-                  </div>
-
-                  {/* Informations du client */}
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#1a1a1a',
-                      marginBottom: '4px'
-                    }}>
-                      {client.name || 'Client sans nom'}
-                    </div>
-                    {client.phone && (
-                      <div style={{
-                        fontSize: '12px',
-                        color: '#666'
-                      }}>
-                        {client.phone}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Statistiques */}
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-end',
-                    gap: '4px'
-                  }}>
-                    <div style={{
-                      padding: '6px 12px',
-                      borderRadius: '20px',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      background: 'rgba(196, 191, 180, 0.15)', // jaune soft
-                      color: '#ff9800'
-                    }}>
-                      {client.totalColis} colis
-                    </div>
-                    <span style={{
-                      fontSize: '11px',
-                      color: '#666',
-                      fontWeight: '500'
-                    }}>
-                      {client.lastActivity 
-                        ? new Date(client.lastActivity).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'short'
-                          })
-                        : 'Aucune activité'}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div style={{
-                textAlign: 'center',
-                padding: '40px 20px',
-                color: '#666'
-              }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>
-                  📦
-                </div>
-                <div style={{ fontWeight: '500', marginBottom: '8px' }}>
-                  Aucun client trouvé
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
         )}
+
+        {/* Widget des revenus */}
+        <div style={{ marginBottom: "24px" }}>
+          <RevenueWidget />
         </div>
-      </div>
-      {/* top destination colis */}
-      {userRole !== 'admin' && (
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          padding: '20px',
-          border: "1px solid #f7f5f5ff",
-          marginBottom: '24px'
-        }}>
-          <h4 style={{
-            margin: '0 0 16px 0',
-            fontSize: '18px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            color: '#1a1a1a'
-          }}>
-            📍 Top 5 Destinations de Colis
-          </h4>
-
-          {topColisDestinations.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {topColisDestinations.map((item, index) => {
-                const maxValue = topColisDestinations[0]?.total || 1;
-                const widthPercent = (item.total / maxValue) * 100;
-
-                return (
-                  <div key={item.destination}>
-                    {/* Label */}
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: '6px'
-                    }}>
-                      <span style={{
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        color: '#1a1a1a'
-                      }}>
-                        {index + 1}. {item.destination}
-                      </span>
-
-                      <span style={{
-                        fontSize: '13px',
-                        fontWeight: '600',
-                        color: '#666'
-                      }}>
-                        {item.total} colis
-                      </span>
-                    </div>
-
-                    {/* Barre */}
-                    <div style={{
-                      height: '10px',
-                      width: '100%',
-                      background: '#f1f1f1',
-                      borderRadius: '8px',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        height: '100%',
-                        width: `${widthPercent}%`,
-                        background: '#e4d6aeff',
-                        borderRadius: '8px',
-                        transition: 'width 0.4s ease'
-                      }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div style={{
-              textAlign: 'center',
-              padding: '32px',
-              color: '#666'
-            }}>
-              <div style={{ fontSize: '40px', opacity: 0.3 }}>📍</div>
-              <div>Aucune destination disponible</div>
-            </div>
-          )}
-        </div>
-      )}
-
-
-      {/* Widget des revenus */}
-      <div style={{ marginBottom: "24px" }}>
-        <RevenueWidget />
-      </div>
       
-      <style>
-        {`
-          @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-          }
-        `}
-      </style>
+        <style>
+          {`
+            @keyframes shimmer {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(100%); }
+            }
+          `}
+        </style>
     </div>
   );
 }

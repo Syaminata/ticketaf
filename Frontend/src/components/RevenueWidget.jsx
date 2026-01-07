@@ -225,7 +225,7 @@ export default function RevenueWidget() {
                     width: 26,
                     height: 26,
                     borderRadius: '50%',
-                    background: index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : index === 2 ? '#CD7F32' : '#ffcc33',
+                    background: index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : index === 2 ? '#CD7F32' : '#e9e7deff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
