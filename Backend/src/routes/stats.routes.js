@@ -86,15 +86,15 @@ router.get('/top-drivers', auth, adminAuth, statsController.getTopDrivers);
 
 /**
  * @swagger
- * /stats/top-clients:
+ * /stats/top-reservations-clients:
  *   get:
- *     summary: Récupérer les meilleurs clients par nombre de colis envoyés
+ *     summary: Récupérer les 5 clients avec le plus de réservations de voyage
  *     tags: [Stats]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Liste des meilleurs clients
+ *         description: Liste des meilleurs clients voyageurs
  *         content:
  *           application/json:
  *             schema:
@@ -102,11 +102,72 @@ router.get('/top-drivers', auth, adminAuth, statsController.getTopDrivers);
  *               items:
  *                 type: object
  *                 properties:
+ *                   _id:
+ *                     type: string
  *                   name:
+ *                     type: string
+ *                   email:
  *                     type: string
  *                   phone:
  *                     type: string
- *                   email:
+ *                   reservationCount:
+ *                     type: number
+ *                   lastActivity:
+ *                     type: string
+ *                     format: date-time
+ */
+router.get('/top-reservations-clients', auth, adminAuth, statsController.getTopReservationsClients);
+
+/**
+ * @swagger
+ * /stats/top-colis-destinations:
+ *   get:
+ *     summary: Récupérer les 5 destinations les plus populaires pour les colis
+ *     tags: [Stats]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des destinations les plus populaires pour les colis
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   destination:
+ *                     type: string
+ *                     description: Nom de la destination
+ *                   colisCount:
+ *                     type: number
+ *                     description: Nombre de colis à destination de cette ville
+ */
+router.get('/top-colis-destinations', auth, adminAuth, statsController.getTopColisDestinations);
+
+/**
+ * @swagger
+ * /stats/top-clients:
+ *   get:
+ *     summary: Récupérer les 5 clients avec le plus de colis envoyés
+ *     tags: [Stats]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des meilleurs clients expéditeurs de colis
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   phone:
  *                     type: string
  *                   totalColis:
  *                     type: number

@@ -3,6 +3,8 @@ const Reservation = require('../models/reservation.model');
 const Bus = require('../models/bus.model');
 const Voyage = require('../models/voyage.model');
 const Driver = require('../models/driver.model');
+const Colis = require('../models/colis.model');
+const mongoose = require('mongoose');
 
 exports.getStats = async (req, res) => {
   try {
@@ -152,6 +154,105 @@ exports.getRevenue = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
+
+// Obtenir le top 5 des clients avec le plus de réservations de voyage
+exports.getTopReservationsClients = async (req, res) => {
+  try {
+    const topClients = await Reservation.aggregate([
+      // Filtrer uniquement les réservations de type 'place' (voyage)
+      { $match: { ticket: 'place' } },
+      // Grouper par utilisateur et compter le nombre de réservations
+      {
+        $group: {
+          _id: '$user',
+          reservationCount: { $sum: 1 },
+          lastReservation: { $max: '$createdAt' }
+        }
+      },
+      // Trier par nombre de réservations (décroissant)
+      { $sort: { reservationCount: -1 } },
+      // Limiter aux 5 premiers
+      { $limit: 5 },
+      // Joindre les informations de l'utilisateur
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      // Dérouler le tableau userInfo
+      { $unwind: '$userInfo' },
+      // Projeter uniquement les champs nécessaires
+      {
+        $project: {
+          _id: 1,
+          name: { $concat: ['$userInfo.firstName', ' ', '$userInfo.lastName'] },
+          email: '$userInfo.email',
+          phone: '$userInfo.phone',
+          reservationCount: 1,
+          lastActivity: '$lastReservation'
+        }
+      }
+    ]);
+
+    res.json(topClients);
+  } catch (err) {
+    console.error('Erreur lors de la récupération des meilleurs clients voyageurs:', err);
+    res.status(500).json({ 
+      message: 'Erreur serveur lors de la récupération des meilleurs clients voyageurs',
+      error: err.message 
+    });
+  }
+};
+
+// Obtenir le top 5 des destinations de colis
+exports.getTopColisDestinations = async (req, res) => {
+  try {
+    const topDestinations = await Colis.aggregate([
+      // Joindre avec les informations du voyage
+      {
+        $lookup: {
+          from: 'voyages',
+          localField: 'voyage',
+          foreignField: '_id',
+          as: 'voyageInfo'
+        }
+      },
+      // Dérouler le tableau voyageInfo
+      { $unwind: '$voyageInfo' },
+      // Grouper par destination et compter le nombre de colis
+      {
+        $group: {
+          _id: '$voyageInfo.to',
+          colisCount: { $sum: 1 }
+        }
+      },
+      // Trier par nombre de colis (décroissant)
+      { $sort: { colisCount: -1 } },
+      // Limiter aux 5 premiers
+      { $limit: 5 },
+      // Projeter les champs nécessaires
+      {
+        $project: {
+          _id: 0,
+          destination: '$_id',
+          colisCount: 1
+        }
+      }
+    ]);
+
+    res.json(topDestinations);
+  } catch (err) {
+    console.error('Erreur lors de la récupération des meilleures destinations de colis:', err);
+    res.status(500).json({ 
+      message: 'Erreur serveur lors de la récupération des destinations de colis',
+      error: err.message 
+    });
+  }
+};
+
 // Pour les clients
 exports.getTopClients = async (req, res) => {
   try {

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import storage from '../utils/storage';
 import { Description } from '@mui/icons-material';
 import { colisAPI } from '../api/colis';
 import { voyageAPI } from '../api/voyage';
@@ -250,7 +252,7 @@ export default function Colis() {
       submitData.append('voyageId', formData.voyageId);
       submitData.append('description', formData.description || '');
       
-      const userRole = storage.getUser()?.role;
+      const userRole = user?.role;
       if ((isAdmin || userRole === 'gestionnaireColis') && formData.prix !== '' && formData.prix !== null) {
         submitData.append('prix', parseFloat(formData.prix));
       }
@@ -822,7 +824,7 @@ export default function Colis() {
             </Box>
 
             {/* ================== SECTION PRIX (ADMIN UNIQUEMENT) ================== */}
-            {isAdmin || userRole === 'gestionnaireColis' && (
+            {isAdmin || (user && user.role === 'gestionnaireColis') && (
               <Box>
                 <Typography
                   variant="h6"
@@ -1079,7 +1081,7 @@ export default function Colis() {
                   <InfoRow label="Description">
                     {selectedColis.description || 'Aucune description'}
                   </InfoRow>
-                  {isAdmin || userRole === 'gestionnaireColis' && (
+                  {(isAdmin || (user && user.role === 'gestionnaireColis')) && (
                     <InfoRow label="Prix">
                       {selectedColis.prix 
                         ? `${selectedColis.prix.toLocaleString('fr-FR')} FCFA` 

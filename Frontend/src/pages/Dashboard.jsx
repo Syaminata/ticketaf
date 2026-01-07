@@ -12,13 +12,13 @@ import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import DirectionsBusIcon from '@mui/icons-material/DirectionsBus'; 
 import MapIcon from '@mui/icons-material/Map'; 
 import WarningIcon from '@mui/icons-material/Warning'; 
+import BarChartIcon from '@mui/icons-material/BarChart';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import InfoIcon from '@mui/icons-material/Info';
-import BarChartIcon from '@mui/icons-material/BarChart';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import SpeedIcon from '@mui/icons-material/Speed';
@@ -26,6 +26,15 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StarIcon from '@mui/icons-material/Star'; 
 import { Star, TrendingUp, Award, Package } from 'lucide-react';
+
+const getMedalColor = (index) => {
+    switch(index) {
+      case 0: return '#FFD700'; // Or
+      case 1: return '#C0C0C0'; // Argent
+      case 2: return '#CD7F32'; // Bronze
+      default: return '#ffcc33';
+    }
+  };
 
 function Dashboard() {
   const user = JSON.parse(sessionStorage.getItem("user") || "{}");
@@ -81,19 +90,10 @@ function Dashboard() {
   const [realRevenueData, setRealRevenueData] = useState([]);
   const [topChauffeurs, setTopChauffeurs] = useState([]);
   const [topClientsColis, setTopClientsColis] = useState([]);
+  const [topReservationsClients, setTopReservationsClients] = useState([]);
+  const [topColisDestinations, setTopColisDestinations] = useState([]);
 
-  // Données de démonstration pour les routes populaires et revenus (en attendant l'API)
-  const demoPopularRoutes = [
-    { route: "Dakar → Saint-Louis", bookings: 45, revenue: 67500 },
-    { route: "Dakar → Thiès", bookings: 38, revenue: 45600 },
-    { route: "Dakar → Kaolack", bookings: 32, revenue: 57600 },
-    { route: "Dakar → Ziguinchor", bookings: 28, revenue: 84000 }
-  ];
 
-  useEffect(() => {
-    // Charger les données de démonstration (routes et revenus)
-    setPopularRoutes(demoPopularRoutes);
-  }, []);
 
   useEffect(() => {
     const token = sessionStorage.getItem('token');
@@ -274,38 +274,6 @@ function Dashboard() {
       headers: { Authorization: `Bearer ${token}` }
     })
     .then(res => {
-      console.log("=== DONNÉES DES CHAUFFEURS ===");
-      console.log("Réponse complète de l'API:", res);
-      
-      if (res.data && Array.isArray(res.data)) {
-        console.log("Nombre de chauffeurs reçus:", res.data.length);
-        
-        // Afficher les données du premier chauffeur pour débogage
-        if (res.data.length > 0) {
-          const firstDriver = res.data[0];
-          console.log("Données du premier chauffeur:", {
-            id: firstDriver._id,
-            name: firstDriver.name,
-            isActive: firstDriver.isActive,
-            tripCount: firstDriver.tripCount,
-            rawData: firstDriver
-          });
-        }
-        
-        // Vérifier si les champs nécessaires sont présents
-        const driversWithMissingFields = res.data.filter(driver => 
-          driver.isActive === undefined || driver.tripCount === undefined
-        );
-        
-        if (driversWithMissingFields.length > 0) {
-          console.warn("Chauffeurs avec des champs manquants:", driversWithMissingFields);
-        } else {
-          console.log("Tous les chauffeurs ont les champs isActive et tripCount");
-        }
-      } else {
-        console.error("Format de données inattendu pour les chauffeurs:", res.data);
-      }
-      
       setTopChauffeurs(res.data);
     })
     .catch(err => {
@@ -322,6 +290,26 @@ function Dashboard() {
     })
     .catch(err => {
       console.error("Erreur lors de la récupération des meilleurs clients:", err);
+    });
+
+    axios.get("/stats/top-reservations-clients", {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    .then(res => {
+      setTopReservationsClients(res.data);
+    })
+    .catch(err => {
+      console.error("Erreur lors de la récupération des clients avec le plus de réservations:", err);
+    });
+
+    axios.get("/stats/top-colis-destinations", {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    .then(res => {
+      setTopColisDestinations(res.data);
+    })
+    .catch(err => {
+      console.error("Erreur lors de la récupération des destinations de colis:", err);
     });
 
   }, []);
@@ -493,14 +481,7 @@ function Dashboard() {
     },
   };
 
-  const getMedalColor = (index) => {
-    switch(index) {
-      case 0: return '#FFD700'; // Or
-      case 1: return '#C0C0C0'; // Argent
-      case 2: return '#CD7F32'; // Bronze
-      default: return '#ffcc33';
-    }
-  };
+  
 
   const Top5Tables = () => {
     const topChauffeurs = demoTopChauffeurs;
@@ -588,6 +569,13 @@ function Dashboard() {
         })}
       </div>
 
+      {/* Graphique + Top 5 Clients Réservations */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1.2fr 1fr',
+        gap: '24px',
+        marginBottom: '24px'
+      }}>
       {/* Graphique */}
       <div style={{
         background: "#ffffff",
@@ -630,6 +618,110 @@ function Dashboard() {
                     isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+      {/* Top 5 Clients avec le plus de Réservations */}
+        <div style={{
+          background: "#ffffff",
+          borderRadius: "12px",
+          padding: "20px",
+          border: "1px solid #e0e0e0",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
+            <Star size={20} color="#ffcc33" style={{ marginRight: "8px" }} />
+            <h3 style={{ color: "#1a1a1a", margin: 0, fontSize: "18px", fontWeight: "600" }}>
+              Top 5 Clients Voyageurs
+            </h3>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
+            {topReservationsClients.length > 0 ? (
+              topReservationsClients.map((client, index) => (
+                <div
+                  key={client._id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '12px',
+                    background: index < 3 ? 'rgba(255, 204, 51, 0.05)' : '#fafafa',
+                    borderRadius: '10px',
+                    border: `2px solid ${index < 3 ? getMedalColor(index) + '40' : '#e0e0e0'}`,
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateX(4px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateX(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <div style={{
+                    minWidth: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: index < 3 ? getMedalColor(index) : '#e0e0e0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    color: index < 3 ? '#1a1a1a' : '#666',
+                    marginRight: '12px',
+                    boxShadow: index < 3 ? `0 4px 8px ${getMedalColor(index)}40` : 'none'
+                  }}>
+                    {index + 1}
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#1a1a1a',
+                      marginBottom: '2px'
+                    }}>
+                      {client.name}
+                    </div>
+                    {client.phone && (
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#666'
+                      }}>
+                        {client.phone}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{
+                    padding: '4px 10px',
+                    borderRadius: '16px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    background: 'rgba(182, 102, 10, 0.15)',
+                    color: '#b6660a'
+                  }}>
+                    {client.reservationCount} 🎫
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                color: '#666'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>
+                  🎫
+                </div>
+                <div style={{ fontWeight: '500', marginBottom: '8px' }}>
+                  Aucun client trouvé
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
