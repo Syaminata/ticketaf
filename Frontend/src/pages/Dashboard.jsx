@@ -296,6 +296,7 @@ function Dashboard() {
       headers: { Authorization: `Bearer ${token}` }
     })
     .then(res => {
+      console.log("Données des meilleurs clients:", res.data);
       setTopReservationsClients(res.data);
     })
     .catch(err => {
@@ -631,7 +632,7 @@ function Dashboard() {
           <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
             <Star size={20} color="#ffcc33" style={{ marginRight: "8px" }} />
             <h3 style={{ color: "#1a1a1a", margin: 0, fontSize: "18px", fontWeight: "600" }}>
-              Top 5 Clients Voyageurs
+              Meilleurs clients
             </h3>
           </div>
 
@@ -685,12 +686,12 @@ function Dashboard() {
                     }}>
                       {client.name}
                     </div>
-                    {client.phone && (
+                    {client.numero && (
                       <div style={{
                         fontSize: '11px',
                         color: '#666'
                       }}>
-                        {client.phone}
+                        {client.numero}
                       </div>
                     )}
                   </div>

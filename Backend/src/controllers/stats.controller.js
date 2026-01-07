@@ -188,9 +188,9 @@ exports.getTopReservationsClients = async (req, res) => {
       {
         $project: {
           _id: 1,
-          name: { $concat: ['$userInfo.firstName', ' ', '$userInfo.lastName'] },
+          name: '$userInfo.name',
           email: '$userInfo.email',
-          phone: '$userInfo.phone',
+          numero: '$userInfo.numero',
           reservationCount: 1,
           lastActivity: '$lastReservation'
         }

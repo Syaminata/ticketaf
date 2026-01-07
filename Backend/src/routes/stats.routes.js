@@ -108,7 +108,7 @@ router.get('/top-drivers', auth, adminAuth, statsController.getTopDrivers);
  *                     type: string
  *                   email:
  *                     type: string
- *                   phone:
+ *                   numero:
  *                     type: string
  *                   reservationCount:
  *                     type: number
