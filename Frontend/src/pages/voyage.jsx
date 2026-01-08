@@ -903,6 +903,12 @@ export default function Voyage() {
                     driverId: newValue ? newValue._id : ''
                   }));
                 }}
+                ListboxProps={{
+                  style: {
+                    maxHeight: 280,
+                    overflowY: 'auto',
+                  },
+                }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -956,7 +962,6 @@ export default function Voyage() {
                       option.marque?.toLowerCase().includes(input) ||
                       option.capacity?.toString().includes(input)
                     )
-                    .slice(0, 3);
                 }}
               />
             </Box>
