@@ -17,7 +17,7 @@ const createVoyage = async (req, res) => {
 
     if (!driver) {
       return res.status(403).json({
-        message: 'Conducteur inexistant ou inactif'
+        message: 'Conducteur inactif'
       });
     }
 

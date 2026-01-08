@@ -469,6 +469,8 @@ export default function Voyage() {
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
+  const activeDrivers = drivers.filter(driver => driver.isActive);
+
 
   return (
     <Box sx={{ 
@@ -593,7 +595,7 @@ export default function Voyage() {
           sx={{
             borderRadius: '12px',
             textTransform: 'none',
-            borderColor: '#b6660abd',
+            borderColor: '#ffcc33',
             color: '#1a1a1a',
             '&:hover': {
               borderColor: '#e6b800',
@@ -894,8 +896,8 @@ export default function Voyage() {
                 Sélection du conducteur
               </Typography>
               <Autocomplete
-                options={drivers}
-                getOptionLabel={(option) => `${option.name} (${option.marque})`}
+                options={activeDrivers}
+                getOptionLabel={(option) => `${option.name} - ${option.numero}`}
                 value={drivers.find(driver => driver._id === formData.driverId) || null}
                 onChange={(_, newValue) => {
                   setFormData(prev => ({
@@ -905,7 +907,7 @@ export default function Voyage() {
                 }}
                 ListboxProps={{
                   style: {
-                    maxHeight: 280,
+                    maxHeight: 180,
                     overflowY: 'auto',
                   },
                 }}

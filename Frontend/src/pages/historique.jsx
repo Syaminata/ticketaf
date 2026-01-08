@@ -32,6 +32,7 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import { red } from '@mui/material/colors';
 
 export default function Historique() {
   const [tab, setTab] = useState(0); // 0: Voyages, 1: Réservations, 2: Colis
@@ -545,8 +546,7 @@ export default function Historique() {
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth size="small">
-              <InputLabel>Statut</InputLabel>
-              <Select
+              <Select 
                 value={statusFilter}
                 label="Statut"
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -560,7 +560,6 @@ export default function Historique() {
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth size="small">
-              <InputLabel>Utilisateur</InputLabel>
               <Select
                 value={userFilter}
                 label="Utilisateur"
@@ -570,11 +569,19 @@ export default function Historique() {
                     <PersonIcon fontSize="small" />
                   </InputAdornment>
                 }
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      maxHeight: 180,  
+                      overflowY: 'auto' 
+                    }
+                  }
+                }}
               >
                 <MenuItem value="all">Tous les utilisateurs</MenuItem>
                 {users.map(user => (
                   <MenuItem key={user._id} value={user._id}>
-                    {user.name} ({user.email || user.numero})
+                    {user.name} ({ user.numero})
                   </MenuItem>
                 ))}
               </Select>
@@ -584,7 +591,6 @@ export default function Historique() {
             <TextField
               fullWidth
               type="date"
-              label="Date de départ"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
               size="small"
@@ -601,7 +607,7 @@ export default function Historique() {
         </Grid>
         {(statusFilter !== 'all' || userFilter !== 'all' || dateFilter || query) && (
           <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            <Typography variant="body2" sx={{ color: '#6b7280', mr: 1 }}>Filtres actifs:</Typography>
+            <Typography variant="body2" sx={{ color: '#ffffffff', mr: 1 }}>Filtres actifs:</Typography>
             {statusFilter !== 'all' && (
               <Chip 
                 label={`Statut: ${statusFilter === 'expired' ? 'Expirés' : statusFilter === 'today' ? "Aujourd'hui" : 'À venir'}`} 
