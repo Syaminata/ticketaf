@@ -5,36 +5,54 @@ const Driver = require('../models/driver.model');
 const createVoyage = async (req, res) => {
   try {
     const { driverId, from, to, date, price, totalSeats } = req.body;
+
     if (!driverId || !from || !to || !date || !price) {
       return res.status(400).json({ message: 'Tous les champs sont requis' });
     }
-    
-    const driver = await Driver.findById(driverId);
-    if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
-    if (!driver.isActive) return res.status(403).json({ message: 'Conducteur inactif. Veuillez l\'activer avant de créer un voyage.' });
+
+    const driver = await Driver.findOne({ 
+      _id: driverId, 
+      isActive: true 
+    });
+
+    if (!driver) {
+      return res.status(403).json({
+        message: 'Conducteur inexistant ou inactif'
+      });
+    }
 
     // Utiliser la capacité du driver par défaut si totalSeats n'est pas fourni
     const seats = totalSeats || driver.capacity || 4;
-    
+
     const voyage = await Voyage.create({ 
-      driver: driverId, 
-      from, 
-      to, 
-      date, 
+      driver: driver._id,
+      from,
+      to,
+      date,
       price,
       totalSeats: seats,
       availableSeats: seats
     });
-    
+
     // Populate le driver pour la réponse
-    const populatedVoyage = await Voyage.findById(voyage._id).populate('driver', '-password');
-    
-    res.status(201).json({ message: 'Voyage créé', voyage: populatedVoyage });
+    const populatedVoyage = await Voyage
+      .findById(voyage._id)
+      .populate('driver', '-password');
+
+    res.status(201).json({
+      message: 'Voyage créé avec un conducteur actif',
+      voyage: populatedVoyage
+    });
+
   } catch (err) {
     console.error('Erreur createVoyage:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({
+      message: 'Erreur serveur',
+      error: err.message
+    });
   }
 };
+
 
 // GET ALL VOYAGES (FUTURS UNIQUEMENT) - Pour les pages de réservation
 const getAllVoyage = async (req, res) => {
