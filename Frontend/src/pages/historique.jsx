@@ -233,9 +233,15 @@ export default function Historique() {
               </Typography>
             }
             secondary={
-              <Box sx={{ display: 'flex', gap: 2, color: '#6b7280' }}>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', color: '#6b7280' }}>
                 {v.date && <Typography variant="body2">{formatDateShort(v.date)}</Typography>}
                 <Typography variant="body2">{v.availableSeats ?? 0} places</Typography>
+                {v.driver && (
+                  <Typography variant="body2">
+                    Chauffeur: {v.driver.name || 'Chauffeur inconnu'}
+                    {v.driver.numero && ` • ${v.driver.numero}`}
+                  </Typography>
+                )}
               </Box>
             }
           />
@@ -287,6 +293,11 @@ export default function Historique() {
                 <Typography variant="body2" sx={{ fontWeight: 700, color: '#2e7d32' }}>
                   {r.voyage ? `${r.voyage.price} FCFA` : r.bus ? `${r.bus.price} FCFA` : '—'}
                 </Typography>
+                {r.user?.numero && (
+                  <Typography variant="body2">
+                    Téléphone: {r.user.numero}
+                  </Typography>
+                )}
                 {reservationDate ? (
                   <Typography variant="body2" sx={{ color: isExpired ? '#991b1b' : '#6b7280', fontWeight: isExpired ? 600 : 400 }}>
                     Départ: {formatDateShort(reservationDate)}
@@ -369,6 +380,12 @@ export default function Historique() {
                 <Typography variant="body2">
                   📞 {c.destinataire?.telephone}
                 </Typography>
+                {c.expediteur && (
+                  <Typography variant="body2">
+                    Expéditeur: {c.expediteur.name || 'Inconnu'}
+                    {c.expediteur.numero && ` • ${c.expediteur.numero}`}
+                  </Typography>
+                )}
                 {colisDate ? (
                   <Typography variant="body2" sx={{ color: isExpired ? '#991b1b' : '#6b7280', fontWeight: isExpired ? 600 : 400 }}>
                     Départ: {formatDateShort(colisDate)}

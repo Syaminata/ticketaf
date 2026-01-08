@@ -742,6 +742,7 @@ function Dashboard() {
       
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "24px", marginBottom: "24px" }}>
         {/* Section Réservations Récentes */}
+        {userRole !== 'gestionnaireColis' && (
         <div style={{ 
           background: "#ffffff",
           borderRadius: "12px", 
@@ -848,7 +849,9 @@ function Dashboard() {
             )}
           </div>
         </div>
+        )}
         {/* Top meilleurs clients */}
+        {userRole !== 'gestionnaireColis' && (
         <div style={{
           background: "#ffffff",
           borderRadius: "12px",
@@ -950,13 +953,18 @@ function Dashboard() {
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* Section des tableaux Top destination colis et Top Clients clis */}
       <div style={{ marginBottom: '24px' }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile || userRole === 'admin' || userRole === 'gestionnaireColis' ? '1fr' : '2fr 1.5fr',
+          gridTemplateColumns: isMobile || userRole === 'admin' 
+            ? '1fr' 
+            : userRole === 'gestionnaireColis' 
+              ? '1fr 1fr' 
+              : '2fr 1.5fr',
           gap: '16px',
           width: '100%'
         }}>
@@ -1056,7 +1064,12 @@ function Dashboard() {
               Top 5 Clients Colis
             </h4>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                maxHeight: window.innerWidth < 768 ? '260px' : '310px', 
+                overflowY: 'auto',
+                paddingRight: '6px' }}>
               {topClientsColis.length > 0 ? (
                 topClientsColis.map((client, index) => (
                   <div
