@@ -1,6 +1,8 @@
 const Voyage = require('../models/voyage.model');
 const Bus = require('../models/bus.model');
 const Driver = require('../models/driver.model');
+const Reservation = require('./reservation.model');
+const Colis = require('./colis.model');
 
 const createVoyage = async (req, res) => {
   try {
@@ -124,6 +126,22 @@ const deleteVoyage = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
+voyageSchema.pre('findOneAndDelete', async function (next) {
+  try {
+    const voyage = await this.model.findOne(this.getQuery());
+    if (!voyage) return next();
+
+    // Supprimer les réservations liées à ce voyage
+    await Reservation.deleteMany({ voyage: voyage._id });
+
+    // Supprimer les colis liés à ce voyage
+    await Colis.deleteMany({ voyage: voyage._id });
+
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 const searchVoyages = async (req, res) => {
   try {
