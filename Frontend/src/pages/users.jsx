@@ -65,13 +65,39 @@ export default function Users() {
 
   const fetchUserReservationsCount = async (userId) => {
     try {
+      console.log(`🔍 Début de la récupération des réservations pour l'utilisateur: ${userId}`);
       const token = sessionStorage.getItem('token');
-      const response = await axios.get(`/stats/user-reservations/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      
+      if (!token) {
+        console.error('❌ Aucun token trouvé dans la session');
+        return 0;
+      }
+      
+      const url = `/stats/user-reservations/${userId}`;
+      console.log(`🌐 Envoi de la requête à: ${url}`);
+      
+      const response = await axios.get(url, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
       });
+      
+      console.log(`✅ Réponse reçue pour l'utilisateur ${userId}:`, response.data);
       return response.data.count || 0;
+      
     } catch (error) {
-      console.error(`Erreur lors de la récupération des réservations pour l'utilisateur ${userId}:`, error);
+      console.error(`❌ Erreur lors de la récupération des réservations pour l'utilisateur ${userId}:`, {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers
+        }
+      });
       return 0;
     }
   };

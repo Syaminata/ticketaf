@@ -327,17 +327,17 @@ exports.getUserReservationsCount = async (req, res) => {
       return res.status(400).json({ message: 'ID utilisateur invalide' });
     }
     
-    const result = await Reservation.aggregate([
-      // Filtrer les réservations de l'utilisateur
-      { $match: { 
-        user: mongoose.Types.ObjectId(userId),
-        ticket: 'place' 
-      }},
-      // Compter les réservations
-      { $count: "reservationCount" }
-    ]);
-
-    const count = result.length > 0 ? result[0].reservationCount : 0;
+    console.log(`🔍 Recherche des réservations pour l'utilisateur: ${userId}`);
+    
+    // Méthode 1: Utiliser countDocuments pour un simple décompte
+    const count = await Reservation.countDocuments({
+      user: userId, // Pas besoin de convertir en ObjectId si c'est déjà une chaîne
+      ticket: 'place',
+      status: { $ne: 'annulée' } // Exclure les réservations annulées
+    });
+    
+    console.log(`✅ Nombre de réservations trouvées pour ${userId}: ${count}`);
+    
     res.json({ count });
   } catch (err) {
     console.error('Erreur lors du comptage des réservations:', err);
