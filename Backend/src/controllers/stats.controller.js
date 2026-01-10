@@ -83,20 +83,13 @@ exports.getRevenue = async (req, res) => {
         endDate = now;
     }
     
-    // Log pour debug
-    console.log(`[Revenue Stats] Période: ${period}`);
-    console.log(`[Revenue Stats] Date de début: ${startDate.toISOString()}`);
-    console.log(`[Revenue Stats] Date de fin: ${endDate.toISOString()}`);
-    
-    // Recuperer toutes les reservations de la periode
+    // Récupérer toutes les réservations de la période
     const reservations = await Reservation.find({
       createdAt: { 
         $gte: startDate,
         $lte: endDate
       }
     }).populate('voyage').populate('bus');
-    
-    console.log(`[Revenue Stats] Nombre de réservations trouvées: ${reservations.length}`);
     
     // Calculer le revenu total
     let totalRevenue = 0;
@@ -310,10 +303,8 @@ exports.getTopDrivers = async (req, res) => {
       { $limit: 5 }
     ]);
 
-    console.log('Top drivers data:', JSON.stringify(topDrivers, null, 2));
     res.json(topDrivers);
   } catch (error) {
-    console.error('Erreur lors de la récupération des meilleurs chauffeurs:', error);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
@@ -327,20 +318,14 @@ exports.getUserReservationsCount = async (req, res) => {
       return res.status(400).json({ message: 'ID utilisateur invalide' });
     }
     
-    console.log(`🔍 Recherche des réservations pour l'utilisateur: ${userId}`);
-    
-    // Méthode 1: Utiliser countDocuments pour un simple décompte
     const count = await Reservation.countDocuments({
-      user: userId, // Pas besoin de convertir en ObjectId si c'est déjà une chaîne
+      user: userId,
       ticket: 'place',
-      status: { $ne: 'annulée' } // Exclure les réservations annulées
+      status: { $ne: 'annulée' }
     });
-    
-    console.log(`✅ Nombre de réservations trouvées pour ${userId}: ${count}`);
     
     res.json({ count });
   } catch (err) {
-    console.error('Erreur lors du comptage des réservations:', err);
     res.status(500).json({ 
       message: 'Erreur serveur lors du comptage des réservations',
       error: err.message 

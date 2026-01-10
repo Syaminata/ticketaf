@@ -65,18 +65,10 @@ export default function Users() {
 
   const fetchUserReservationsCount = async (userId) => {
     try {
-      console.log(`🔍 Début de la récupération des réservations pour l'utilisateur: ${userId}`);
       const token = sessionStorage.getItem('token');
+      if (!token) return 0;
       
-      if (!token) {
-        console.error('❌ Aucun token trouvé dans la session');
-        return 0;
-      }
-      
-      const url = `/stats/user-reservations/${userId}`;
-      console.log(`🌐 Envoi de la requête à: ${url}`);
-      
-      const response = await axios.get(url, {
+      const response = await axios.get(`/stats/user-reservations/${userId}`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -84,70 +76,60 @@ export default function Users() {
         }
       });
       
-      console.log(`✅ Réponse reçue pour l'utilisateur ${userId}:`, response.data);
       return response.data.count || 0;
       
     } catch (error) {
-      console.error(`❌ Erreur lors de la récupération des réservations pour l'utilisateur ${userId}:`, {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          headers: error.config?.headers
-        }
-      });
       return 0;
     }
   };
 
   const fetchUsers = async () => {
     const token = sessionStorage.getItem('token');
-    if (!token) {
-      console.error("Token d'authentification manquant.");
-      return;
-    }
+    if (!token) return;
+      
     try {
-      console.log('🔍 Récupération des utilisateurs...');
       const res = await axios.get('/users', { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       
-      console.log('Données reçues du serveur:', res.data);
-      
       // Nettoyer les doublons en gardant la première occurrence de chaque ID
       const uniqueUsers = res.data.reduce((acc, current) => {
         const exists = acc.some(item => item._id === current._id);
-        if (!exists) {
-          return [...acc, current];
-        } else {
-          console.warn('Doublon détecté et ignoré:', {
-            id: current._id,
-            name: current.name,
-            email: current.email,
-            role: current.role
-          });
-          return acc;
-        }
+        return exists ? acc : [...acc, current];
       }, []);
 
-      // Pour chaque utilisateur, récupérer le nombre de réservations
+      // Pour chaque utilisateur, récupérer le nombre de réservations ou de voyages
       const usersWithReservations = await Promise.all(
         uniqueUsers.map(async (user) => {
-          const reservationCount = user.role === 'client' 
-            ? await fetchUserReservationsCount(user._id) 
-            : 0;
-          
-          const tripCount = user.role === 'conducteur' 
-            ? user.tripCount || 0 
-            : 0;
+          try {
+            // Pour les clients, on compte les réservations
+            const reservationCount = user.role === 'client' 
+              ? await fetchUserReservationsCount(user._id)
+              : 0;
             
-          return {
-            ...user,
-            reservationCount,
-            tripCount
-          };
+            // Pour les chauffeurs, on prend le tripCount depuis les détails du chauffeur
+            let tripCount = 0;
+            if (user.role === 'conducteur') {
+              tripCount = user.tripCount !== undefined 
+                ? user.tripCount 
+                : (user.driverDetails?.tripCount || 0);
+            }
+            
+            return {
+              ...user,
+              reservationCount,
+              tripCount: user.role === 'conducteur' ? tripCount : 0,
+              ...(user.driverDetails && { driverDetails: user.driverDetails })
+            };
+          } catch (error) {
+            console.error(`❌ Erreur lors du traitement de l'utilisateur ${user._id}:`, error);
+            return {
+              ...user,
+              reservationCount: 0,
+              tripCount: 0,
+              error: error.message
+            };
+          }
         })
       );
 
