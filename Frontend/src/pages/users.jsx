@@ -661,7 +661,7 @@ export default function Users() {
                         label={user.reservationCount || 0} 
                         size="small" 
                         sx={{ 
-                          backgroundColor: '#1976d2', 
+                          backgroundColor: '#b6660abd', 
                           color: 'white',
                           minWidth: '24px',
                           fontWeight: 600
