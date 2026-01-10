@@ -71,10 +71,6 @@ router.get('/voyage/:voyageId', auth, async (req, res) => {
       .populate('user', '-password')
       .populate('voyage');
       
-    if (reservations.length === 0) {
-      return res.status(404).json({ message: 'Aucune réservation trouvée pour ce voyage' });
-    }
-    
     res.json(reservations);
   } catch (err) {
     console.error('Erreur lors de la récupération des réservations:', err);

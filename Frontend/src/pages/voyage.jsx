@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { voyageAPI } from '../api/voyage';
 import { villeAPI } from '../api/ville';
+import { reservationsAPI } from '../api/reservations';
 import axios from '../api/axios';
 import {
   Box,
@@ -23,7 +24,8 @@ import {
   Alert,
   TablePagination,
   InputAdornment,
-  Menu
+  Menu,
+  CircularProgress,
 } from '@mui/material';
 import { 
   Edit, 
@@ -37,7 +39,8 @@ import {
   Search as SearchIcon, 
   FilterList as FilterIcon, 
   AddLocation, 
-  Close 
+  Close,
+  Visibility,
 } from '@mui/icons-material';
 import Autocomplete from '@mui/material/Autocomplete';
 import ConfirmationDialog from '../components/ConfirmationDialog';
@@ -47,6 +50,7 @@ export default function Voyage() {
   const [drivers, setDrivers] = useState([]);
   const [cities, setCities] = useState([]);
   const [loadingCities, setLoadingCities] = useState(true);
+  const [activeDrivers, setActiveDrivers] = useState([]);
   const [newCityDialogOpen, setNewCityDialogOpen] = useState(false);
   const [newCityName, setNewCityName] = useState('');
   const [driverSearch, setDriverSearch] = useState('');
@@ -61,7 +65,11 @@ export default function Voyage() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [currentVoyage, setCurrentVoyage] = useState(null);
+  const [reservations, setReservations] = useState([]);
+  const [loadingReservations, setLoadingReservations] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateRange, setDateRange] = useState({
@@ -88,9 +96,7 @@ export default function Voyage() {
     }
     
     try {
-      console.log("Récupération des voyages...");
       const res = await voyageAPI.getAllVoyages();
-      console.log("Voyages récupérés:", res);
       
       setVoyages(res);
       setError('');
@@ -166,6 +172,79 @@ export default function Voyage() {
       date: '',
       price: ''
     });
+  };
+
+  const handleOpenDetails = async (voyage) => {
+    setCurrentVoyage(voyage);
+    setLoadingReservations(true);
+    setDetailsOpen(true);
+    
+    try {
+      const token = sessionStorage.getItem('token');
+      
+      const [reservationsResponse, voyageDetails] = await Promise.all([
+        axios.get(`/reservations/voyage/${voyage._id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { populate: 'user' }
+        }),
+        axios.get(`/voyages/${voyage._id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+      
+      // Mettre à jour les informations du voyage avec les données fraîches
+      const updatedVoyage = {
+        ...voyageDetails.data,
+        totalSeats: voyageDetails.data.totalSeats || 16, 
+        availableSeats: voyageDetails.data.availableSeats || 0
+      };
+      
+      setCurrentVoyage(prev => ({
+        ...prev,
+        ...updatedVoyage
+      }));
+      
+      // Créer un tableau pour stocker les réservations formatées
+      const formattedReservations = [];
+      
+      const sortedReservations = [...reservationsResponse.data].sort((a, b) => 
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      
+      // Créer une entrée pour chaque réservation
+      sortedReservations.forEach((reservation, index) => {
+        const reservationDate = new Date(reservation.createdAt);
+        
+        const formattedReservation = {
+          ...reservation,
+          passengerName: reservation.user?.name || 'Inconnu',
+          phoneNumber: reservation.user?.numero || 'Non renseigné',
+          reservationTime: reservationDate.toLocaleString('fr-FR'),
+          quantity: reservation.quantity || 1,
+          _ids: [reservation._id],
+          status: reservation.status || 'confirmée',
+          _timestamp: reservationDate.getTime(),
+          createdAt: reservation.createdAt
+        };
+        
+        formattedReservations.push(formattedReservation);
+      });
+      
+      // Mettre à jour l'état des réservations
+      setReservations(formattedReservations);
+      
+    } catch (error) {
+      console.error('Erreur lors de la récupération des réservations:', error);
+      setError('Impossible de charger les réservations pour ce voyage');
+    } finally {
+      setLoadingReservations(false);
+    }
+  };
+
+  const handleCloseDetails = () => {
+    setDetailsOpen(false);
+    setCurrentVoyage(null);
+    setReservations([]);
   };
 
   // Charger les villes au montage du composant
@@ -469,8 +548,11 @@ export default function Voyage() {
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
-  const activeDrivers = drivers.filter(driver => driver.isActive);
-
+  
+  // Mettre à jour activeDrivers avec les conducteurs actifs
+  useEffect(() => {
+    setActiveDrivers(drivers.filter(driver => driver.isActive));
+  }, [drivers]);
 
   return (
     <Box sx={{ 
@@ -811,11 +893,24 @@ export default function Voyage() {
                   </TableCell>
                   <TableCell sx={{ textAlign: 'center' }}>
                     <IconButton 
+                      onClick={() => handleOpenDetails(voyage)}
+                      sx={{ 
+                        color: '#21740cff',
+                        '&:hover': { backgroundColor: 'rgba(33, 150, 243, 0.1)' },
+                        mx: 0.5
+                      }}
+                      title="Voir les détails"
+                    >
+                      <Visibility />
+                    </IconButton>
+                    <IconButton 
                       onClick={() => handleOpen(voyage)}
                       sx={{ 
                         color: '#ffcc33',
-                        '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' }
+                        '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' },
+                        mx: 0.5
                       }}
+                      title="Modifier"
                     >
                       <Edit />
                     </IconButton>
@@ -823,8 +918,10 @@ export default function Voyage() {
                       onClick={() => handleDelete(voyage._id)}
                       sx={{ 
                         color: '#f44336',
-                        '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' }
+                        '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' },
+                        mx: 0.5
                       }}
+                      title="Supprimer"
                     >
                       <Delete />
                     </IconButton>
@@ -1402,6 +1499,197 @@ export default function Voyage() {
         cancelText="Annuler"
       />
 
+      {/* Modale des détails des réservations */}
+      <Dialog
+        open={detailsOpen}
+        onClose={handleCloseDetails}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: '3px solid #ffcc33',
+          color: '#1a1a1a',
+          fontWeight: 700,
+          fontSize: '24px',
+          textAlign: 'center',
+          py: 3,
+          backgroundColor: 'white'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+            <DirectionsBus sx={{ fontSize: 28, color: '#ffcc33' }} />
+            Détails du voyage
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 0 }}>
+          {currentVoyage && (
+            <Box sx={{ p: 4 }}>
+              {/* En-tête avec les informations du voyage */}
+              <Box sx={{ 
+                backgroundColor: '#f8de9181', 
+                p: 3, 
+                borderRadius: '12px',
+                mb: 3,
+              }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {currentVoyage.from} → {currentVoyage.to}
+                  </Typography>
+                  <Chip 
+                    label={getStatusText(currentVoyage.date)}
+                    color={getStatusColor(currentVoyage.date)}
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                </Box>
+                
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                  <Box>
+                    <Typography variant="body2" color="textSecondary">Date</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                      {new Date(currentVoyage.date).toLocaleDateString('fr-FR', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </Typography>
+                  </Box>
+                  
+                  <Box>
+                    <Typography variant="body2" color="textSecondary">Prix</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                      {currentVoyage.price} FCFA
+                    </Typography>
+                  </Box>
+                  
+                  <Box>
+                    <Typography variant="body2" color="textSecondary">Places occupées</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                      {(currentVoyage.totalSeats - currentVoyage.availableSeats)} / {currentVoyage.totalSeats}
+                    </Typography>
+                  </Box>
+                  
+                  <Box>
+                    <Typography variant="body2" color="textSecondary">Places restantes</Typography>
+                    <Typography variant="body1" sx={{ 
+                      fontWeight: 500, 
+                      color: currentVoyage.availableSeats <= 5 ? '#f44336' : '#4caf50' 
+                    }}>
+                      {currentVoyage.availableSeats}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+              
+              {/* Liste des réservations */}
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#1a1a1a' }}>
+                Réservations ({reservations.length})
+              </Typography>
+              
+              {loadingReservations ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : reservations.length > 0 ? (
+                <Paper sx={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                        <TableCell>Passager</TableCell>
+                        <TableCell>Téléphone</TableCell>
+                        <TableCell>Date de réservation</TableCell>
+                        <TableCell>Places</TableCell>
+                        <TableCell>Statut</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {reservations.map((reservation, index) => {
+                        const reservationDate = reservation.reservationTime || 
+                          (reservation.createdAt ? new Date(reservation.createdAt).toLocaleString('fr-FR') : 'Date inconnue');
+                        
+                        return (
+                          <TableRow 
+                            key={reservation._id || `reservation-${index}`}
+                            hover
+                            sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                          >
+                            <TableCell>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {reservation.passengerName}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>{reservation.phoneNumber}</TableCell>
+                            <TableCell>
+                              {reservationDate}
+                            </TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={`${reservation.quantity || 1} place${reservation.quantity > 1 ? 's' : ''}`}
+                                color="primary"
+                                size="small"
+                                variant="outlined"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={reservation.status || 'Confirmée'}
+                                size="small"
+                                color={reservation.status === 'annulée' ? 'error' : 'success'}
+                                sx={{ minWidth: 80 }}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </Paper>
+              ) : (
+                <Box sx={{ 
+                  textAlign: 'center', 
+                  p: 4, 
+                  backgroundColor: '#f9f9f9', 
+                  borderRadius: '12px',
+                  border: '1px dashed #e0e0e0'
+                }}>
+                  <Typography variant="body1" color="textSecondary">
+                    Aucune réservation pour ce voyage
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 2, borderTop: '1px solid #e0e0e0' }}>
+          <Button 
+            onClick={handleCloseDetails}
+            sx={{ 
+              textTransform: 'none',
+              borderRadius: '8px',
+              px: 3,
+              py: 1,
+              backgroundColor: '#ffcc33',
+              color: '#555',
+              '&:hover': {
+                backgroundColor: '#e0e0e0'
+              }
+            }}
+          >
+            Fermer
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

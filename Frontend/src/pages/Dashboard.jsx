@@ -145,8 +145,6 @@ function Dashboard() {
       headers: { Authorization: `Bearer ${token}` }
     })
     .then(res => {
-      console.log("Réservations reçues:", res.data);
-      console.log("Nombre de réservations:", res.data.length);
       
       // Filtrer et prendre les réservations les plus récentes
       const recentReservations = res.data
@@ -184,15 +182,10 @@ function Dashboard() {
       axios.get("/drivers", { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] }))
     ])
     .then(([usersRes, driversRes]) => {
-      console.log("Utilisateurs reçus:", usersRes.data);
-      console.log("Chauffeurs reçus:", driversRes.data);
       
       // Traiter les utilisateurs normaux
       const users = usersRes.data || [];
       const drivers = driversRes.data || [];
-      
-      console.log("Utilisateurs normaux:", users.length);
-      console.log("Chauffeurs séparés:", drivers.length);
       
       // Créer une liste des IDs des utilisateurs normaux pour éviter les doublons
       const userIds = new Set(users.map(user => user._id || user.id));
@@ -222,11 +215,12 @@ function Dashboard() {
           role = 'driver';
         } else if (role === 'admin' || role === 'administrateur') {
           role = 'admin';
+        } else if (role === 'gestionnaireColis' || role === 'gestionnaire' || role === 'colis') {
+          role = 'gestionnaireColis';
         } else {
           role = 'client';
         }
         
-        console.log(`Utilisateur ${user.name || user.email}: rôle original = ${user.role}, rôle normalisé = ${role}`);
         acc[role] = (acc[role] || 0) + 1;
         return acc;
       }, {});
@@ -249,6 +243,11 @@ function Dashboard() {
           name: "Admins", 
           value: roleCounts.admin || 0, 
           color: "#CD7F32" 
+        },
+        { 
+          name: "Gestionnaire de Colis", 
+          value: roleCounts.gestionnaireColis || 0, 
+          color: "#008000c7" 
         }
       ];
       
@@ -266,7 +265,8 @@ function Dashboard() {
       setUserRoleData([
         { name: "Clients", value: 45, color: "#2196f3" },
         { name: "Chauffeurs", value: 12, color: "#C0C0C0" },
-        { name: "Admins", value: 3, color: "#ffcc33" }
+        { name: "Admins", value: 3, color: "#ffcc33" },
+        { name: "Gestionnaire de colis", value: 3, color: "#008000" }
       ]);
     });
 
@@ -592,9 +592,9 @@ function Dashboard() {
           </h3>
         </div>
 
-        <div style={{ height: "300px" }}>
+        <div style={{ height: "350px" }}>
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }} isAnimationActive={false}>
+            <ComposedChart data={chartData} margin={{ top: 50, right: 20, left: 0, bottom: 1 }} isAnimationActive={false}>
               <CartesianGrid strokeDasharray="3 3" />
 
               {/* Axe X avec jours */}
@@ -1008,7 +1008,7 @@ function Dashboard() {
                     />
                     <YAxis 
                       tick={{ fontSize: 12, fill: "#666" }}
-                      label={{ value: "Nombre de colis", angle: -90, position: "insideLeft" }}
+                      label={{ value: "Nbre de colis", angle: -90, position: "insideLeft" }}
                     />
                     <Tooltip 
                       cursor={{ stroke: "rgba(243, 232, 80, 1)", strokeWidth: 2 }}

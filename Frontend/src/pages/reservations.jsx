@@ -972,7 +972,7 @@ const confirmDelete = async (id) => {
                         <IconButton 
                           onClick={() => handleOpenDetails(reservation)}
                           sx={{ 
-                            color: '#D3D3D3',
+                            color: '#21740cff',
                             '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)', color: '#4F4F4F' }
                           }}
                         >

@@ -22,7 +22,18 @@ import {
   InputLabel,
   Grid,
   Paper,
-  TablePagination
+  TablePagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
@@ -45,7 +56,10 @@ export default function Historique() {
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  
+  const [selectedVoyage, setSelectedVoyage] = useState(null);
+  const [voyagePassengers, setVoyagePassengers] = useState([]);
+  const [isPassengerDialogOpen, setIsPassengerDialogOpen] = useState(false);
+
   // Filtres avancés - Par défaut afficher uniquement les expirés
   const [statusFilter, setStatusFilter] = useState('expired');
   const [userFilter, setUserFilter] = useState('all');
@@ -71,7 +85,7 @@ export default function Historique() {
 
       const [vData, rData, cData, uData] = await Promise.all([vRes.json(), rRes.json(), cRes.json(), uRes.json()]);
 
-      console.log('📦 Données chargées:');
+      console.log(' Données chargées:');
       console.log('  - Voyages:', vData?.length || 0);
       console.log('  - Réservations:', rData?.length || 0);
       console.log('  - Colis:', cData?.length || 0);
@@ -94,20 +108,83 @@ export default function Historique() {
   }, []);
 
   const formatDateTime = (d) => new Date(d).toLocaleString('fr-FR');
-  
-  const formatDateShort = (dateString) => {
-    if (!dateString) return 'Non définie';
-    const date = new Date(dateString);
-    const dateStr = date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-    const timeStr = date.toLocaleTimeString('fr-FR', {
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Date inconnue';
+    const options = { 
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    });
-    return `${dateStr} à ${timeStr}`;
+    };
+    return new Date(dateString).toLocaleDateString('fr-FR', options);
+  };
+
+  const loadVoyagePassengers = async (voyageId) => {
+  try {
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      throw new Error('Non authentifié. Veuillez vous reconnecter.');
+    }
+    
+    // Réinitialiser les états
+    setVoyagePassengers([]);
+    setError('');
+    
+    // Récupérer les réservations pour le voyage
+    const resReservations = await fetch(
+      `https://ticket-taf.itea.africa/api/reservations/voyage/${voyageId}`, 
+      { 
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        } 
+      }
+    );
+
+    if (!resReservations.ok) {
+      const errorText = await resReservations.text();
+      throw new Error(`Erreur ${resReservations.status}: ${errorText}`);
+    }
+
+    const reservations = await resReservations.json();
+    
+    if (!Array.isArray(reservations)) {
+      throw new Error('Format de réponse inattendu du serveur');
+    }
+
+    // Ouvrir le dialogue après avoir récupéré les données
+    setIsPassengerDialogOpen(true);
+
+    if (reservations.length === 0) {
+      setError('Aucun passager trouvé pour ce voyage.');
+      return;
+    }
+
+    // Formater les données des passagers
+    const passengers = reservations.map(reservation => ({
+      id: reservation._id,
+      name: reservation.user?.name || 'Passager inconnu',
+      phone: reservation.user?.numero || 'Non renseigné',
+      quantity: reservation.quantity || 1,
+      status: reservation.status || 'confirmée',
+      reservationTime: reservation.createdAt ? new Date(reservation.createdAt).toLocaleString('fr-FR') : 'Date inconnue'
+    }));
+
+    setVoyagePassengers(passengers);
+    
+  } catch (error) {
+    console.error('Erreur détaillée:', error);
+    setError(`Impossible de charger les passagers: ${error.message}`);
+    setIsPassengerDialogOpen(true); // Ouvrir même en cas d'erreur pour afficher le message
+  }
+};
+
+  const handleClosePassengerDialog = () => {
+    setIsPassengerDialogOpen(false);
+    setVoyagePassengers([]);
   };
 
   const getTemporalStatus = (date) => {
@@ -210,6 +287,9 @@ export default function Historique() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Chip size="small" label={`${v.price} FCFA`} />
               <Chip size="small" label={temporalStatus.label} color={temporalStatus.color} />
+              <IconButton onClick={() => loadVoyagePassengers(v._id)}>
+                <VisibilityIcon fontSize="small" />
+              </IconButton>
             </Box>
           }
           sx={{ 
@@ -234,7 +314,7 @@ export default function Historique() {
             }
             secondary={
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', color: '#6b7280' }}>
-                {v.date && <Typography variant="body2">{formatDateShort(v.date)}</Typography>}
+                {v.date && <Typography variant="body2">{formatDate(v.date)}</Typography>}
                 <Typography variant="body2">{v.availableSeats ?? 0} places</Typography>
                 {v.driver && (
                   <Typography variant="body2">
@@ -300,7 +380,7 @@ export default function Historique() {
                 )}
                 {reservationDate ? (
                   <Typography variant="body2" sx={{ color: isExpired ? '#991b1b' : '#6b7280', fontWeight: isExpired ? 600 : 400 }}>
-                    Départ: {formatDateShort(reservationDate)}
+                    Départ: {formatDate(reservationDate)}
                   </Typography>
                 ) : (
                   <Chip size="small" label="Date inconnue" color="warning" sx={{ fontSize: '11px' }} />
@@ -309,7 +389,7 @@ export default function Historique() {
                   <Chip size="small" label="Voyage supprimé" color="error" sx={{ fontSize: '11px' }} />
                 )}
                 {r.createdAt && (
-                  <Typography variant="caption" sx={{ color: '#9ca3af' }}>Créée le {formatDateShort(r.createdAt)}</Typography>
+                  <Typography variant="caption" sx={{ color: '#9ca3af' }}>Créée le {formatDate(r.createdAt)}</Typography>
                 )}
               </Box>
             }
@@ -378,7 +458,7 @@ export default function Historique() {
                   </Typography>
                 )}
                 <Typography variant="body2">
-                  📞 {c.destinataire?.telephone}
+                  {c.destinataire?.telephone}
                 </Typography>
                 {c.expediteur && (
                   <Typography variant="body2">
@@ -388,7 +468,7 @@ export default function Historique() {
                 )}
                 {colisDate ? (
                   <Typography variant="body2" sx={{ color: isExpired ? '#991b1b' : '#6b7280', fontWeight: isExpired ? 600 : 400 }}>
-                    Départ: {formatDateShort(colisDate)}
+                    Départ: {formatDate(colisDate)}
                   </Typography>
                 ) : (
                   <Chip size="small" label="Date inconnue" color="warning" sx={{ fontSize: '11px' }} />
@@ -673,6 +753,72 @@ export default function Historique() {
       </Tabs>
 
       {renderSection()}
+
+      <Dialog 
+        open={isPassengerDialogOpen} 
+        onClose={handleClosePassengerDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
+          Liste des passagers
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <List dense>
+            {voyagePassengers.length > 0 ? (
+              voyagePassengers.map((passenger, index) => (
+                <React.Fragment key={index}>
+                  <ListItem sx={{ px: 3, py: 1.5 }}>
+                    <ListItemText 
+                      primary={passenger.name} 
+                      secondary={passenger.phone}
+                      primaryTypographyProps={{
+                        fontWeight: 500,
+                        color: 'text.primary'
+                      }}
+                      secondaryTypographyProps={{
+                        color: 'text.secondary',
+                        fontSize: '0.875rem'
+                      }}
+                    />
+                  </ListItem>
+                  {index < voyagePassengers.length - 1 && <Divider component="li" />}
+                </React.Fragment>
+              ))
+            ) : (
+              <ListItem>
+                <ListItemText 
+                  primary="Aucun passager trouvé" 
+                  primaryTypographyProps={{
+                    color: 'text.secondary',
+                    textAlign: 'center',
+                    py: 2
+                  }}
+                />
+              </ListItem>
+            )}
+          </List>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid #e0e0e0' }}>
+          <Button 
+            onClick={handleClosePassengerDialog} 
+            variant="contained"
+            size="small"
+            sx={{
+              bgcolor: '#ffb300',
+              color: '#fff',
+              '&:hover': {
+                bgcolor: '#ffa000',
+              },
+              textTransform: 'none',
+              fontWeight: 500,
+              boxShadow: 'none'
+            }}
+          >
+            Fermer
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
