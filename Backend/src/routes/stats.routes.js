@@ -177,4 +177,33 @@ router.get('/top-colis-destinations', auth, adminAuth, statsController.getTopCol
  */
 router.get('/top-clients', auth, adminAuth, statsController.getTopClients);
 
+/**
+ * @swagger
+ * /stats/user-reservations/{userId}:
+ *   get:
+ *     summary: Récupérer le nombre de réservations d'un utilisateur
+ *     tags: [Stats]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de l'utilisateur
+ *     responses:
+ *       200:
+ *         description: Nombre de réservations de l'utilisateur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: number
+ *                   description: Nombre de réservations
+ */
+router.get('/user-reservations/:userId', auth, statsController.getUserReservationsCount);
+
 module.exports = router;

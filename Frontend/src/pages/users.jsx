@@ -22,7 +22,8 @@ import {
   Alert,
   InputAdornment,
   TablePagination,
-  Menu
+  Menu,
+  Tooltip
 } from '@mui/material';
 import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search as SearchIcon, FilterList as FilterIcon, LocationOn } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
@@ -62,6 +63,19 @@ export default function Users() {
     setPage(0);
   }, [searchTerm, roleFilter]);
 
+  const fetchUserReservationsCount = async (userId) => {
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await axios.get(`/stats/user-reservations/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data.count || 0;
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des réservations pour l'utilisateur ${userId}:`, error);
+      return 0;
+    }
+  };
+
   const fetchUsers = async () => {
     const token = sessionStorage.getItem('token');
     if (!token) {
@@ -92,21 +106,32 @@ export default function Users() {
         }
       }, []);
 
-      console.log('📊 Données nettoyées:', {
-        avant: res.data.length,
-        apres: uniqueUsers.length,
-        supprimes: res.data.length - uniqueUsers.length,
-        utilisateurs: uniqueUsers.map(u => ({ 
-          id: u._id, 
-          name: u.name, 
-          role: u.role,
-          address: u.address
-        }))
-      });
-      
-      setUsers(uniqueUsers);
+      // Pour chaque utilisateur, récupérer le nombre de réservations
+      const usersWithReservations = await Promise.all(
+        uniqueUsers.map(async (user) => {
+          const reservationCount = user.role === 'client' 
+            ? await fetchUserReservationsCount(user._id) 
+            : 0;
+          
+          const tripCount = user.role === 'conducteur' 
+            ? user.tripCount || 0 
+            : 0;
+            
+          return {
+            ...user,
+            reservationCount,
+            tripCount
+          };
+        })
+      );
+
+      console.log('📊 Données utilisateurs avec réservations:', usersWithReservations);
+      setUsers(usersWithReservations);
     } catch (err) {
       console.error("Erreur lors de la récupération des utilisateurs:", err);
+      setError('Erreur lors du chargement des utilisateurs');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -549,6 +574,14 @@ export default function Users() {
                 fontSize: '16px',
                 textAlign: 'center'
               }}>
+                Collaborations
+              </TableCell>
+              <TableCell sx={{ 
+                color: '#1a1a1a', 
+                fontWeight: 700,
+                fontSize: '16px',
+                textAlign: 'center'
+              }}>
                 Actions
               </TableCell>
             </TableRow>
@@ -612,6 +645,41 @@ export default function Users() {
                       borderColor: '#e0e0e0'
                     }}
                   />
+                </TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>
+                  {user.role === 'client' ? (
+                    <Tooltip title={`${user.reservationCount || 0} réservations`} arrow>
+                      <Chip 
+                        label={user.reservationCount || 0} 
+                        size="small" 
+                        sx={{ 
+                          backgroundColor: '#1976d2', 
+                          color: 'white',
+                          minWidth: '24px',
+                          fontWeight: 600
+                        }} 
+                      />
+                    </Tooltip>
+                  ) : user.role === 'conducteur' ? (
+                    <Tooltip title={`${user.tripCount || 0} voyages effectués`} arrow>
+                      <Chip 
+                        label={user.tripCount || 0}
+                        size="small" 
+                        sx={{ 
+                          backgroundColor: '#2e7d32', 
+                          color: 'white',
+                          minWidth: '24px',
+                          fontWeight: 600
+                        }} 
+                      />
+                    </Tooltip>
+                  ) : (
+                    <Chip 
+                      label="N/A" 
+                      size="small" 
+                      variant="outlined" 
+                    />
+                  )}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
                   <IconButton 

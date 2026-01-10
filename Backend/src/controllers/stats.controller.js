@@ -317,3 +317,33 @@ exports.getTopDrivers = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
+
+// Obtenir le nombre de réservations pour un utilisateur spécifique
+exports.getUserReservationsCount = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'ID utilisateur invalide' });
+    }
+    
+    const result = await Reservation.aggregate([
+      // Filtrer les réservations de l'utilisateur
+      { $match: { 
+        user: mongoose.Types.ObjectId(userId),
+        ticket: 'place' 
+      }},
+      // Compter les réservations
+      { $count: "reservationCount" }
+    ]);
+
+    const count = result.length > 0 ? result[0].reservationCount : 0;
+    res.json({ count });
+  } catch (err) {
+    console.error('Erreur lors du comptage des réservations:', err);
+    res.status(500).json({ 
+      message: 'Erreur serveur lors du comptage des réservations',
+      error: err.message 
+    });
+  }
+};

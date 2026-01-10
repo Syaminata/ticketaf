@@ -51,6 +51,7 @@ export default function Historique() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [voyages, setVoyages] = useState([]);
+  const [passengerError, setPassengerError] = useState('');
   const [reservations, setReservations] = useState([]);
   const [colis, setColis] = useState([]);
   const [users, setUsers] = useState([]);
@@ -131,7 +132,7 @@ export default function Historique() {
     
     // Réinitialiser les états
     setVoyagePassengers([]);
-    setError('');
+    setPassengerError('');
     
     // Récupérer les réservations pour le voyage
     const resReservations = await fetch(
@@ -159,7 +160,7 @@ export default function Historique() {
     setIsPassengerDialogOpen(true);
 
     if (reservations.length === 0) {
-      setError('Aucun passager trouvé pour ce voyage.');
+      setPassengerError('Aucun passager trouvé pour ce voyage.');
       return;
     }
 
@@ -177,13 +178,14 @@ export default function Historique() {
     
   } catch (error) {
     console.error('Erreur détaillée:', error);
-    setError(`Impossible de charger les passagers: ${error.message}`);
+    setPassengerError(`Impossible de charger les passagers: ${error.message}`); 
     setIsPassengerDialogOpen(true); // Ouvrir même en cas d'erreur pour afficher le message
   }
 };
 
   const handleClosePassengerDialog = () => {
     setIsPassengerDialogOpen(false);
+    setPassengerError('');
     setVoyagePassengers([]);
   };
 
@@ -315,7 +317,7 @@ export default function Historique() {
             secondary={
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', color: '#6b7280' }}>
                 {v.date && <Typography variant="body2">{formatDate(v.date)}</Typography>}
-                <Typography variant="body2">{v.availableSeats ?? 0} places</Typography>
+                <Typography variant="body2">{v.availableSeats ?? 0} places restantes</Typography>
                 {v.driver && (
                   <Typography variant="body2">
                     Chauffeur: {v.driver.name || 'Chauffeur inconnu'}
@@ -760,12 +762,25 @@ export default function Historique() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle sx={{ bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
+        <DialogTitle sx={{ bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0', textAlign: 'center' }}>
           Liste des passagers
         </DialogTitle>
         <DialogContent sx={{ p: 0 }}>
           <List dense>
-            {voyagePassengers.length > 0 ? (
+            {passengerError ? (
+              // Affichage de l'erreur
+              <ListItem>
+                <ListItemText 
+                  primary={passengerError}
+                  primaryTypographyProps={{
+                    color: 'text.secondary',
+                    textAlign: 'center',
+                    py: 2
+                  }}
+                />
+              </ListItem>
+            ) : voyagePassengers.length > 0 ? (
+              // Affichage des passagers
               voyagePassengers.map((passenger, index) => (
                 <React.Fragment key={index}>
                   <ListItem sx={{ px: 3, py: 1.5 }}>
@@ -774,21 +789,40 @@ export default function Historique() {
                       secondary={passenger.phone}
                       primaryTypographyProps={{
                         fontWeight: 500,
-                        color: 'text.primary'
+                        color: 'text.primary',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        width: '100%'
                       }}
                       secondaryTypographyProps={{
                         color: 'text.secondary',
                         fontSize: '0.875rem'
                       }}
                     />
+                    <Box sx={{
+                      bgcolor: '#21740cff',
+                      color: 'white',
+                      borderRadius: '50%',
+                      width: 24,
+                      height: 24,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      ml: 2,
+                      flexShrink: 0
+                    }}>
+                      {passenger.quantity}
+                    </Box>
                   </ListItem>
                   {index < voyagePassengers.length - 1 && <Divider component="li" />}
                 </React.Fragment>
               ))
             ) : (
+              // État de chargement ou liste vide
               <ListItem>
                 <ListItemText 
-                  primary="Aucun passager trouvé" 
+                  primary="Chargement..." 
                   primaryTypographyProps={{
                     color: 'text.secondary',
                     textAlign: 'center',
