@@ -131,10 +131,30 @@ export default function Colis() {
 
   const fetchVoyages = async () => {
     try {
-      const res = await voyageAPI.getAllVoyages();
-      setVoyages(res);
+      // Récupérer d'abord les colis
+      const colisRes = await colisAPI.getAllColis();
+      
+      // Créer un Set pour stocker les trajets uniques
+      const uniqueRoutes = new Set();
+      
+      // Parcourir les colis et extraire les trajets uniques
+      colisRes.forEach(colisItem => {
+        const voyage = colisItem.voyage || colisItem.reservation?.voyage;
+        if (voyage?.from && voyage?.to) {
+          uniqueRoutes.add(`${voyage.from}-${voyage.to}`);
+        }
+      });
+      
+      // Convertir le Set en tableau d'objets {from, to}
+      const routesArray = Array.from(uniqueRoutes).map(route => {
+        const [from, to] = route.split('-');
+        return { from, to };
+      });
+      
+      setVoyages(routesArray);
     } catch (err) {
       console.error('Erreur récupération des voyages:', err);
+      setVoyages([]);
     }
   };
 
@@ -424,7 +444,9 @@ export default function Colis() {
       (colisItem.voyage?.to || '').toLowerCase().includes(term);
 
     const matchesStatus = !statusFilter || colisItem.status === statusFilter;
-    const matchesVoyage = !voyageFilter || (colisItem.voyage?._id === voyageFilter);
+    const matchesVoyage = !voyageFilter || 
+    (colisItem.voyage?.from && colisItem.voyage?.to && 
+     `${colisItem.voyage.from}-${colisItem.voyage.to}` === voyageFilter);
 
     return matchesSearch && matchesStatus && matchesVoyage;
   });
@@ -611,9 +633,9 @@ export default function Colis() {
             }}
           >
             <MenuItem value="">Tous les voyages</MenuItem>
-            {voyages.map((voyage) => (
-              <MenuItem key={voyage._id} value={voyage._id}>
-                {voyage.from} → {voyage.to}
+            {voyages.map((route, index) => (
+              <MenuItem key={index} value={`${route.from}-${route.to}`}>
+                {route.from} → {route.to}
               </MenuItem>
             ))}
           </Select>
