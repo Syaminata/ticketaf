@@ -169,9 +169,9 @@ const updateColis = async (req, res) => {
     const updateData = {};
 
     // Valider le statut s'il est fourni
-    if (status && !['en attente', 'envoyé', 'reçu', 'annulé'].includes(status)) {
+    if (status && !['en attente', 'enregistré', 'envoyé', 'reçu', 'annulé'].includes(status)) {
       return res.status(400).json({ 
-        message: 'Statut invalide. Les statuts valides sont: en attente, envoyé, reçu, annulé' 
+        message: 'Statut invalide. Les statuts valides sont: en attente, enregistré, envoyé, reçu, annulé' 
       });
     }
 

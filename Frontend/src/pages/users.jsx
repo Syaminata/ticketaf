@@ -315,9 +315,17 @@ export default function Users() {
       currentUserRole
     });
     // 1. Filtrer par rôle si nécessaire
-    let result = currentUserRole === 'admin' 
-      ? users.filter(u => u.role === 'client')
-      : [...users];
+    let result;
+    if (currentUserRole === 'admin') {
+      // L'admin ne voit que les clients
+      result = users.filter(u => u.role === 'client');
+    } else if (currentUserRole === 'gestionnaireColis') {
+      // Le gestionnaire de colis voit les clients et les conducteurs
+      result = users.filter(u => u.role === 'client' || u.role === 'conducteur');
+    } else {
+      // Les autres rôles voient tous les utilisateurs
+      result = [...users];
+    }
 
     // 2. Filtrer par terme de recherche
     if (searchTerm) {

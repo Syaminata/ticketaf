@@ -338,6 +338,8 @@ export default function Colis() {
 
   const getStatusIcon = (status) => {
     switch (status) {
+      case 'enregistré':
+        return <Inventory sx={{ fontSize: 16 }} />;
       case 'envoyé':
         return <LocalShipping sx={{ fontSize: 16 }} />;
       case 'reçu':
@@ -351,6 +353,8 @@ export default function Colis() {
 
   const getStatusColor = (status) => {
     switch (status) {
+      case 'enregistré':
+        return 'primary';
       case 'envoyé':
         return 'info';
       case 'reçu':
@@ -566,6 +570,7 @@ export default function Colis() {
           >
             <MenuItem value="">Tous</MenuItem>
             <MenuItem value="en attente">En attente</MenuItem>
+            <MenuItem value="enregistré">Enregistré</MenuItem>
             <MenuItem value="envoyé">Envoyé</MenuItem>
             <MenuItem value="reçu">Reçu</MenuItem>
             <MenuItem value="annulé">Annulé</MenuItem>

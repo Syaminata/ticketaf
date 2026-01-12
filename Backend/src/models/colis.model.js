@@ -30,7 +30,7 @@ const colisSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ['en attente', 'envoyé', 'reçu', 'annulé'], 
+    enum: ['en attente', 'enregistré','envoyé', 'reçu', 'annulé'], 
     default: 'en attente' 
   },
   prix: {

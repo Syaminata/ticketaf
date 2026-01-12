@@ -29,6 +29,7 @@ Le système comporte plusieurs rôles avec des permissions différentes :
 - **Admin** : Gestion complète sauf certaines fonctionnalités spécifiques
 - **Gestionnaire de Colis** : Gestion des colis et utilisateurs
 - **Client** : Accès limité pour consulter ses propres données
+- **Chauffeur** : Accès limité pour consulter ses propres données
 
 ---
 
@@ -109,7 +110,7 @@ Le système comporte plusieurs rôles avec des permissions différentes :
    - Indication du statut (actif/inactif)
    - Non visible pour les gestionnaires de colis
 
-#### 9. **Widget des revenus**
+#### 9. **Widget des revenus** (Superadmin uniquement)
    - Aperçu des revenus générés
 
 **Affichage selon le rôle** :
@@ -218,7 +219,6 @@ Le système comporte plusieurs rôles avec des permissions différentes :
    - Cliquer sur 🗑️
    - Confirmation requise
 
-**Important** : Seuls les admins et superadmins ont accès à cette page.
 
 ---
 
@@ -336,7 +336,7 @@ Le système comporte plusieurs rôles avec des permissions différentes :
    **Résumé** : Un résumé de la réservation s'affiche automatiquement quand tous les champs sont remplis.
 
 #### 4. **Voir les détails d'une réservation**
-   - Cliquer sur l'icône 👁️ (œil)
+   - Cliquer sur l'icône (œil)
    - Affichage complet :
      - Informations du client
      - Détails de la réservation (référence, type, quantité, prix)
