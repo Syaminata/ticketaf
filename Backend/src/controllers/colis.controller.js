@@ -9,7 +9,7 @@ const User = require('../models/user.model');
 const createColis = async (req, res) => {
   try {
     // Récupérer les données du formulaire
-    const { description, voyageId, destination, dateEnvoi } = req.body;
+    const { description, voyageId, destination, dateEnvoi, villeDepart } = req.body;
     
     let destinataire;
     if (req.body.destinataire) {
@@ -33,10 +33,10 @@ const createColis = async (req, res) => {
       });
     }
 
-    // Valider que soit voyage, soit destination+date sont fournis
-    if (!voyageId && (!destination || !dateEnvoi)) {
+    // Valider que soit voyage, soit destination+villeDepart+date sont fournis
+    if (!voyageId && (!destination || !dateEnvoi || !villeDepart)) {
       return res.status(400).json({ 
-        message: 'Vous devez fournir soit un voyage, soit une destination et une date' 
+        message: 'Vous devez fournir soit un voyage, soit une destination, une ville de départ et une date' 
       });
     }
 
@@ -49,6 +49,13 @@ const createColis = async (req, res) => {
       createdBy: req.user._id
     };
 
+    // Ajouter les champs conditionnels si pas de voyage
+    if (!voyageId) {
+      colisData.destination = destination;
+      colisData.dateEnvoi = new Date(dateEnvoi);
+      colisData.villeDepart = villeDepart;
+    }
+
     // Si un voyage est sélectionné (ancien système)
     if (voyageId) {
       const voyage = await Voyage.findById(voyageId);
@@ -56,10 +63,6 @@ const createColis = async (req, res) => {
         return res.status(404).json({ message: 'Voyage non trouvé' });
       }
       colisData.voyage = voyageId;
-    } else {
-      // Nouveau système : destination et date directes
-      colisData.destination = destination;
-      colisData.dateEnvoi = new Date(dateEnvoi);
     }
 
     // Si une image a été téléchargée
@@ -164,7 +167,7 @@ const getColisById = async (req, res) => {
 // Mettre à jour un colis 
 const updateColis = async (req, res) => {
   try {
-    const { destinataire, prix, description, status, voyageId, destination, dateEnvoi } = req.body;
+    const { destinataire, prix, description, status, voyageId, destination, dateEnvoi, villeDepart } = req.body;
     
     const colis = await Colis.findById(req.params.id);
 
@@ -188,6 +191,7 @@ const updateColis = async (req, res) => {
     if (voyageId !== undefined) updateData.voyage = voyageId;
     if (destination !== undefined) updateData.destination = destination;
     if (dateEnvoi !== undefined) updateData.dateEnvoi = new Date(dateEnvoi);
+    if (villeDepart !== undefined) updateData.villeDepart = villeDepart;
 
     // Valider et mettre à jour le prix si fourni
     if (prix !== undefined && prix !== null && prix !== '') {

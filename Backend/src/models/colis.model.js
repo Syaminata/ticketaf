@@ -33,6 +33,13 @@ const colisSchema = new mongoose.Schema({
       return !this.voyage;
     }
   },
+  villeDepart: {
+    type: String,
+    required: function() {
+      // Required si voyage n'est pas défini
+      return !this.voyage;
+    }
+  },
   destinataire: {
     nom: { type: String, required: true },
     telephone: { type: String, required: true },

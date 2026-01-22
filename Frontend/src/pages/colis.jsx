@@ -62,6 +62,9 @@ export default function Colis() {
     voyageId: '',
     description: '',
     prix: '',
+    villeDepart: '',
+    destination: '',
+    dateEnvoi: '',
     destinataire: {
       nom: '',
       telephone: '',
@@ -178,6 +181,9 @@ export default function Colis() {
         voyageId: colisItem.voyage?._id || colisItem.reservation?.voyage?._id || '',
         description: colisItem.description || '',
         prix: colisItem.prix || '',
+        villeDepart: colisItem.villeDepart || '',
+        destination: colisItem.destination || '',
+        dateEnvoi: colisItem.dateEnvoi ? new Date(colisItem.dateEnvoi).toISOString().split('T')[0] : '',
         destinataire: {
           nom: colisItem.destinataire?.nom || '',
           telephone: colisItem.destinataire?.telephone || '',
@@ -278,6 +284,11 @@ export default function Colis() {
       submitData.append('destinataire[nom]', formData.destinataire.nom);
       submitData.append('destinataire[telephone]', formData.destinataire.telephone);
       submitData.append('destinataire[adresse]', formData.destinataire.adresse || '');
+      
+      // Ajout des champs de localisation
+      submitData.append('villeDepart', formData.villeDepart || '');
+      submitData.append('destination', formData.destination || '');
+      submitData.append('dateEnvoi', formData.dateEnvoi || '');
 
       if (imageFile) {
         submitData.append('image', imageFile);
@@ -854,6 +865,50 @@ export default function Colis() {
                 </Select>
               </FormControl>
             </Box>
+
+            {/* Champs de localisation */}
+            <Grid container spacing={2} sx={{ mt: 2 }}>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Ville de départ"
+                  name="villeDepart"
+                  value={formData.villeDepart}
+                  onChange={handleChange}
+                  fullWidth
+                  required={!formData.voyageId}
+                  disabled={!!formData.voyageId}
+                  sx={inputStyle}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Destination"
+                  name="destination"
+                  value={formData.destination}
+                  onChange={handleChange}
+                  fullWidth
+                  required={!formData.voyageId}
+                  disabled={!!formData.voyageId}
+                  sx={inputStyle}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Date d'envoi"
+                  name="dateEnvoi"
+                  type="date"
+                  value={formData.dateEnvoi}
+                  onChange={handleChange}
+                  fullWidth
+                  required={!formData.voyageId}
+                  disabled={!!formData.voyageId}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  sx={inputStyle}
+                />
+              </Grid>
+            </Grid>
 
             {/* ================== SECTION DESTINATAIRE ================== */}
             <Box>
