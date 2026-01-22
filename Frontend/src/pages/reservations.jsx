@@ -547,9 +547,32 @@ const confirmDelete = async (id) => {
   const isReservationPast = (reservation) => {
     const dateStr = reservation?.voyage?.date || reservation?.bus?.departureDate;
     if (!dateStr) return false;
-    const d = new Date(dateStr);
-    const now = new Date();
-    return d < now; // si la date est passée
+    
+    try {
+      // Créer les dates en format YYYY-MM-DD pour une comparaison simple
+      const reservationDate = new Date(dateStr);
+      const today = new Date();
+      
+      // Formater les dates en YYYY-MM-DD pour une comparaison précise
+      const formatDate = (date) => {
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const resDateStr = formatDate(reservationDate);
+      const todayStr = formatDate(today);
+      
+      console.log('Comparing dates - Reservation:', resDateStr, 'Today:', todayStr);
+      
+      // Comparer les chaînes de date formatées
+      return resDateStr < todayStr;
+    } catch (error) {
+      console.error('Error comparing dates:', error);
+      return false; // En cas d'erreur, on considère que la réservation n'est pas passée
+    }
   };
 
   // Marquer comme annulée si entité liée supprimée (voyage/bus manquant)
@@ -561,7 +584,14 @@ const confirmDelete = async (id) => {
     return Boolean(voyageMissing || busMissing);
   };
 
-  const visibleReservations = (reservations || []).filter(r => !isReservationPast(r) && !isReservationCanceled(r));
+  const visibleReservations = (reservations || []).filter(r => {
+    const isPast = isReservationPast(r);
+    const isCanceled = isReservationCanceled(r);
+    console.log('Reservation:', r?._id, 'isPast:', isPast, 'isCanceled:', isCanceled);
+    return !isPast && !isCanceled;
+  });
+  
+  console.log('Total reservations:', reservations?.length, 'Visible reservations:', visibleReservations.length);
 
   // Filtrage des réservations
   const filteredReservations = visibleReservations.filter(reservation => {
@@ -872,6 +902,7 @@ const confirmDelete = async (id) => {
       )}
 
       {/* Tableau des réservations */}
+      {console.log('Loading:', loading, 'Visible reservations:', visibleReservations, 'Length:', visibleReservations?.length)}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
           <CircularProgress sx={{ color: '#ffcc33' }} />
@@ -1062,8 +1093,21 @@ const confirmDelete = async (id) => {
           backgroundColor: '#ffffff',
           borderRadius: '16px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-          border: '1px solid #f0f0f0'
+          border: '1px solid #f0f0f0',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 2,
+          p: 4
         }}>
+          <EventNote sx={{ fontSize: 60, color: '#e0e0e0' }} />
+          <Typography variant="h6" sx={{ color: '#757575', fontWeight: 500, mt: 2 }}>
+            Aucune réservation pour l'instant
+          </Typography>
+          <Typography variant="body1" sx={{ color: '#9e9e9e', mb: 3, maxWidth: '500px' }}>
+            Les réservations apparaîtront ici une fois créées.
+          </Typography>
         </Box>
       )}
 

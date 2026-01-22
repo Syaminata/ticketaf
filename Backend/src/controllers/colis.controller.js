@@ -9,17 +9,16 @@ const User = require('../models/user.model');
 const createColis = async (req, res) => {
   try {
     // Récupérer les données du formulaire
-    const { description, voyageId } = req.body;
+    const { description, voyageId, destination, dateEnvoi } = req.body;
+    
     let destinataire;
     if (req.body.destinataire) {
-      // Si les données viennent d'un objet JSON (cas de l'API)
       destinataire = {
         nom: req.body.destinataire.nom || req.body['destinataire[nom]'],
         telephone: req.body.destinataire.telephone || req.body['destinataire[telephone]'],
         adresse: req.body.destinataire.adresse || req.body['destinataire[adresse]'] || ''
       };
     } else {
-      // Ancien format pour rétrocompatibilité
       destinataire = {
         nom: req.body['destinataire[nom]'],
         telephone: req.body['destinataire[telephone]'],
@@ -28,31 +27,40 @@ const createColis = async (req, res) => {
     }
 
     // Validation des champs obligatoires
-    if (!voyageId) {
-      return res.status(400).json({ message: 'Le voyage est requis' });
-    }
-
     if (!destinataire.nom || !destinataire.telephone) {
       return res.status(400).json({ 
         message: 'Les informations du destinataire sont requises (nom et téléphone)' 
       });
     }
 
-    // Vérifier que le voyage existe
-    const voyage = await Voyage.findById(voyageId);
-    if (!voyage) {
-      return res.status(404).json({ message: 'Voyage non trouvé' });
+    // Valider que soit voyage, soit destination+date sont fournis
+    if (!voyageId && (!destination || !dateEnvoi)) {
+      return res.status(400).json({ 
+        message: 'Vous devez fournir soit un voyage, soit une destination et une date' 
+      });
     }
 
     // Créer le colis
     const colisData = {
-      voyage: voyageId,
       expediteur: req.user._id,
       destinataire: destinataire,
       description: description || '',
       status: 'en attente',
       createdBy: req.user._id
     };
+
+    // Si un voyage est sélectionné (ancien système)
+    if (voyageId) {
+      const voyage = await Voyage.findById(voyageId);
+      if (!voyage) {
+        return res.status(404).json({ message: 'Voyage non trouvé' });
+      }
+      colisData.voyage = voyageId;
+    } else {
+      // Nouveau système : destination et date directes
+      colisData.destination = destination;
+      colisData.dateEnvoi = new Date(dateEnvoi);
+    }
 
     // Si une image a été téléchargée
     if (req.file) {
@@ -83,8 +91,6 @@ const getUserColis = async (req, res) => {
   try {
     let query = {};
     
-    // Si l'utilisateur est un gestionnaire de colis, on récupère tous les colis
-    // Sinon, on ne récupère que les colis de l'utilisateur connecté
     if (req.user.role !== 'gestionnaireColis') {
       query.expediteur = req.user._id;
     }
@@ -107,13 +113,14 @@ const getUserColis = async (req, res) => {
 // Récupérer tous les colis (admin)
 const getAllColis = async (req, res) => {
   try {
-    const { status, voyageId, expediteur } = req.query;
+    const { status, voyageId, expediteur, destination } = req.query;
     
     let filter = {};
     
     if (status) filter.status = status;
     if (voyageId) filter.voyage = voyageId;
     if (expediteur) filter.expediteur = expediteur;
+    if (destination) filter.destination = new RegExp(destination, 'i');
 
     const colis = await Colis.find(filter)
       .populate('expediteur', 'name email numero')
@@ -157,7 +164,7 @@ const getColisById = async (req, res) => {
 // Mettre à jour un colis 
 const updateColis = async (req, res) => {
   try {
-    const { destinataire, prix, description, status, voyageId } = req.body;
+    const { destinataire, prix, description, status, voyageId, destination, dateEnvoi } = req.body;
     
     const colis = await Colis.findById(req.params.id);
 
@@ -179,6 +186,8 @@ const updateColis = async (req, res) => {
     if (description !== undefined) updateData.description = description;
     if (status !== undefined) updateData.status = status;
     if (voyageId !== undefined) updateData.voyage = voyageId;
+    if (destination !== undefined) updateData.destination = destination;
+    if (dateEnvoi !== undefined) updateData.dateEnvoi = new Date(dateEnvoi);
 
     // Valider et mettre à jour le prix si fourni
     if (prix !== undefined && prix !== null && prix !== '') {
@@ -195,13 +204,11 @@ const updateColis = async (req, res) => {
     if (destinataire) {
       updateData.$set = updateData.$set || {};
       
-      // Parser le destinataire s'il vient du FormData
       let destData = destinataire;
       if (typeof destinataire === 'string') {
         try {
           destData = JSON.parse(destinataire);
         } catch (e) {
-          // Si ce n'est pas du JSON, essayer de récupérer depuis req.body
           destData = {
             nom: req.body['destinataire[nom]'],
             telephone: req.body['destinataire[telephone]'],
@@ -217,7 +224,6 @@ const updateColis = async (req, res) => {
 
     // Gérer l'upload d'image UNIQUEMENT si un fichier est présent
     if (req.file) {
-      // Supprimer l'ancienne image si elle existe
       if (colis.imageUrl) {
         const oldFilename = path.basename(colis.imageUrl);
         deleteColisImage(oldFilename);
@@ -349,11 +355,9 @@ const updateColisPrix = async (req, res) => {
       return res.status(404).json({ message: 'Colis non trouvé' });
     }
 
-    // Mettre à jour uniquement le prix, garder le statut actuel
     colis.prix = prix;
     await colis.save();
 
-    // Peupler les références pour la réponse
     const updatedColis = await Colis.findById(colis._id)
       .populate('voyage', 'from to date')
       .populate('expediteur', 'name email numero');
@@ -381,32 +385,27 @@ const validateColis = async (req, res) => {
       return res.status(404).json({ message: 'Colis non trouvé' });
     }
 
-    // Vérifier que l'utilisateur est bien le propriétaire du colis
     if (colis.expediteur.toString() !== req.user._id.toString()) {
       return res.status(403).json({ 
         message: 'Non autorisé à valider ce colis' 
       });
     }
 
-    // Vérifier que le prix a été défini par l'admin
     if (!colis.prix || colis.prix <= 0) {
       return res.status(400).json({ 
         message: 'Le prix doit être défini par l\'administrateur avant validation' 
       });
     }
 
-    // Vérifier que le colis est en attente
     if (colis.status !== 'en attente') {
       return res.status(400).json({ 
         message: `Impossible de valider un colis avec le statut "${colis.status}"` 
       });
     }
 
-    // Mettre à jour le statut à "envoyé"
     colis.status = 'envoyé';
     await colis.save();
     
-    // Peupler les références pour la réponse
     const updatedColis = await Colis.findById(colis._id)
       .populate('voyage', 'from to date')
       .populate('expediteur', 'name email numero');
@@ -434,25 +433,21 @@ const cancelColis = async (req, res) => {
       return res.status(404).json({ message: 'Colis non trouvé' });
     }
 
-    // Vérifier que l'utilisateur est bien le propriétaire du colis
     if (colis.expediteur.toString() !== req.user._id.toString()) {
       return res.status(403).json({ 
         message: 'Non autorisé à annuler ce colis' 
       });
     }
 
-    // Vérifier que le colis est en attente
     if (colis.status !== 'en attente') {
       return res.status(400).json({ 
         message: `Impossible d'annuler un colis avec le statut "${colis.status}". Seuls les colis "en attente" peuvent être annulés.` 
       });
     }
 
-    // Mettre à jour le statut à "annulé"
     colis.status = 'annulé';
     await colis.save();
     
-    // Peupler les références pour la réponse
     const updatedColis = await Colis.findById(colis._id)
       .populate('voyage', 'from to date')
       .populate('expediteur', 'name email numero');

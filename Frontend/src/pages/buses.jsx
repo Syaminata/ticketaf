@@ -1007,14 +1007,18 @@ function Buses() {
                   renderOption={renderCityOption}
                 />
                 <Autocomplete
-                  options={cities}
+                  options={cities.filter(city => city !== formData.from)}
                   value={formData.to || null}
+                  onChange={(event, newValue) => {
+                    setFormData({ ...formData, to: newValue || '' });
+                  }}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label="Ville d'arrivée"
                       margin="normal"
                       required
+                      disabled={!formData.from}
                       InputProps={{
                         ...params.InputProps,
                         sx: { borderRadius: '12px' },
@@ -1025,6 +1029,7 @@ function Buses() {
                   noOptionsText="Aucune ville trouvée"
                   loading={loadingCities}
                   loadingText="Chargement des villes..."
+                  disabledItemsFocusable={!formData.from}
                 />
               </Box>
 

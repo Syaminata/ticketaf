@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { voyageAPI } from '../api/voyage';
 import { villeAPI } from '../api/ville';
 import { reservationsAPI } from '../api/reservations';
@@ -65,7 +65,8 @@ export default function Voyage() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [driversLoading, setDriversLoading] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [currentVoyage, setCurrentVoyage] = useState(null);
   const [reservations, setReservations] = useState([]);
@@ -120,12 +121,15 @@ export default function Voyage() {
     if (!token) return;
     
     try {
+      setDriversLoading(true);
       const res = await axios.get('/drivers', { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       setDrivers(res.data);
+      setDriversLoading(false);
     } catch (err) {
       console.error("Erreur récupération des conducteurs :", err);
+      setDriversLoading(false);
     }
   };
 
@@ -138,18 +142,34 @@ export default function Voyage() {
     setPage(0);
   }, [searchTerm]);
 
-  const handleOpen = (voyage = null) => {
+  const handleOpen = async (voyage = null) => {
     setError('');
-    setEditVoyage(voyage);
+    
     if (voyage) {
+      // Si les conducteurs ne sont pas encore chargés, on les charge d'abord
+      if (drivers.length === 0) {
+        setLoading(true);
+        try {
+          await fetchDrivers();
+        } catch (err) {
+          console.error("Erreur lors du chargement des conducteurs :", err);
+          setError("Erreur lors du chargement des données du conducteur");
+          return;
+        } finally {
+          setLoading(false);
+        }
+      }
+      
+      setEditVoyage(voyage);
       setFormData({
-        driverId: voyage.driver._id,
+        driverId: voyage.driver?._id || '',
         from: voyage.from,
         to: voyage.to,
         date: new Date(voyage.date).toISOString().slice(0, 16),
         price: voyage.price
       });
     } else {
+      setEditVoyage(null);
       setFormData({
         driverId: '',
         from: '',
@@ -161,10 +181,12 @@ export default function Voyage() {
     setOpen(true);
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
+    console.log('handleClose called, setting loading to false');
     setOpen(false);
     setError('');
     setEditVoyage(null);
+    setLoading(false); // Réinitialiser l'état de chargement
     setFormData({
       driverId: '',
       from: '',
@@ -172,7 +194,7 @@ export default function Voyage() {
       date: '',
       price: ''
     });
-  };
+  }, []);
 
   const handleOpenDetails = async (voyage) => {
     setCurrentVoyage(voyage);
@@ -371,24 +393,28 @@ export default function Voyage() {
   };
 
   const handleSubmit = async () => {
+    console.log('handleSubmit called, current loading state:', loading);
     const token = sessionStorage.getItem('token');
-    if (!token) return setError("Authentification nécessaire.");
+    if (!token) {
+      console.log('No token found');
+      return setError("Authentification nécessaire.");
+    }
 
+    // Validation des champs requis
     if (!formData.driverId || !formData.from || !formData.to || !formData.date || !formData.price) {
-      setError("Tous les champs sont requis.");
-      return;
+      console.log('Missing required fields');
+      return setError("Tous les champs sont requis.");
     }
 
     if (formData.from === formData.to) {
-      setError("La ville de départ et d'arrivée doivent être différentes");
-      return;
+      return setError("La ville de départ et d'arrivée doivent être différentes");
     }
 
     if (isNaN(formData.price) || formData.price <= 0) {
-      setError("Le prix doit être un nombre positif.");
-      return;
+      return setError("Le prix doit être un nombre positif.");
     }
 
+    console.log('Setting loading to true');
     setLoading(true);
     setError('');
     setSuccess('');
@@ -402,23 +428,17 @@ export default function Voyage() {
       if (editVoyage) {
         console.log("Mise à jour du voyage:", editVoyage._id);
         await voyageAPI.updateVoyage(editVoyage._id, dataToSubmit);
-        console.log("Voyage mis à jour avec succès");
         setSuccess('Voyage mis à jour avec succès');
       } else {
         console.log("Création d'un nouveau voyage");
         await voyageAPI.createVoyage(dataToSubmit);
-        console.log("Voyage créé avec succès");
         setSuccess('Voyage créé avec succès');
       }
 
-      console.log("Succès de l'opération");
       await fetchVoyages();
       handleClose();
      
-      setTimeout(() => {
-        setSuccess('');
-      }, 5000);
-      setError('');
+      setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
       console.error("Erreur soumission :", err);
       console.error("Détails de l'erreur:", err.response?.data);
@@ -432,6 +452,7 @@ export default function Voyage() {
         setError(err.response?.data?.message || 'Erreur serveur');
       }
     } finally {
+      console.log('Setting loading to false in finally block');
       setLoading(false);
     }
   };
@@ -831,7 +852,24 @@ export default function Voyage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginatedVoyages.map((voyage, index) => (
+              {paginatedVoyages.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      alignItems: 'center',
+                      py: 4,
+                      color: '#757575'
+                    }}>
+                      <DirectionsBus sx={{ fontSize: 48, mb: 2, color: '#e0e0e0' }} />
+                      <Typography variant="h6" sx={{ mb: 1 }}>Aucun voyage trouvé</Typography>
+                      <Typography variant="body2">Les voyages apparaîtront ici une fois créés</Typography>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedVoyages.map((voyage, index) => (
                 <TableRow 
                   key={voyage._id}
                   sx={{ 
@@ -927,7 +965,8 @@ export default function Voyage() {
                     </IconButton>
                   </TableCell>
                 </TableRow>
-              ))}
+                ))
+              )}
             </TableBody>
           </Table>
           <TablePagination
@@ -996,6 +1035,7 @@ export default function Voyage() {
                 options={activeDrivers}
                 getOptionLabel={(option) => `${option.name} - ${option.numero}`}
                 value={drivers.find(driver => driver._id === formData.driverId) || null}
+                loading={driversLoading}
                 onChange={(_, newValue) => {
                   setFormData(prev => ({
                     ...prev,

@@ -2,10 +2,11 @@ const mongoose = require('mongoose');
 const Reservation = require('./reservation.model');
 
 const colisSchema = new mongoose.Schema({
+  // Rendre voyage optionnel au lieu de requis
   voyage: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Voyage', 
-    required: true 
+    required: false 
   },
   reservation: { 
     type: mongoose.Schema.Types.ObjectId, 
@@ -16,6 +17,21 @@ const colisSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
     required: true 
+  },
+  // Nouveaux champs pour destination et date
+  destination: {
+    type: String,
+    required: function() {
+      // Required si voyage n'est pas défini
+      return !this.voyage;
+    }
+  },
+  dateEnvoi: {
+    type: Date,
+    required: function() {
+      // Required si voyage n'est pas défini
+      return !this.voyage;
+    }
   },
   destinataire: {
     nom: { type: String, required: true },
