@@ -64,7 +64,7 @@ export default function Colis() {
     prix: '',
     villeDepart: '',
     destination: '',
-    dateEnvoi: '',
+    dateEnvoi: new Date().toISOString().split('T')[0], // Date du jour par défaut
     destinataire: {
       nom: '',
       telephone: '',
@@ -178,12 +178,11 @@ export default function Colis() {
 
     if (colisItem) {
       setFormData({
-        voyageId: colisItem.voyage?._id || colisItem.reservation?.voyage?._id || '',
         description: colisItem.description || '',
         prix: colisItem.prix || '',
         villeDepart: colisItem.villeDepart || '',
         destination: colisItem.destination || '',
-        dateEnvoi: colisItem.dateEnvoi ? new Date(colisItem.dateEnvoi).toISOString().split('T')[0] : '',
+        dateEnvoi: colisItem.dateEnvoi ? new Date(colisItem.dateEnvoi).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         destinataire: {
           nom: colisItem.destinataire?.nom || '',
           telephone: colisItem.destinataire?.telephone || '',
@@ -195,9 +194,11 @@ export default function Colis() {
       }
     } else {
       setFormData({
-        voyageId: '',
         description: '',
         prix: '',
+        villeDepart: '',
+        destination: '',
+        dateEnvoi: new Date().toISOString().split('T')[0],
         destinataire: {
           nom: '',
           telephone: '',
@@ -262,8 +263,8 @@ export default function Colis() {
       return;
     }
 
-    if (!formData.voyageId || !formData.destinataire.nom || !formData.destinataire.telephone) {
-      setError('Le voyage et les informations du destinataire sont requis.');
+    if (!formData.villeDepart || !formData.destination || !formData.dateEnvoi || !formData.destinataire.nom || !formData.destinataire.telephone) {
+      setError('Tous les champs sont obligatoires.');
       return;
     }
 
@@ -274,22 +275,20 @@ export default function Colis() {
     try {
       const submitData = new FormData();
       
-      submitData.append('voyageId', formData.voyageId);
       submitData.append('description', formData.description || '');
       
       if ((user.role === 'superadmin' || user.role === 'gestionnaireColis') && formData.prix !== '' && formData.prix !== null) {
         submitData.append('prix', parseFloat(formData.prix));
       }
       
+      submitData.append('villeDepart', formData.villeDepart);
+      submitData.append('destination', formData.destination);
+      submitData.append('dateEnvoi', formData.dateEnvoi);
+      
       submitData.append('destinataire[nom]', formData.destinataire.nom);
       submitData.append('destinataire[telephone]', formData.destinataire.telephone);
       submitData.append('destinataire[adresse]', formData.destinataire.adresse || '');
       
-      // Ajout des champs de localisation
-      submitData.append('villeDepart', formData.villeDepart || '');
-      submitData.append('destination', formData.destination || '');
-      submitData.append('dateEnvoi', formData.dateEnvoi || '');
-
       if (imageFile) {
         submitData.append('image', imageFile);
       }
@@ -451,13 +450,13 @@ export default function Colis() {
       (colisItem.destinataire?.nom || '').toLowerCase().includes(term) ||
       (colisItem.destinataire?.telephone || '').toLowerCase().includes(term) ||
       (colisItem.description || '').toLowerCase().includes(term) ||
-      (colisItem.voyage?.from || '').toLowerCase().includes(term) ||
-      (colisItem.voyage?.to || '').toLowerCase().includes(term);
+      (colisItem.villeDepart || '').toLowerCase().includes(term) ||
+      (colisItem.destination || '').toLowerCase().includes(term);
 
     const matchesStatus = !statusFilter || colisItem.status === statusFilter;
     const matchesVoyage = !voyageFilter || 
-    (colisItem.voyage?.from && colisItem.voyage?.to && 
-     `${colisItem.voyage.from}-${colisItem.voyage.to}` === voyageFilter);
+    (colisItem.villeDepart && colisItem.destination && 
+     `${colisItem.villeDepart}-${colisItem.destination}` === voyageFilter);
 
     return matchesSearch && matchesStatus && matchesVoyage;
   });
@@ -644,9 +643,9 @@ export default function Colis() {
             }}
           >
             <MenuItem value="">Tous les voyages</MenuItem>
-            {voyages.map((route, index) => (
-              <MenuItem key={index} value={`${route.from}-${route.to}`}>
-                {route.from} → {route.to}
+            {colis.map((colisItem, index) => (
+              <MenuItem key={index} value={`${colisItem.villeDepart}-${colisItem.destination}`}>
+                {colisItem.villeDepart} → {colisItem.destination}
               </MenuItem>
             ))}
           </Select>
@@ -661,7 +660,8 @@ export default function Colis() {
               <TableRow>
                 <TableCell sx={{ width: '60px' }}></TableCell>
                 <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Destinataire</TableCell>
-                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Voyage</TableCell>
+                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Ville de départ</TableCell>
+                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Destination</TableCell>
                 {user.role === 'superadmin' || user.role === 'gestionnaireColis' && (
                   <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Expéditeur</TableCell>
                 )}
@@ -703,10 +703,12 @@ export default function Colis() {
                   </TableCell>
                   <TableCell>
                     <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                      {colisItem.voyage?.from} → {colisItem.voyage?.to}
+                      {colisItem.villeDepart}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#666666' }}>
-                      {colisItem.voyage?.date ? new Date(colisItem.voyage.date).toLocaleDateString('fr-FR') : ''}
+                  </TableCell>
+                  <TableCell>
+                    <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                      {colisItem.destination}
                     </Typography>
                   </TableCell>
                   {user.role === 'superadmin' || user.role === 'gestionnaireColis' && (
@@ -803,7 +805,7 @@ export default function Colis() {
         <DialogContent sx={{ p: 4, backgroundColor: '#ffffff' }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 
-            {/* ================== SECTION VOYAGE ================== */}
+            {/* ================== SECTION INFORMATIONS DE LIVRAISON ================== */}
             <Box>
               <Typography
                 variant="h6"
@@ -817,91 +819,41 @@ export default function Colis() {
                 }}
               >
                 <LocalShipping sx={{ color: '#ffcc33' }} />
-                Sélection du voyage
+                Informations de livraison
               </Typography>
 
-              <FormControl 
-                size="small" 
-                sx={{ 
-                  minWidth: 180,
-                  '& .MuiInputBase-root': {
-                    height: '40px',
-                    '& .MuiSelect-select': {
-                      paddingTop: '10px',
-                      paddingBottom: '10px'
-                    }
-                  },
-                  '& .MuiInputLabel-root': {
-                    transform: 'translate(14px, 10px) scale(1)',
-                    '&.MuiInputLabel-shrink': {
-                      transform: 'translate(14px, -6px) scale(0.75)',
-                    },
-                  },
-                }}
-              >
-                <InputLabel>Voyage</InputLabel>
-                <Select
-                  name="voyageId"
-                  value={formData.voyageId}
-                  onChange={handleChange}
-                  label="Voyage"
-                  sx={{
-                    borderRadius: '12px',
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#ffcc33',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#ffcc33',
-                      borderWidth: 2,
-                    },
-                  }}
-                >
-                  {voyages.map((voyage) => (
-                    <MenuItem key={voyage._id} value={voyage._id}>
-                      {voyage.from} → {voyage.to} •{' '}
-                      {new Date(voyage.date).toLocaleDateString('fr-FR')}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
-
-            {/* Champs de localisation */}
-            <Grid container spacing={2} sx={{ mt: 2 }}>
+              <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
                 <TextField
-                  label="Ville de départ"
+                  label="Ville de départ *"
                   name="villeDepart"
                   value={formData.villeDepart}
                   onChange={handleChange}
                   fullWidth
-                  required={!formData.voyageId}
-                  disabled={!!formData.voyageId}
+                  required
                   sx={inputStyle}
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField
-                  label="Destination"
+                  label="Destination *"
                   name="destination"
                   value={formData.destination}
                   onChange={handleChange}
                   fullWidth
-                  required={!formData.voyageId}
-                  disabled={!!formData.voyageId}
+                  required
                   sx={inputStyle}
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField
-                  label="Date d'envoi"
+                  label="Date d'envoi *"
                   name="dateEnvoi"
                   type="date"
                   value={formData.dateEnvoi}
                   onChange={handleChange}
                   fullWidth
-                  required={!formData.voyageId}
-                  disabled={!!formData.voyageId}
+                  required
                   InputLabelProps={{
                     shrink: true,
                   }}
