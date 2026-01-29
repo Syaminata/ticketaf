@@ -111,6 +111,11 @@ export default function Colis() {
       console.log('📦 Données des colis:', res);
       
       const now = new Date();
+      // Afficher la structure du premier colis pour le débogage
+      if (res.length > 0) {
+        console.log('📦 Structure du premier colis:', res[0]);
+      }
+
       const filteredColis = res.filter(colisItem => {
         const voyageDate = colisItem.voyage?.date || colisItem.reservation?.voyage?.date;
         if (!voyageDate) return true;
@@ -133,33 +138,49 @@ export default function Colis() {
   };
 
   const fetchVoyages = async () => {
-    try {
-      // Récupérer d'abord les colis
-      const colisRes = await colisAPI.getAllColis();
+  try {
+    console.log('Début de fetchVoyages');
+    const colisRes = await colisAPI.getAllColis();
+    console.log('Réponse de getAllColis:', colisRes);
+    
+    const colisData = colisRes.data || colisRes; 
+    console.log('Données des colis:', colisData);
+    const uniqueRoutes = new Map();
+    colisData.forEach((colisItem, index) => {
+      console.log(`Traitement du colis ${index}:`, colisItem);
       
-      // Créer un Set pour stocker les trajets uniques
-      const uniqueRoutes = new Set();
-      
-      // Parcourir les colis et extraire les trajets uniques
-      colisRes.forEach(colisItem => {
-        const voyage = colisItem.voyage || colisItem.reservation?.voyage;
-        if (voyage?.from && voyage?.to) {
-          uniqueRoutes.add(`${voyage.from}-${voyage.to}`);
+      const from = colisItem.villeDepart;
+      const to = colisItem.destination;
+      if (from && to) {
+        const key = `${from}-${to}`;
+        console.log(`Trajet trouvé: ${key}`);
+        if (!uniqueRoutes.has(key)) {
+          uniqueRoutes.set(key, { from, to });
+          console.log('Nouveau trajet ajouté:', { from, to });
         }
-      });
-      
-      // Convertir le Set en tableau d'objets {from, to}
-      const routesArray = Array.from(uniqueRoutes).map(route => {
-        const [from, to] = route.split('-');
-        return { from, to };
-      });
-      
-      setVoyages(routesArray);
-    } catch (err) {
-      console.error('Erreur récupération des voyages:', err);
-      setVoyages([]);
-    }
-  };
+      } else {
+        console.log(`Aucun trajet valide trouvé pour le colis ${index}`);
+      }
+    });
+    const routesArray = Array.from(uniqueRoutes.values());
+    console.log('Liste finale des trajets uniques:', routesArray);
+    setVoyages(routesArray);
+  } catch (err) {
+    console.error('Erreur récupération des voyages:', err);
+    setVoyages([]);
+  }
+};
+
+// Ajouter ce useEffect pour suivre les changements de l'état voyages
+useEffect(() => {
+  console.log('État voyages mis à jour:', voyages);
+}, [voyages]);
+
+// Ajouter ce useEffect pour suivre les changements du filtre
+useEffect(() => {
+  console.log('Filtre de voyage changé:', voyageFilter);
+}, [voyageFilter]);
+
 
   useEffect(() => {
     fetchColis();
@@ -277,8 +298,14 @@ export default function Colis() {
       
       submitData.append('description', formData.description || '');
       
-      if ((user.role === 'superadmin' || user.role === 'gestionnaireColis') && formData.prix !== '' && formData.prix !== null) {
-        submitData.append('prix', parseFloat(formData.prix));
+      if (user.role === 'superadmin' || user.role === 'gestionnaireColis') {
+        if (formData.prix !== '' && formData.prix !== null) {
+          submitData.append('prix', parseFloat(formData.prix));
+          // Ne définir le statut 'enregistré' que si le prix est défini et non nul
+          if (formData.prix > 0) {
+            submitData.append('status', 'enregistré');
+          }
+        }
       }
       
       submitData.append('villeDepart', formData.villeDepart);
@@ -345,6 +372,29 @@ export default function Colis() {
   const handleCloseDetails = () => {
     setDetailsOpen(false);
     setSelectedColis(null);
+  };
+
+  const handleStatusChange = async (colisId, newStatus) => {
+    if (newStatus !== 'envoyé') {
+      return; // Ne permettre que le passage à "envoyé"
+    }
+
+    if (!window.confirm('Êtes-vous sûr de vouloir marquer ce colis comme envoyé ?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await colisAPI.updateColis(colisId, { status: newStatus });
+      await fetchColis();
+      setSuccess('Colis marqué comme envoyé avec succès');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour du statut:', err);
+      setError('Erreur lors de la mise à jour du statut');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const confirmDelete = async (id) => {
@@ -444,7 +494,7 @@ export default function Colis() {
     </Box>
   );
 
-  const filteredColis = colis.filter((colisItem) => {
+  const filteredColis = colis.filter(colisItem => {
     const term = searchTerm.toLowerCase();
     const matchesSearch =
       (colisItem.destinataire?.nom || '').toLowerCase().includes(term) ||
@@ -452,12 +502,10 @@ export default function Colis() {
       (colisItem.description || '').toLowerCase().includes(term) ||
       (colisItem.villeDepart || '').toLowerCase().includes(term) ||
       (colisItem.destination || '').toLowerCase().includes(term);
-
     const matchesStatus = !statusFilter || colisItem.status === statusFilter;
     const matchesVoyage = !voyageFilter || 
-    (colisItem.villeDepart && colisItem.destination && 
-     `${colisItem.villeDepart}-${colisItem.destination}` === voyageFilter);
-
+      (colisItem.villeDepart && colisItem.destination && 
+      `${colisItem.villeDepart}-${colisItem.destination}` === voyageFilter);
     return matchesSearch && matchesStatus && matchesVoyage;
   });
 
@@ -608,46 +656,40 @@ export default function Colis() {
             <MenuItem value="annulé">Annulé</MenuItem>
           </Select>
         </FormControl>
-
-        <FormControl 
-          size="small" 
-          sx={{ 
-            minWidth: 200,
-            '& .MuiInputBase-root': {
-              height: '40px',
-              '& .MuiSelect-select': {
-                paddingTop: '10px',
-                paddingBottom: '10px'
-              }
-            },
-            '& .MuiInputLabel-root': {
-              transform: 'translate(14px, 10px) scale(1)',
-              '&.MuiInputLabel-shrink': {
-                transform: 'translate(14px, -6px) scale(0.75)',
-              },
-            },
-          }}
-        >
+        <FormControl size="small" sx={{ minWidth: 200, marginLeft: 2 }}>
           <Select
             value={voyageFilter}
-            onChange={(e) => setVoyageFilter(e.target.value)}
+            onChange={(e) => {
+              console.log('Nouvelle valeur sélectionnée:', e.target.value);
+              setVoyageFilter(e.target.value);
+            }}
             displayEmpty
-            renderValue={(selected) => selected ? selected : 'Voyage'}
+            renderValue={(selected) => selected ? selected.replace('-', ' → ') : 'Tous les trajets'}
             sx={{
+              backgroundColor: 'white',
               borderRadius: '8px',
-              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#ffcc33' },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#ffcc33' },
-              '& .MuiSelect-select': {
-                color: voyageFilter ? 'inherit' : '#666',
-              }
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ddd',
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ffcc33',
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ffcc33',
+              },
             }}
           >
-            <MenuItem value="">Tous les voyages</MenuItem>
-            {colis.map((colisItem, index) => (
-              <MenuItem key={index} value={`${colisItem.villeDepart}-${colisItem.destination}`}>
-                {colisItem.villeDepart} → {colisItem.destination}
-              </MenuItem>
-            ))}
+            <MenuItem value="">
+              <em>Tous les trajets</em>
+            </MenuItem>
+            {voyages.map((voyage, index) => {
+              const value = `${voyage.from}-${voyage.to}`;
+              return (
+                <MenuItem key={value} value={value}>
+                  {voyage.from} → {voyage.to}
+                </MenuItem>
+              );
+            })}
           </Select>
         </FormControl>
       </Box>
@@ -660,8 +702,8 @@ export default function Colis() {
               <TableRow>
                 <TableCell sx={{ width: '60px' }}></TableCell>
                 <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Destinataire</TableCell>
-                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Ville de départ</TableCell>
-                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Destination</TableCell>
+                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Trajet</TableCell>
+                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Date d'envoi souhaité</TableCell>
                 {user.role === 'superadmin' || user.role === 'gestionnaireColis' && (
                   <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Expéditeur</TableCell>
                 )}
@@ -702,13 +744,21 @@ export default function Colis() {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                      {colisItem.villeDepart}
-                    </Typography>
+                    <Box>
+                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <span>{colisItem.villeDepart || 'Non spécifiée'}</span>
+                        <span>→</span>
+                        <span>{colisItem.destination}</span>
+                      </Typography>
+                    </Box>
                   </TableCell>
                   <TableCell>
-                    <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                      {colisItem.destination}
+                    <Typography sx={{ fontWeight: 500, color: '#1a1a1a' }}>
+                      {new Date(colisItem.dateEnvoi).toLocaleDateString('fr-FR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                      })}
                     </Typography>
                   </TableCell>
                   {user.role === 'superadmin' || user.role === 'gestionnaireColis' && (
@@ -722,13 +772,37 @@ export default function Colis() {
                     </TableCell>
                   )}
                   <TableCell sx={{ textAlign: 'center' }}>
-                    <Chip
-                      icon={getStatusIcon(colisItem.status)}
-                      label={getStatusText(colisItem.status)}
-                      color={getStatusColor(colisItem.status)}
-                      size="small"
-                      sx={{ fontWeight: 600 }}
-                    />
+                    {colisItem.status === 'enregistré' ? (
+                      <Select
+                        value={colisItem.status}
+                        onChange={(e) => handleStatusChange(colisItem._id, e.target.value)}
+                        size="small"
+                        sx={{
+                          minWidth: 120,
+                          '& .MuiSelect-select': {
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            fontWeight: 500,
+                            backgroundColor: '#e3f2fd',
+                            color: '#1565c0'
+                          }
+                        }}
+                        disabled={loading}
+                      >
+                        <MenuItem value="enregistré">Enregistré</MenuItem>
+                        <MenuItem value="envoyé">Marquer comme Envoyé</MenuItem>
+                      </Select>
+                    ) : (
+                      <Chip
+                        icon={getStatusIcon(colisItem.status)}
+                        label={getStatusText(colisItem.status)}
+                        color={getStatusColor(colisItem.status)}
+                        size="small"
+                        sx={{ fontWeight: 600 }}
+                      />
+                    )}
                   </TableCell>
                   <TableCell sx={{ textAlign: 'center' }}>
                     <Button
@@ -847,7 +921,7 @@ export default function Colis() {
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField
-                  label="Date d'envoi *"
+                  label="Date d'envoi souhaitée *"
                   name="dateEnvoi"
                   type="date"
                   value={formData.dateEnvoi}
@@ -941,8 +1015,6 @@ export default function Colis() {
                 value={formData.description}
                 onChange={handleChange}
                 fullWidth
-                multiline
-                rows={3}
                 sx={inputStyle}
               />
             </Box>
@@ -1046,8 +1118,8 @@ export default function Colis() {
             )}
 
           </Box>
+          </Box>
         </DialogContent>
-
 
         <DialogActions sx={{ p: 2, backgroundColor: '#f8f9fa', gap: 2, borderTop: '1px solid #e0e0e0' }}>
           <Button
@@ -1237,20 +1309,18 @@ export default function Colis() {
 
                 <Box sx={{ display: 'grid', gap: 2 }}>
                   <InfoRow label="Trajet">
-                    {selectedColis.voyage?.from} → {selectedColis.voyage?.to}
+                    {selectedColis.villeDepart} → {selectedColis.destination}
                   </InfoRow>
 
-                  <InfoRow label="Date de départ">
-                    {selectedColis.voyage?.date
-                      ? new Date(selectedColis.voyage.date).toLocaleString('fr-FR')
+                  <InfoRow label="Date d'envoi souhaitée">
+                    {selectedColis.dateEnvoi
+                      ? new Date(selectedColis.dateEnvoi).toLocaleDateString('fr-FR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric'
+                        })
                       : 'Non spécifiée'}
                   </InfoRow>
-
-                  {selectedColis.voyage?.driver && (
-                    <InfoRow label="Chauffeur">
-                      {selectedColis.voyage.driver.name}
-                    </InfoRow>
-                  )}
                 </Box>
               </Box>
               {/* Image */}
