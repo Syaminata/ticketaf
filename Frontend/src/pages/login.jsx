@@ -19,6 +19,7 @@ export default function Login({ setUser }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    storage.removeToken();
 
     try {
       const response = await axios.post("/auth/login", { email, password, role });
@@ -42,7 +43,7 @@ export default function Login({ setUser }) {
       if (err.response?.status === 403) setError(err.response.data.message);
       else if (err.response?.status === 401) setError("Mot de passe incorrect");
       else if (err.response?.status === 404) setError("Utilisateur non trouvé");
-      else setError("Erreur serveur ou identifiants invalides");
+      else setError("Token expiré");
     }
   };
 

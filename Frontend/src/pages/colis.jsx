@@ -1248,6 +1248,39 @@ useEffect(() => {
                 </Box>
               </Box>
 
+              {/* Expéditeur */}
+              {(selectedColis.expediteur?.name || selectedColis.expediteur?.numero) && (
+                <Box>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      mb: 3,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <Person sx={{ color: '#ffcc33' }} />
+                    Expéditeur
+                  </Typography>
+
+                  <Box sx={{ display: 'grid', gap: 2 }}>
+                    {selectedColis.expediteur?.name && (
+                      <InfoRow label="Nom">
+                        {selectedColis.expediteur.name}
+                      </InfoRow>
+                    )}
+
+                    {selectedColis.expediteur?.numero && (
+                      <InfoRow label="Téléphone">
+                        {selectedColis.expediteur.numero}
+                      </InfoRow>
+                    )}
+                  </Box>
+                </Box>
+              )}
+
               {/* Infos Colis */}
               <Box>
                 <Typography
@@ -1285,7 +1318,7 @@ useEffect(() => {
                     </InfoRow>
                   )}
 
-                  <InfoRow label="Déposé le">
+                  <InfoRow label="Enregistré le">
                     {new Date(selectedColis.createdAt).toLocaleString('fr-FR')}
                   </InfoRow>
                 </Box>
