@@ -149,6 +149,40 @@ exports.getRevenue = async (req, res) => {
 };
 
 // Obtenir le top 5 des clients avec le plus de réservations de voyage
+exports.getTopReservationsClients = async (req, res) => {
+  try {
+    const topClients = await User.aggregate([
+      {
+        $lookup: {
+          from: 'reservations',
+          localField: '_id',
+          foreignField: 'user',
+          as: 'reservations'
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          name: { $ifNull: ['$name', 'Client sans nom'] },
+          email: { $ifNull: ['$email', 'Non renseigné'] },
+          numero: { $ifNull: ['$numero', 'Non renseigné'] },
+          reservationCount: { $size: '$reservations' },
+          lastActivity: { $max: '$reservations.createdAt' }
+        }
+      },
+      { $match: { reservationCount: { $gt: 0 } } },
+      { $sort: { reservationCount: -1 } },
+      { $limit: 5 }
+    ]);
+
+    res.json(topClients || []);
+  } catch (err) {
+    console.error('Erreur lors de la récupération des meilleurs clients voyageurs:', err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+// Obtenir le top 5 des clients avec le plus de réservations de voyage
 exports.getTopColisDestinations = async (req, res) => {
   try {
     const topDestinations = await Colis.aggregate([
