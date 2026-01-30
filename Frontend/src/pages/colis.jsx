@@ -301,10 +301,9 @@ useEffect(() => {
       if (user.role === 'superadmin' || user.role === 'gestionnaireColis') {
         if (formData.prix !== '' && formData.prix !== null) {
           submitData.append('prix', parseFloat(formData.prix));
-          // Ne définir le statut 'enregistré' que si le prix est défini et non nul
-          if (formData.prix > 0) {
-            submitData.append('status', 'enregistré');
-          }
+          // Quand un prix est défini par l'admin, le statut devient 'en attente'
+          // Le client devra accepter le prix pour passer à 'enregistré'
+          submitData.append('status', 'en attente');
         }
       }
       
@@ -392,6 +391,26 @@ useEffect(() => {
     } catch (err) {
       console.error('Erreur lors de la mise à jour du statut:', err);
       setError('Erreur lors de la mise à jour du statut');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fonction pour que le client accepte le prix
+  const handleAcceptPrice = async (colisId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir accepter ce prix ? Le colis sera enregistré.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await colisAPI.updateColis(colisId, { status: 'enregistré' });
+      await fetchColis();
+      setSuccess('Prix accepté avec succès. Le colis est maintenant enregistré.');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Erreur lors de l\'acceptation du prix:', err);
+      setError('Erreur lors de l\'acceptation du prix');
     } finally {
       setLoading(false);
     }
@@ -825,6 +844,31 @@ useEffect(() => {
                     >
                       Voir détails
                     </Button>
+                    
+                    {/* Bouton Accepter le prix pour les clients quand le statut est "en attente" */}
+                    {colisItem.status === 'en attente' && user.role !== 'superadmin' && user.role !== 'gestionnaireColis' && (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => handleAcceptPrice(colisItem._id)}
+                        sx={{
+                          ml: 1,
+                          backgroundColor: '#4caf50',
+                          color: 'white',
+                          fontSize: '12px',
+                          px: 2,
+                          py: 0.5,
+                          borderRadius: '8px',
+                          textTransform: 'none',
+                          '&:hover': {
+                            backgroundColor: '#45a049'
+                          }
+                        }}
+                      >
+                        Accepter le prix
+                      </Button>
+                    )}
+                    
                     <IconButton
                       onClick={() => handleOpen(colisItem)}
                       sx={{ color: '#ffcc33', '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' } }}
