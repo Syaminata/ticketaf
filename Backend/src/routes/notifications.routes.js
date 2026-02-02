@@ -6,7 +6,7 @@ const NotificationLog = require('../models/notifications.model');
 const { auth, adminAuth } = require('../middleware/auth');
 
 // Envoyer une notification admin
-router.post('/send', adminAuth, async (req, res) => {
+router.post('/send', auth, adminAuth, async (req, res) => {
   try {
     const { target, userId, title, body, type } = req.body;
     
@@ -109,7 +109,7 @@ router.post('/send', adminAuth, async (req, res) => {
 });
 
 // Historique des notifications
-router.get('/history', adminAuth, async (req, res) => {
+router.get('/history', auth, adminAuth, async (req, res) => {
   try {
     const logs = await NotificationLog.find()
       .populate('sentBy', 'name email')
@@ -124,7 +124,7 @@ router.get('/history', adminAuth, async (req, res) => {
 });
 
 // Statistiques des notifications
-router.get('/stats', adminAuth, async (req, res) => {
+router.get('/stats', auth, adminAuth, async (req, res) => {
   try {
     const stats = await NotificationLog.aggregate([
       {
