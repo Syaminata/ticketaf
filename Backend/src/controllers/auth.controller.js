@@ -164,11 +164,17 @@ const register = async (req, res) => {
 // === Connexion ===
 const login = async (req, res) => {
   try {
-    const { email, numero, password } = req.body;
+    const { email, numero, password, role } = req.body;
     // Vérification des champs obligatoires
     if ((!email && !numero) || !password) {
       return res.status(400).json({ 
         message: 'Email/numéro et mot de passe sont requis' 
+      });
+    }
+    // Vérification du rôle
+    if (!role) {
+      return res.status(400).json({ 
+        message: 'Le rôle est requis' 
       });
     }
     // Construction de la requête
@@ -177,13 +183,13 @@ const login = async (req, res) => {
         { email: email || '' },
         { numero: numero || '' }
       ],
-      role: { $ne: 'conducteur' } // Exclure les conducteurs
+      role: { $eq: role, $ne: 'conducteur' } // Vérifier que le rôle correspond et exclure les conducteurs
     };
     // Recherche de l'utilisateur
     const user = await User.findOne(query);
     if (!user) {
-      return res.status(404).json({ 
-        message: 'Aucun compte trouvé avec ces identifiants' 
+      return res.status(403).json({ 
+        message: 'Identifiants incorrects ou rôle non autorisé' 
       });
     }
     // Vérification du mot de passe
