@@ -74,9 +74,10 @@ const createReservation = async (req, res) => {
         const driver = voyage.driver;
 
         // Notification chauffeur : nouvelle réservation
-        if (driver.fcmToken) {
+        if (driver.fcmTokens && driver.fcmTokens.length > 0) {
+          const driverTokens = driver.fcmTokens.map(t => t.token);
           await sendNotification(
-            [driver.fcmToken],
+            driverTokens,
             'Nouvelle réservation',
             `${user.name} a réservé ${quantity} place(s) sur ${voyage.from} → ${voyage.to}`,
             {
@@ -88,9 +89,10 @@ const createReservation = async (req, res) => {
         }
 
         //Notification client : confirmation
-        if (user.fcmToken) {
+        if (user.fcmTokens && user.fcmTokens.length > 0) {
+          const userTokens = user.fcmTokens.map(t => t.token);
           await sendNotification(
-            [user.fcmToken],
+            userTokens,
             'Réservation confirmée',
             `Votre place pour ${voyage.from} → ${voyage.to} est confirmée`,
             {
@@ -104,9 +106,10 @@ const createReservation = async (req, res) => {
         if (voyage.availableSeats - quantity === 0) {
           await Voyage.findByIdAndUpdate(voyageId, { status: 'FULL' });
 
-          if (driver.fcmToken) {
+          if (driver.fcmTokens && driver.fcmTokens.length > 0) {
+            const driverTokens = driver.fcmTokens.map(t => t.token);
             await sendNotification(
-              [driver.fcmToken],
+              driverTokens,
               'Voyage complet',
               'Toutes les places ont été réservées',
               {
