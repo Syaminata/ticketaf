@@ -24,14 +24,14 @@ const createVoyage = async (req, res) => {
 
     // Vérifier si le chauffeur a déjà un voyage à la même date et heure
     const voyageDate = new Date(date);
-    const thirtyMinutesBefore = new Date(voyageDate.getTime() - 30 * 60000); // 30min avant
-    const thirtyMinutesAfter = new Date(voyageDate.getTime() + 30 * 60000); // 30min après
+    const twoHoursBefore = new Date(voyageDate.getTime() - 120 * 60000); // 2h avant
+    const twoHoursAfter = new Date(voyageDate.getTime() + 120 * 60000); // 2h après
     
     const existingVoyage = await Voyage.findOne({
       driver: driverId,
       date: {
-        $gte: thirtyMinutesBefore,
-        $lt: thirtyMinutesAfter
+        $gte: twoHoursBefore,
+        $lt: twoHoursAfter
       }
     });
 
