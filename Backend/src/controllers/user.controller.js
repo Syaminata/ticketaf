@@ -6,16 +6,34 @@ const mongoose = require('mongoose');
 
 const getAllUsers = async (req, res) => {
   try {
+    const { search } = req.query;
+    
     // Récupérer d'abord les IDs des chauffeurs
     const driverIds = (await Driver.find({}, '_id')).map(d => d._id);
     
+    let userQuery = { _id: { $nin: driverIds } };
+    let driverQuery = {};
+    
+    // Ajouter la recherche si fournie
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      userQuery.$or = [
+        { name: searchRegex },
+        { numero: searchRegex },
+        { email: searchRegex }
+      ];
+      driverQuery.$or = [
+        { name: searchRegex },
+        { numero: searchRegex },
+        { email: searchRegex }
+      ];
+    }
+    
     // Récupérer les utilisateurs qui ne sont pas des chauffeurs
-    const users = await User.find({ 
-      _id: { $nin: driverIds } 
-    }).select('-password');
+    const users = await User.find(userQuery).select('-password');
 
     // Formater les chauffeurs
-    const drivers = await Driver.find().select('-password');
+    const drivers = await Driver.find(driverQuery).select('-password');
     const formattedDrivers = drivers.map(driver => ({
       _id: driver._id,
       name: driver.name,
@@ -29,7 +47,12 @@ const getAllUsers = async (req, res) => {
     // Combiner les utilisateurs normaux et les chauffeurs formatés
     const allUsers = [...users, ...formattedDrivers];
     
-    res.status(200).json(allUsers);
+    // Retourner les résultats
+    if (search) {
+      res.json({ users: allUsers });
+    } else {
+      res.json(allUsers);
+    }
   } catch (err) {
     console.error('Erreur getAllUsers:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
