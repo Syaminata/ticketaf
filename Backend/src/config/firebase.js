@@ -5,13 +5,16 @@ let firebaseAdmin = null;
 
 try {
   // Vérifier si le fichier de service Firebase existe
-  const serviceAccountPath = path.join(__dirname, '../firebase-service-account.json');
+  const serviceAccountPath = '/home/ubuntu/ticketaf/Backend/firebase-service-account.json';
   const fs = require('fs');
+  
+  console.log('🔍 Recherche du fichier Firebase:', serviceAccountPath);
+  console.log('📁 Le fichier existe?', fs.existsSync(serviceAccountPath));
   
   if (fs.existsSync(serviceAccountPath)) {
     // Initialiser Firebase avec le fichier de service
     firebaseAdmin = admin.initializeApp({
-      credential: admin.credential.cert(require('../firebase-service-account.json')),
+      credential: admin.credential.cert(serviceAccountPath),
     });
     console.log('✅ Firebase initialisé avec succès');
   } else {
