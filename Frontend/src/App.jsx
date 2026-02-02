@@ -15,6 +15,7 @@ import Annonce from './pages/annonces'
 import Profile from './pages/Profile';
 import storage from './utils/storage';
 import Colis from './pages/colis';
+import Notifications from './pages/notifications';
 
 function ProtectedRoute({ children, user, role, allowedRoles }) {
   if (!user) return <Navigate to="/login" replace />;
@@ -179,6 +180,17 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['admin', 'superadmin']}>
+              <AdminLayout>
+                <Notifications />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        
         {/* Redirection par défaut */}
         <Route
           path="*"

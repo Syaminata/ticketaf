@@ -12,7 +12,8 @@ import PersonIcon from '@mui/icons-material/Person';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import HistoryIcon from '@mui/icons-material/History';
 import CampaignIcon from '@mui/icons-material/Campaign';
-import logo from '../images/logo.png'
+import logo from '../images/logo.png';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 
 const Sidebar = ({ onLogout }) => {
   const location = useLocation();
@@ -63,6 +64,10 @@ const Sidebar = ({ onLogout }) => {
     // Annonces - accessible par admin et superadmin
     ...(userRole === 'superadmin' || userRole === 'admin'
       ? [{ text: 'Annonces', icon: <CampaignIcon />, path: '/annonces' }]
+      : []),
+    // Notifications - accessible par admin et superadmin
+    ...(userRole === 'superadmin' || userRole === 'admin'
+      ? [{ text: 'Notifications', icon: <NotificationsIcon />, path: '/notifications' }]
       : []),
     // Historique - accessible par tous
     { text: 'Historique', icon: <HistoryIcon />, path: '/historique' },
