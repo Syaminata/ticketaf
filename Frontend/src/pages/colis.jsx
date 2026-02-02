@@ -407,32 +407,32 @@ useEffect(() => {
 
   // Fonction pour que le client accepte le prix
   const handleAcceptPrice = async (colisId) => {
-  console.log(`[handleAcceptPrice] Début pour colis ${colisId}`);
+    console.log(`[handleAcceptPrice] Début pour colis ${colisId}`);
 
-  if (!window.confirm('Êtes-vous sûr de vouloir accepter ce prix ? Le colis sera enregistré.')) return;
+    if (!window.confirm('Êtes-vous sûr de vouloir accepter ce prix ? Le colis sera enregistré.')) return;
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    // Récupérer le colis avant modification pour debug
-    const colisBefore = await colisAPI.getColis(colisId);
-    console.log(`[handleAcceptPrice] Avant update:`, colisBefore);
+      // Récupérer le colis avant modification pour debug
+      const colisBefore = await colisAPI.getColis(colisId);
+      console.log(`[handleAcceptPrice] Avant update:`, colisBefore);
 
-    await colisAPI.updateColis(colisId, { status: 'enregistré' });
+      await colisAPI.updateColis(colisId, { status: 'enregistré' });
 
-    const colisAfter = await colisAPI.getColis(colisId);
-    console.log(`[handleAcceptPrice] Après update:`, colisAfter);
+      const colisAfter = await colisAPI.getColis(colisId);
+      console.log(`[handleAcceptPrice] Après update:`, colisAfter);
 
-    await fetchColis();
-    setSuccess('Prix accepté avec succès. Le colis est maintenant enregistré.');
-    setTimeout(() => setSuccess(''), 3000);
-  } catch (err) {
-    console.error('Erreur lors de l\'acceptation du prix:', err);
-    setError('Erreur lors de l\'acceptation du prix');
-  } finally {
-    setLoading(false);
-  }
-};
+      await fetchColis();
+      setSuccess('Prix accepté avec succès. Le colis est maintenant enregistré.');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Erreur lors de l\'acceptation du prix:', err);
+      setError('Erreur lors de l\'acceptation du prix');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const confirmDelete = async (id) => {
     setConfirmDialog(prev => ({ ...prev, loading: true }));

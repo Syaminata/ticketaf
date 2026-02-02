@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { register, login } = require('../controllers/auth.controller');
+const { register, login, updateFcmToken } = require('../controllers/auth.controller');
 const { loginDriver } = require('../controllers/driver.auth.controller');
+const { authenticateToken } = require('../middleware/auth.middleware');
 /**
  * @swagger
  * /auth/register:
@@ -122,5 +123,43 @@ router.post('/login', login);
  *         description: Compte désactivé
  */
 router.post('/login/driver', loginDriver);
+
+/**
+ * @swagger
+ * /auth/fcm-token:
+ *   put:
+ *     summary: Mettre à jour le FCM token de l'utilisateur
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - fcmToken
+ *             properties:
+ *               fcmToken:
+ *                 type: string
+ *                 description: Le FCM token à mettre à jour
+ *               platform:
+ *                 type: string
+ *                 enum: [android, ios, web]
+ *                 default: web
+ *                 description: La plateforme du token
+ *     responses:
+ *       200:
+ *         description: FCM token mis à jour avec succès
+ *       400:
+ *         description: FCM token requis
+ *       401:
+ *         description: Non autorisé
+ *       404:
+ *         description: Utilisateur non trouvé
+ */
+router.put('/fcm-token', authenticateToken, updateFcmToken);
+
 module.exports = router;
 

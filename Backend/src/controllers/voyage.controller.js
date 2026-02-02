@@ -1,6 +1,7 @@
 const Voyage = require('../models/voyage.model');
-const Bus = require('../models/bus.model');
+const Reservation = require('../models/reservation.model');
 const Driver = require('../models/driver.model');
+const { sendNotification } = require('../services/notification.service');
 
 const createVoyage = async (req, res) => {
   try {
@@ -121,6 +122,57 @@ const getVoyageById = async (req, res) => {
 };
 
 const updateVoyage = async (req, res) => {
+  // Si le chauffeur démarre le voyage
+  if (updates.status === 'STARTED' && voyage.status !== 'STARTED') {
+    await Voyage.findByIdAndUpdate(voyageId, { status: 'STARTED' });
+
+    const reservations = await Reservation.find({
+      voyage: voyageId,
+      status: 'CONFIRMED'
+    }).populate('user');
+
+    for (const r of reservations) {
+      if (r.user?.fcmToken) {
+        await sendNotification(
+          [r.user.fcmToken],
+          'Voyage démarré',
+          'Le chauffeur a démarré le voyage',
+          {
+            type: 'TRIP_STARTED',
+            voyageId
+          }
+        );
+      }
+    }
+  }
+  // Chauffeur en route vers un client
+  if (
+    updates.currentClient &&
+    String(updates.currentClient) !== String(voyage.currentClient)
+  ) {
+    const client = await User.findById(updates.currentClient);
+
+    if (client?.fcmToken) {
+      await sendNotification(
+        [client.fcmToken],
+        'Le chauffeur arrive',
+        'Le chauffeur se dirige vers votre position',
+        {
+          type: 'DRIVER_ON_THE_WAY',
+          voyageId,
+        }
+      );
+    }
+  }
+  // Client embarqué
+  if (updates.clientPicked === true && voyage.currentClient) {
+    await Reservation.findOneAndUpdate(
+      { voyage: voyageId, user: voyage.currentClient },
+      { status: 'PICKED_UP' }
+    );
+  }
+
+
   try {
     const voyage = await Voyage.findByIdAndUpdate(req.params.id, req.body, { new: true })
       .populate('driver', '-password');

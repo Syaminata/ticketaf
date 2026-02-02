@@ -5,7 +5,19 @@ const reservationSchema = new mongoose.Schema({
   bus: { type: mongoose.Schema.Types.ObjectId, ref: 'Bus' },
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   ticket: { type: String, enum: ['place', 'colis'], default: 'place' },
-  quantity: { type: Number, default: 1 }
+  quantity: { type: Number, default: 1 },
+  status: {
+    type: String,
+    enum: [
+      'PENDING',        // réservation créée
+      'CONFIRMED',      // validée
+      'CANCELLED',
+      'ON_THE_WAY',     // chauffeur en route vers ce client
+      'PICKED_UP'       // client embarqué
+    ],
+    default: 'PENDING'
+  }
+
 }, { timestamps: true });
 
 reservationSchema.pre('validate', function(next) {

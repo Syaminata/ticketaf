@@ -168,7 +168,7 @@ const login = async (req, res) => {
     // Vérification des champs obligatoires
     if ((!email && !numero) || !password) {
       return res.status(400).json({ 
-        message: 'Email/numéro et mot de passe sont requis' 
+        message: 'Numéro et mot de passe sont requis' 
       });
     }
     // Vérification du rôle
@@ -189,7 +189,7 @@ const login = async (req, res) => {
     const user = await User.findOne(query);
     if (!user) {
       return res.status(403).json({ 
-        message: 'Identifiants incorrects ou rôle non autorisé' 
+        message: 'Veuillez choisir le role correspondant' 
       });
     }
     // Vérification du mot de passe
@@ -229,7 +229,51 @@ const login = async (req, res) => {
   }
 };
 
+// === Mise à jour du FCM Token ===
+const updateFcmToken = async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+    const userId = req.user.id; // Récupéré depuis le middleware d'authentification
 
+    if (!fcmToken) {
+      return res.status(400).json({ 
+        message: 'Le FCM token est requis' 
+      });
+    }
 
+    // Mettre à jour le tableau fcmTokens de l'utilisateur
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { 
+        $addToSet: { 
+          fcmTokens: { 
+            token: fcmToken, 
+            platform: req.body.platform || 'web',
+            lastActive: new Date()
+          } 
+        } 
+      },
+      { new: true }
+    );
 
-module.exports = { register, login };
+    if (!user) {
+      return res.status(404).json({ 
+        message: 'Utilisateur non trouvé' 
+      });
+    }
+
+    res.json({ 
+      message: 'FCM token mis à jour avec succès',
+      fcmTokens: user.fcmTokens
+    });
+
+  } catch (err) {
+    console.error('Erreur lors de la mise à jour du FCM token:', err);
+    res.status(500).json({ 
+      message: 'Erreur serveur lors de la mise à jour du FCM token',
+      error: err.message 
+    });
+  }
+};
+
+module.exports = { register, login, updateFcmToken };

@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
+require('./config/firebase');
+
 
 // Controllers
 const authController = require('./controllers/auth.controller');

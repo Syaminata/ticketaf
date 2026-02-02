@@ -3,6 +3,8 @@ const Colis = require('../models/colis.model');
 const Voyage = require('../models/voyage.model');
 const User = require('../models/user.model');
 const Bus = require('../models/bus.model');
+const { sendNotification } = require('../services/notification.service');
+
 
 // -----------------------------
 // CREATE RESERVATION
@@ -62,6 +64,60 @@ const createReservation = async (req, res) => {
     if (busId) reservationData.bus = busId;
 
     const reservation = await Reservation.create(reservationData);
+
+    // NOTIFICATIONS METIER
+    if (ticket === 'place' && voyageId) {
+      const voyage = await Voyage.findById(voyageId)
+        .populate('driver');
+
+      if (voyage && voyage.driver) {
+        const driver = voyage.driver;
+
+        // Notification chauffeur : nouvelle réservation
+        if (driver.fcmToken) {
+          await sendNotification(
+            [driver.fcmToken],
+            'Nouvelle réservation',
+            `${user.name} a réservé ${quantity} place(s) sur ${voyage.from} → ${voyage.to}`,
+            {
+              type: 'NEW_RESERVATION',
+              voyageId: voyage._id.toString(),
+              reservationId: reservation._id.toString()
+            }
+          );
+        }
+
+        //Notification client : confirmation
+        if (user.fcmToken) {
+          await sendNotification(
+            [user.fcmToken],
+            'Réservation confirmée',
+            `Votre place pour ${voyage.from} → ${voyage.to} est confirmée`,
+            {
+              type: 'RESERVATION_CONFIRMED',
+              voyageId: voyage._id.toString()
+            }
+          );
+        }
+
+        // Voyage plein
+        if (voyage.availableSeats - quantity === 0) {
+          await Voyage.findByIdAndUpdate(voyageId, { status: 'FULL' });
+
+          if (driver.fcmToken) {
+            await sendNotification(
+              [driver.fcmToken],
+              'Voyage complet',
+              'Toutes les places ont été réservées',
+              {
+                type: 'VOYAGE_FULL',
+                voyageId: voyage._id.toString()
+              }
+            );
+          }
+        }
+      }
+    }
 
     // Créer le colis si ticket === 'colis'
     let colisDoc = null;

@@ -9,7 +9,17 @@ const voyageSchema = new mongoose.Schema({
   date: { type: Date, required: true },
   price: { type: Number, required: true },
   totalSeats: { type: Number, required: true, default: 5 }, 
-  availableSeats: { type: Number, required: true, default: 5 } 
+  availableSeats: { type: Number, required: true, default: 5 } ,
+  status: {
+    type: String,
+    enum: ['CREATED', 'OPEN', 'FULL', 'STARTED', 'FINISHED'],
+    default: 'OPEN'
+  },
+
+  currentClient: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }
 }, { timestamps: true });
 
 voyageSchema.pre('findOneAndDelete', async function (next) {

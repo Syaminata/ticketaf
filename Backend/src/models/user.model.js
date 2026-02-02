@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
   email: { 
     type: String, 
     unique: true, 
-    sparse: true, // Permet plusieurs documents avec email null
+    sparse: true, 
   },
   password: { type: String, required: true, },
   numero:{type: String, required: true, unique: true, match: [/^(77|78|76|70|75|33|71)\d{7}$/, 'Le numéro doit contenir exactement 9 chiffres']},
@@ -17,6 +17,13 @@ const userSchema = new mongoose.Schema({
     default: 'client' 
   },
   address: { type: String, required: true, trim: true },
+  fcmTokens: [
+    {
+      token: { type: String },
+      platform: { type: String, enum: ['android', 'ios', 'web'] },
+      lastActive: { type: Date, default: Date.now }
+    }
+  ]
 }, { timestamps: true });
 
 // Hash du mot de passe avant sauvegarde
