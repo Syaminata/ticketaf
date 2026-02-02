@@ -22,6 +22,30 @@ const createVoyage = async (req, res) => {
       });
     }
 
+    // Vérifier si le chauffeur a déjà un voyage à la même date et heure
+    const voyageDate = new Date(date);
+    const thirtyMinutesBefore = new Date(voyageDate.getTime() - 30 * 60000); // 30min avant
+    const thirtyMinutesAfter = new Date(voyageDate.getTime() + 30 * 60000); // 30min après
+    
+    const existingVoyage = await Voyage.findOne({
+      driver: driverId,
+      date: {
+        $gte: thirtyMinutesBefore,
+        $lt: thirtyMinutesAfter
+      }
+    });
+
+    if (existingVoyage) {
+      return res.status(409).json({
+        message: 'Ce conducteur a déjà un voyage programmé à cette période',
+        existingVoyage: {
+          from: existingVoyage.from,
+          to: existingVoyage.to,
+          date: existingVoyage.date
+        }
+      });
+    }
+
     // Utiliser la capacité du driver par défaut si totalSeats n'est pas fourni
     const seats = totalSeats || driver.capacity || 4;
 
