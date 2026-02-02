@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { register, login, updateFcmToken } = require('../controllers/auth.controller');
 const { loginDriver } = require('../controllers/driver.auth.controller');
-const { authenticateToken } = require('../middleware/auth.middleware');
+const { auth } = require('../middleware/auth');
 /**
  * @swagger
  * /auth/register:
@@ -159,7 +159,7 @@ router.post('/login/driver', loginDriver);
  *       404:
  *         description: Utilisateur non trouvé
  */
-router.put('/fcm-token', authenticateToken, updateFcmToken);
+router.put('/fcm-token', auth, updateFcmToken);
 
 module.exports = router;
 
