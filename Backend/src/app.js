@@ -277,9 +277,9 @@ app.use('/api/annonces', annonceRoutes);
 app.use('/api/colis', colisRoutes);
 
 // -----------------
-// Admin Notifications Routes
+// Notifications Routes
 // -----------------
-app.use('/api/admin/notifications', notificationsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // -----------------
 // Villes Routes
