@@ -4,12 +4,12 @@ const path = require('path');
 let firebaseAdmin = null;
 
 try {
-  // Vérifier si le fichier de service Firebase existe
-  const serviceAccountPath = '/home/ubuntu/ticketaf/Backend/firebase-service-account.json';
-  const fs = require('fs');
+  const isProduction = process.env.NODE_ENV === 'production';
+  const serviceAccountPath = isProduction 
+    ? '/home/ubuntu/ticketaf/Backend/firebase-service-account.json'
+    : path.join(__dirname, '../firebase-service-account.json');
   
-  console.log('🔍 Recherche du fichier Firebase:', serviceAccountPath);
-  console.log('📁 Le fichier existe?', fs.existsSync(serviceAccountPath));
+  const fs = require('fs');
   
   if (fs.existsSync(serviceAccountPath)) {
     // Initialiser Firebase avec le fichier de service
