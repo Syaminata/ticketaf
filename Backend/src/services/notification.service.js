@@ -11,12 +11,25 @@ async function sendNotification(tokens, title, body, data = {}) {
 
   const messages = tokens.map(token => ({
     token,
-    notification: { title, body },
+
+    notification: {
+      title,
+      body,
+    },
+
+    android: {
+      notification: {
+        clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+      }
+    },
+
     data: {
-      ...data,
-      click_action: 'FLUTTER_NOTIFICATION_CLICK'
+      type: data.type || 'ADMIN_MESSAGE',
+      screen: 'notifications',
+      notificationId: data.notificationId || '',
     }
   }));
+
 
   try {
     const response = await admin.messaging().sendEach(messages);

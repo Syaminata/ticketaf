@@ -4,78 +4,100 @@ const { sendNotification } = require('../services/notification.service');
 const User = require('../models/user.model');
 const NotificationLog = require('../models/notifications.model');
 const { auth, adminAuth } = require('../middleware/auth');
+const UserNotification = require('../models/userNotification.model');
 
-// Envoyer une notification admin
+
 router.post('/send', auth, adminAuth, async (req, res) => {
   try {
     const { target, userId, title, body, type } = req.body;
-    
+
     if (!title || !body) {
       return res.status(400).json({ message: 'Titre et message requis' });
     }
 
     let tokens = [];
+    let usersCibles = [];
     let targetDescription = 'Tous';
     let sentCount = 0;
     let failedCount = 0;
 
-    // Déterminer les destinataires
     switch (target) {
-      case 'all':
-        const allUsers = await User.find({'fcmTokens.0': {$exists: true}});
+      case 'all': {
+        const allUsers = await User.find({ 'fcmTokens.0': { $exists: true } });
         allUsers.forEach(user => {
-          user.fcmTokens.forEach(fcmToken => {
-            tokens.push(fcmToken.token);
-          });
+          usersCibles.push(user);
+          user.fcmTokens.forEach(t => tokens.push(t.token));
         });
         break;
-        
-      case 'clients':
-        const clients = await User.find({role: 'client', 'fcmTokens.0': {$exists: true}});
+      }
+
+      case 'clients': {
+        const clients = await User.find({
+          role: 'client',
+          'fcmTokens.0': { $exists: true }
+        });
         clients.forEach(user => {
-          user.fcmTokens.forEach(fcmToken => {
-            tokens.push(fcmToken.token);
-          });
+          usersCibles.push(user);
+          user.fcmTokens.forEach(t => tokens.push(t.token));
         });
         targetDescription = 'Clients';
         break;
-        
-      case 'drivers':
-        const drivers = await User.find({role: 'conducteur', 'fcmTokens.0': {$exists: true}});
+      }
+
+      case 'drivers': {
+        const drivers = await User.find({
+          role: 'conducteur',
+          'fcmTokens.0': { $exists: true }
+        });
         drivers.forEach(user => {
-          user.fcmTokens.forEach(fcmToken => {
-            tokens.push(fcmToken.token);
-          });
+          usersCibles.push(user);
+          user.fcmTokens.forEach(t => tokens.push(t.token));
         });
         targetDescription = 'Chauffeurs';
         break;
-        
-      case 'specific':
+      }
+
+      case 'specific': {
         if (!userId) {
-          return res.status(400).json({ message: 'ID utilisateur requis pour une notification spécifique' });
+          return res.status(400).json({ message: 'ID utilisateur requis' });
         }
-        const specificUser = await User.findById(userId);
-        if (specificUser && specificUser.fcmTokens) {
-          specificUser.fcmTokens.forEach(fcmToken => {
-            tokens.push(fcmToken.token);
-          });
-          targetDescription = `Utilisateur ${specificUser.name}`;
+        const user = await User.findById(userId);
+        if (user && user.fcmTokens.length > 0) {
+          usersCibles.push(user);
+          user.fcmTokens.forEach(t => tokens.push(t.token));
+          targetDescription = `Utilisateur ${user.name}`;
         }
         break;
-        
+      }
+
       default:
         return res.status(400).json({ message: 'Cible non valide' });
     }
 
-    if (tokens.length === 0) {
-      return res.status(404).json({ message: 'Aucun token FCM trouvé pour cette cible' });
+    if (!tokens.length || !usersCibles.length) {
+      return res.status(404).json({ message: 'Aucun destinataire trouvé' });
     }
 
-    // Envoyer la notification
+    // 1 Créer les notifications utilisateur
+    const UserNotification = require('../models/userNotification.model');
+
+    const createdNotifications = await Promise.all(
+      usersCibles.map(user =>
+        UserNotification.create({
+          user: user._id,
+          title,
+          body,
+          type: type || 'ADMIN_MESSAGE'
+        })
+      )
+    );
+
+    // 2 Envoyer FCM avec navigation
     try {
       await sendNotification(tokens, title, body, {
         type: type || 'ADMIN_MESSAGE',
-        target: targetDescription
+        screen: 'notifications',
+        notificationId: createdNotifications[0]._id.toString()
       });
       sentCount = tokens.length;
     } catch (error) {
@@ -83,7 +105,7 @@ router.post('/send', auth, adminAuth, async (req, res) => {
       console.error('Erreur envoi notification:', error);
     }
 
-    // Logger la notification
+    // 3 Log admin
     const log = await NotificationLog.create({
       title,
       body,
@@ -95,7 +117,7 @@ router.post('/send', auth, adminAuth, async (req, res) => {
     });
 
     res.json({
-      message: 'Notification traitée',
+      message: 'Notification envoyée avec succès',
       sent: sentCount,
       failed: failedCount,
       total: tokens.length,
@@ -108,7 +130,6 @@ router.post('/send', auth, adminAuth, async (req, res) => {
   }
 });
 
-// Historique des notifications
 router.get('/history', auth, adminAuth, async (req, res) => {
   try {
     const logs = await NotificationLog.find()
@@ -123,7 +144,6 @@ router.get('/history', auth, adminAuth, async (req, res) => {
   }
 });
 
-// Statistiques des notifications
 router.get('/stats', auth, adminAuth, async (req, res) => {
   try {
     const stats = await NotificationLog.aggregate([
@@ -150,6 +170,13 @@ router.get('/stats', auth, adminAuth, async (req, res) => {
     console.error('Erreur notification stats:', error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
+});
+
+router.get('/my', auth, async (req, res) => {
+  const notifs = await UserNotification.find({ user: req.user._id })
+    .sort({ createdAt: -1 });
+
+  res.json(notifs);
 });
 
 module.exports = router;
