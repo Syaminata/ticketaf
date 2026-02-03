@@ -6,7 +6,6 @@ let firebaseAdmin = null;
 try {
   const fs = require('fs');
   
-  // Essayer plusieurs chemins possibles
   const possiblePaths = [
     '/home/ubuntu/ticketaf/Backend/firebase-service-account.json',  // Production
     path.join(__dirname, '../firebase-service-account.json'),       // Local

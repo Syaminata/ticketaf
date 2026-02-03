@@ -6,14 +6,11 @@ const Bus = require('../models/bus.model');
 const { sendNotification } = require('../services/notification.service');
 
 
-// -----------------------------
-// CREATE RESERVATION
-// -----------------------------
 const createReservation = async (req, res) => {
   try {
     const { voyageId, busId, ticket, quantity, description, delivery } = req.body;
 
-    // Validation des champs obligatoires
+    
     if ( !ticket || !quantity) {
       return res.status(400).json({ message: 'type de ticket et quantité sont requis' });
     }
@@ -30,7 +27,6 @@ const createReservation = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
-    // Vérifier voyage si fourni
     if (voyageId) {
       const voyage = await Voyage.findById(voyageId);
       if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
@@ -39,7 +35,6 @@ const createReservation = async (req, res) => {
       }
     }
 
-    // Vérifier bus si fourni
     if (busId) {
       const bus = await Bus.findById(busId);
       if (!bus) return res.status(404).json({ message: 'Bus non trouvé' });
