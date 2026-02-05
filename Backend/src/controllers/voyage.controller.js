@@ -152,7 +152,7 @@ const updateVoyage = async (req, res) => {
 
     const reservations = await Reservation.find({
       voyage: voyageId,
-      status: 'CONFIRMED'
+      status: 'confirmé'
     }).populate('user');
 
     for (const r of reservations) {
@@ -192,7 +192,7 @@ const updateVoyage = async (req, res) => {
   if (updates.clientPicked === true && voyage.currentClient) {
     await Reservation.findOneAndUpdate(
       { voyage: voyageId, user: voyage.currentClient },
-      { status: 'PICKED_UP' }
+      { status: 'terminé' }
     );
   }
 

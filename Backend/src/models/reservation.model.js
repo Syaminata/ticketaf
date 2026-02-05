@@ -9,13 +9,11 @@ const reservationSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
-      'PENDING',        // réservation créée
-      'CONFIRMED',      // validée
-      'CANCELLED',
-      'ON_THE_WAY',     // chauffeur en route vers ce client
-      'PICKED_UP'       // client embarqué
+      'confirmé',        // réservation créée et validée
+      'terminé',        // réservation achevée
+      'annulé'          // réservation annulée
     ],
-    default: 'PENDING'
+    default: 'confirmé'
   }
 
 }, { timestamps: true });

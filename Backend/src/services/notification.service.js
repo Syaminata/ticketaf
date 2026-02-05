@@ -3,7 +3,6 @@ const admin = require('../config/firebase');
 async function sendNotification(tokens, title, body, data = {}) {
   if (!tokens || tokens.length === 0) return;
 
-  // Vérifier si Firebase est correctement initialisé
   if (!admin || !admin.messaging) {
     console.log('⚠️ Firebase messaging non disponible - notification ignorée');
     return;
