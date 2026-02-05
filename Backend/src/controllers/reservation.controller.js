@@ -69,8 +69,17 @@ const createReservation = async (req, res) => {
         const driver = voyage.driver;
 
         // Notification chauffeur : nouvelle réservation
+        console.log('🔍 Vérification notification chauffeur:', {
+          driverId: driver._id,
+          driverName: driver.name,
+          hasTokens: driver.fcmTokens && driver.fcmTokens.length > 0,
+          tokenCount: driver.fcmTokens?.length || 0,
+          tokens: driver.fcmTokens?.map(t => t.token.substring(0, 20) + '...') || []
+        });
+        
         if (driver.fcmTokens && driver.fcmTokens.length > 0) {
           const driverTokens = driver.fcmTokens.map(t => t.token);
+          console.log('📤 Envoi notification chauffeur pour voyage:', voyage._id);
           await sendNotification(
             driverTokens,
             'Nouvelle réservation',
@@ -81,6 +90,8 @@ const createReservation = async (req, res) => {
               reservationId: reservation._id.toString()
             }
           );
+        } else {
+          console.log('❌ Chauffeur sans token FCM - notification non envoyée');
         }
 
         //Notification client : confirmation
