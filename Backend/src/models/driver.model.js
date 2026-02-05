@@ -45,19 +45,11 @@ const driverSchema = new mongoose.Schema({
     ],
   },
   isActive: { type: Boolean, default: false },
-  // NOUVEAUX CHAMPS POUR L'ÉPINGLAGE
   isPinned: { type: Boolean, default: false },
   pinnedAt: { type: Date },
-  pinnedOrder: { type: Number, default: 0 }, // Pour gérer l'ordre d'affichage
-  tripCount: { type: Number, default: 0 }, // Nombre de voyages effectués
-  role: { type: String, default: 'conducteur' },
-  fcmTokens: [
-    {
-      token: { type: String },
-      platform: { type: String, enum: ['android', 'ios', 'web'] },
-      lastActive: { type: Date, default: Date.now }
-    }
-  ] 
+  pinnedOrder: { type: Number, default: 0 }, 
+  tripCount: { type: Number, default: 0 }, 
+  role: { type: String, default: 'conducteur' } 
 }, { timestamps: true });
 
 // Middleware pour supprimer les voyages associés avant de supprimer un conducteur
