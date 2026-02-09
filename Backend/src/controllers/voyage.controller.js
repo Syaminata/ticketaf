@@ -146,6 +146,21 @@ const getVoyageById = async (req, res) => {
 };
 
 const updateVoyage = async (req, res) => {
+
+  if (updates.totalSeats !== undefined) {
+      const newTotalSeats = parseInt(updates.totalSeats, 10);
+
+      // places déjà réservées (réelles)
+      const reservedSeats = voyage.totalSeats - voyage.availableSeats;
+
+      if (newTotalSeats < reservedSeats) {
+        return res.status(400).json({
+          message: `Impossible de descendre en dessous de ${reservedSeats} places (déjà réservées)`
+        });
+      }
+      // recalcul propre
+      updates.availableSeats = newTotalSeats - reservedSeats;
+    }
   // Si le chauffeur démarre le voyage
   if (updates.status === 'STARTED' && voyage.status !== 'STARTED') {
     await Voyage.findByIdAndUpdate(voyageId, { status: 'STARTED' });
@@ -198,7 +213,10 @@ const updateVoyage = async (req, res) => {
 
 
   try {
-    const voyage = await Voyage.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    const voyage = await Voyage.findByIdAndUpdate(
+      voyageId,
+      updates, 
+      { new: true })
       .populate('driver', '-password');
     if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
     res.status(200).json({ message: 'Trajet mis à jour', voyage });
