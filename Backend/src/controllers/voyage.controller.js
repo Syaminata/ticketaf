@@ -167,6 +167,12 @@ const updateVoyage = async (req, res) => {
         voyage: voyageId,
         status: { $in: ['confirmé', 'terminé'] }
       });
+      console.log('🔍 DEBUG PLACES:');
+      console.log('  - Ancien totalSeats:', voyage.totalSeats);
+      console.log('  - Ancien availableSeats:', voyage.availableSeats);
+      console.log('  - Nouveau totalSeats:', newTotalSeats);
+      console.log('  - Réservations actives (DB):', activeReservations);
+      console.log('  - Nouveau availableSeats calculé:', newTotalSeats - activeReservations);
       
       if (newTotalSeats < activeReservations) {
         return res.status(400).json({
