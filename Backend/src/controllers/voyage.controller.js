@@ -145,7 +145,7 @@ const getVoyageById = async (req, res) => {
   }
 };
 
-  const updateVoyage = async (req, res) => {
+const updateVoyage = async (req, res) => {
   try {
     const voyageId = req.params.id;
     const updates = req.body;
@@ -156,14 +156,16 @@ const getVoyageById = async (req, res) => {
       return res.status(404).json({ message: 'Voyage non trouvé' });
     }
     
-
+    /* ============================
+       🔹 LOGIQUE DES PLACES
+    ============================ */
     if (updates.totalSeats !== undefined) {
       const newTotalSeats = parseInt(updates.totalSeats, 10);
       
       // 🔹 COMPTER LES RÉSERVATIONS RÉELLES depuis la DB
       const activeReservations = await Reservation.countDocuments({
         voyage: voyageId,
-        status: { $in: ['confirmé'] } 
+        status: { $in: ['confirmé', 'terminé'] }
       });
       
       if (newTotalSeats < activeReservations) {
@@ -172,13 +174,14 @@ const getVoyageById = async (req, res) => {
         });
       }
       
-      // Recalcul propre basé sur les vraies réservations
+      // Mise à jour propre
       updates.totalSeats = newTotalSeats;
       updates.availableSeats = newTotalSeats - activeReservations;
     }
     
-  
-    // Si le chauffeur démarre le voyage
+    /* ============================
+       🔹 STATUTS & NOTIFS
+    ============================ */
     if (updates.status === 'STARTED' && voyage.status !== 'STARTED') {
       updates.status = 'STARTED';
       const reservations = await Reservation.find({
@@ -201,7 +204,6 @@ const getVoyageById = async (req, res) => {
       }
     }
     
-    // Chauffeur en route vers un client
     if (
       updates.currentClient &&
       String(updates.currentClient) !== String(voyage.currentClient)
@@ -220,7 +222,6 @@ const getVoyageById = async (req, res) => {
       }
     }
     
-    // Client embarqué
     if (updates.clientPicked === true && voyage.currentClient) {
       await Reservation.findOneAndUpdate(
         { voyage: voyageId, user: voyage.currentClient },
@@ -228,19 +229,33 @@ const getVoyageById = async (req, res) => {
       );
     }
     
-
+    /* ============================
+       🔹 UPDATE FINAL
+    ============================ */
     const updatedVoyage = await Voyage.findByIdAndUpdate(
       voyageId,
       updates,
-      { new: true }
+      { new: true, runValidators: true }  // ← Ajout de runValidators
     ).populate('driver', '-password');
+    
+    // 🔹 VÉRIFICATION FINALE : Recompter pour être sûr
+    const finalReservationCount = await Reservation.countDocuments({
+      voyage: voyageId,
+      status: { $in: ['confirmé', 'en_attente'] }
+    });
+    
+    // 🔹 S'assurer que les données sont cohérentes
+    if (updatedVoyage.totalSeats !== undefined) {
+      updatedVoyage.availableSeats = updatedVoyage.totalSeats - finalReservationCount;
+      await updatedVoyage.save();
+    }
     
     res.status(200).json({
       message: 'Trajet mis à jour',
       voyage: updatedVoyage
     });
   } catch (err) {
-    console.error(err);
+    console.error('❌ Erreur updateVoyage:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
