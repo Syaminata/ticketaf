@@ -150,11 +150,18 @@ const updateVoyage = async (req, res) => {
     const voyageId = req.params.id;
     const updates = req.body;
     
-    // 🔹 récupérer le voyage existant
+    console.log('📥 Requête de mise à jour:', { voyageId, updates });
+    
+    // 🔹 Récupérer le voyage existant
     const voyage = await Voyage.findById(voyageId);
     if (!voyage) {
       return res.status(404).json({ message: 'Voyage non trouvé' });
     }
+    
+    console.log('📊 État actuel du voyage:', {
+      totalSeats: voyage.totalSeats,
+      availableSeats: voyage.availableSeats
+    });
     
     /* ============================
        🔹 LOGIQUE DES PLACES
@@ -162,32 +169,41 @@ const updateVoyage = async (req, res) => {
     if (updates.totalSeats !== undefined) {
       const newTotalSeats = parseInt(updates.totalSeats, 10);
       
-      // 🔹 COMPTER LES RÉSERVATIONS RÉELLES depuis la DB
+      // 🔹 COMPTER LES RÉSERVATIONS ACTIVES (uniquement 'confirmé')
       const activeReservations = await Reservation.countDocuments({
         voyage: voyageId,
-        status: { $in: ['confirmé', 'terminé'] }
+        status: 'confirmé',
+        ticket: 'place'  // Ne compter que les réservations de places, pas les colis
       });
-      console.log('🔍 DEBUG PLACES:');
+      
+      console.log('🔍 Analyse des places:');
       console.log('  - Ancien totalSeats:', voyage.totalSeats);
       console.log('  - Ancien availableSeats:', voyage.availableSeats);
-      console.log('  - Nouveau totalSeats:', newTotalSeats);
-      console.log('  - Réservations actives (DB):', activeReservations);
+      console.log('  - Nouveau totalSeats demandé:', newTotalSeats);
+      console.log('  - Réservations actives (confirmées):', activeReservations);
       console.log('  - Nouveau availableSeats calculé:', newTotalSeats - activeReservations);
       
+      // Vérifier qu'on ne descend pas en dessous des places réservées
       if (newTotalSeats < activeReservations) {
         return res.status(400).json({
-          message: `Impossible de descendre en dessous de ${activeReservations} places (déjà réservées)`
+          message: `Impossible de réduire à ${newTotalSeats} places. ${activeReservations} place(s) déjà réservée(s).`
         });
       }
       
-      // Mise à jour propre
+      // ✅ MISE À JOUR CORRECTE
       updates.totalSeats = newTotalSeats;
       updates.availableSeats = newTotalSeats - activeReservations;
+      
+      console.log('✅ Nouvelles valeurs à enregistrer:', {
+        totalSeats: updates.totalSeats,
+        availableSeats: updates.availableSeats
+      });
     }
     
     /* ============================
        🔹 STATUTS & NOTIFS
     ============================ */
+    // Si le chauffeur démarre le voyage
     if (updates.status === 'STARTED' && voyage.status !== 'STARTED') {
       updates.status = 'STARTED';
       const reservations = await Reservation.find({
@@ -210,6 +226,7 @@ const updateVoyage = async (req, res) => {
       }
     }
     
+    // Chauffeur en route vers un client
     if (
       updates.currentClient &&
       String(updates.currentClient) !== String(voyage.currentClient)
@@ -228,6 +245,7 @@ const updateVoyage = async (req, res) => {
       }
     }
     
+    // Client embarqué
     if (updates.clientPicked === true && voyage.currentClient) {
       await Reservation.findOneAndUpdate(
         { voyage: voyageId, user: voyage.currentClient },
@@ -241,19 +259,28 @@ const updateVoyage = async (req, res) => {
     const updatedVoyage = await Voyage.findByIdAndUpdate(
       voyageId,
       updates,
-      { new: true, runValidators: true }  // ← Ajout de runValidators
+      { new: true, runValidators: true }
     ).populate('driver', '-password');
     
-    // 🔹 VÉRIFICATION FINALE : Recompter pour être sûr
-    const finalReservationCount = await Reservation.countDocuments({
-      voyage: voyageId,
-      status: { $in: ['confirmé', 'en_attente'] }
+    console.log('📤 Voyage mis à jour:', {
+      totalSeats: updatedVoyage.totalSeats,
+      availableSeats: updatedVoyage.availableSeats
     });
     
-    // 🔹 S'assurer que les données sont cohérentes
-    if (updatedVoyage.totalSeats !== undefined) {
-      updatedVoyage.availableSeats = updatedVoyage.totalSeats - finalReservationCount;
+    // 🔹 VÉRIFICATION FINALE DE COHÉRENCE
+    if (updatedVoyage.availableSeats > updatedVoyage.totalSeats) {
+      console.warn('⚠️ INCOHÉRENCE DÉTECTÉE ! Correction en cours...');
+      const finalCount = await Reservation.countDocuments({
+        voyage: voyageId,
+        status: 'confirmé',
+        ticket: 'place'
+      });
+      updatedVoyage.availableSeats = updatedVoyage.totalSeats - finalCount;
       await updatedVoyage.save();
+      console.log('✅ Corrigé:', {
+        totalSeats: updatedVoyage.totalSeats,
+        availableSeats: updatedVoyage.availableSeats
+      });
     }
     
     res.status(200).json({
