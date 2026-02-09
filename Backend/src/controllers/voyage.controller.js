@@ -146,100 +146,104 @@ const getVoyageById = async (req, res) => {
 };
 
   const updateVoyage = async (req, res) => {
-    try {
-      const voyageId = req.params.id;
-      const updates = req.body;
+  try {
+    const voyageId = req.params.id;
+    const updates = req.body;
+    
+    // 🔹 récupérer le voyage existant
+    const voyage = await Voyage.findById(voyageId);
+    if (!voyage) {
+      return res.status(404).json({ message: 'Voyage non trouvé' });
+    }
+    
 
-      // 🔹 récupérer le voyage existant
-      const voyage = await Voyage.findById(voyageId);
-      if (!voyage) {
-        return res.status(404).json({ message: 'Voyage non trouvé' });
+    if (updates.totalSeats !== undefined) {
+      const newTotalSeats = parseInt(updates.totalSeats, 10);
+      
+      // 🔹 COMPTER LES RÉSERVATIONS RÉELLES depuis la DB
+      const activeReservations = await Reservation.countDocuments({
+        voyage: voyageId,
+        status: { $in: ['confirmé'] } 
+      });
+      
+      if (newTotalSeats < activeReservations) {
+        return res.status(400).json({
+          message: `Impossible de descendre en dessous de ${activeReservations} places (déjà réservées)`
+        });
       }
-
-      if (updates.totalSeats !== undefined) {
-        const newTotalSeats = parseInt(updates.totalSeats, 10);
-
-        // places réellement réservées
-        const reservedSeats = voyage.totalSeats - voyage.availableSeats;
-
-        if (newTotalSeats < reservedSeats) {
-          return res.status(400).json({
-            message: `Impossible de descendre en dessous de ${reservedSeats} places (déjà réservées)`
-          });
-        }
-
-        // recalcul propre
-        updates.availableSeats = newTotalSeats - reservedSeats;
-      }
-
-      // Si le chauffeur démarre le voyage
-      if (updates.status === 'STARTED' && voyage.status !== 'STARTED') {
-        updates.status = 'STARTED';
-
-        const reservations = await Reservation.find({
-          voyage: voyageId,
-          status: 'confirmé'
-        }).populate('user');
-
-        for (const r of reservations) {
-          if (r.user?.fcmToken) {
-            await sendNotification(
-              [r.user.fcmToken],
-              'Voyage démarré',
-              'Le chauffeur a démarré le voyage',
-              {
-                type: 'TRIP_STARTED',
-                voyageId
-              }
-            );
-          }
-        }
-      }
-
-      // Chauffeur en route vers un client
-      if (
-        updates.currentClient &&
-        String(updates.currentClient) !== String(voyage.currentClient)
-      ) {
-        const client = await User.findById(updates.currentClient);
-
-        if (client?.fcmToken) {
+      
+      // Recalcul propre basé sur les vraies réservations
+      updates.totalSeats = newTotalSeats;
+      updates.availableSeats = newTotalSeats - activeReservations;
+    }
+    
+  
+    // Si le chauffeur démarre le voyage
+    if (updates.status === 'STARTED' && voyage.status !== 'STARTED') {
+      updates.status = 'STARTED';
+      const reservations = await Reservation.find({
+        voyage: voyageId,
+        status: 'confirmé'
+      }).populate('user');
+      
+      for (const r of reservations) {
+        if (r.user?.fcmToken) {
           await sendNotification(
-            [client.fcmToken],
-            'Le chauffeur arrive',
-            'Le chauffeur se dirige vers votre position',
+            [r.user.fcmToken],
+            'Voyage démarré',
+            'Le chauffeur a démarré le voyage',
             {
-              type: 'DRIVER_ON_THE_WAY',
-              voyageId,
+              type: 'TRIP_STARTED',
+              voyageId
             }
           );
         }
       }
-
-      // Client embarqué
-      if (updates.clientPicked === true && voyage.currentClient) {
-        await Reservation.findOneAndUpdate(
-          { voyage: voyageId, user: voyage.currentClient },
-          { status: 'terminé' }
+    }
+    
+    // Chauffeur en route vers un client
+    if (
+      updates.currentClient &&
+      String(updates.currentClient) !== String(voyage.currentClient)
+    ) {
+      const client = await User.findById(updates.currentClient);
+      if (client?.fcmToken) {
+        await sendNotification(
+          [client.fcmToken],
+          'Le chauffeur arrive',
+          'Le chauffeur se dirige vers votre position',
+          {
+            type: 'DRIVER_ON_THE_WAY',
+            voyageId,
+          }
         );
       }
-
-      const updatedVoyage = await Voyage.findByIdAndUpdate(
-        voyageId,
-        updates,
-        { new: true }
-      ).populate('driver', '-password');
-
-      res.status(200).json({
-        message: 'Trajet mis à jour',
-        voyage: updatedVoyage
-      });
-
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Erreur serveur', error: err.message });
     }
-  };
+    
+    // Client embarqué
+    if (updates.clientPicked === true && voyage.currentClient) {
+      await Reservation.findOneAndUpdate(
+        { voyage: voyageId, user: voyage.currentClient },
+        { status: 'terminé' }
+      );
+    }
+    
+
+    const updatedVoyage = await Voyage.findByIdAndUpdate(
+      voyageId,
+      updates,
+      { new: true }
+    ).populate('driver', '-password');
+    
+    res.status(200).json({
+      message: 'Trajet mis à jour',
+      voyage: updatedVoyage
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
 
 
 const deleteVoyage = async (req, res) => {
