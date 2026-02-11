@@ -207,7 +207,6 @@ const login = async (req, res) => {
           uid: uid,
           email: user.email,
           displayName: user.name,
-          phoneNumber: user.numero ? `+${user.numero}` : undefined, // Format E.164 requis
         });
         console.log(`✅ Nouvel utilisateur Firebase créé: ${uid}`);
       } else {
