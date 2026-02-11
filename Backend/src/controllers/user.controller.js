@@ -62,13 +62,38 @@ const getAllUsers = async (req, res) => {
 
 const getUserById = async (req, res) => {
   try {
-    let user = await User.findById(req.params.id).select('-password');
+    // Récupérer les données User
+    const user = await User.findById(req.params.id).select('-password');
+    
     if (!user) {
-      user = await Driver.findById(req.params.id).select('-password');
-      if (user) user.role = 'conducteur';
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
-    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+
+    // Si c'est un conducteur, récupérer aussi ses données spécifiques
+    if (user.role === 'conducteur') {
+      const driver = await Driver.findById(req.params.id).select('-password');
+      
+      if (driver) {
+        // Combiner les données User et Driver
+        const combinedData = {
+          ...user.toObject(), 
+          marque: driver.marque,
+          matricule: driver.matricule,
+          climatisation: driver.climatisation,
+          capacity: driver.capacity,
+          capacity_coffre: driver.capacity_coffre,
+          photo: driver.photo,
+          rating: driver.rating,
+          isActive: driver.isActive,
+        };
+        
+        return res.status(200).json(combinedData);
+      }
+    }
+
+    // Si ce n'est pas un conducteur, ou si les données driver n'existent pas
     res.status(200).json(user);
+    
   } catch (err) {
     console.error('Erreur getUserById:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
@@ -295,8 +320,6 @@ const updateUser = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
-
-
 
 const deleteUser = async (req, res) => {
   try {
