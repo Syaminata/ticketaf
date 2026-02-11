@@ -166,7 +166,7 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, numero, password, role } = req.body;
-
+    
     if ((!email && !numero) || !password) {
       return res.status(400).json({ message: 'Numéro et mot de passe sont requis' });
     }
@@ -178,21 +178,45 @@ const login = async (req, res) => {
       $or: [{ email: email || '' }, { numero: numero || '' }],
       role: { $eq: role, $ne: 'conducteur' }
     };
+    
     const user = await User.findOne(query);
     if (!user) return res.status(403).json({ message: 'Veuillez choisir le rôle correspondant' });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ message: 'Mot de passe incorrect' });
 
-    // 🔹 Création du token JWT classique
+    // 🔹 Token JWT classique
     const token = jwt.sign(
       { id: user._id, role: user.role, name: user.name },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    // 🔹 Création du Firebase Custom Token
-    const firebaseToken = await admin.auth().createCustomToken(user._id.toString());
+    // 🔹 Créer ou récupérer l'utilisateur Firebase
+    const uid = user._id.toString();
+    let firebaseUser;
+    
+    try {
+      // Vérifier si l'utilisateur existe déjà
+      firebaseUser = await admin.auth().getUser(uid);
+      console.log(`✅ Utilisateur Firebase existant: ${uid}`);
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        // Créer l'utilisateur s'il n'existe pas
+        firebaseUser = await admin.auth().createUser({
+          uid: uid,
+          email: user.email,
+          displayName: user.name,
+          phoneNumber: user.numero ? `+${user.numero}` : undefined, // Format E.164 requis
+        });
+        console.log(`✅ Nouvel utilisateur Firebase créé: ${uid}`);
+      } else {
+        throw error;
+      }
+    }
+
+    // 🔹 Création du Custom Token
+    const firebaseToken = await admin.auth().createCustomToken(uid);
 
     const userResponse = {
       id: user._id,
@@ -202,17 +226,19 @@ const login = async (req, res) => {
       role: user.role
     };
 
-    // 🔹 On renvoie aussi le Custom Token Firebase
     res.json({
       message: 'Connexion réussie',
-      token,           // token classique backend
-      firebaseToken,   // token Firebase Custom
+      token,
+      firebaseToken,
       user: userResponse
     });
-
+    
   } catch (err) {
-    console.error('Erreur lors de la connexion:', err);
-    res.status(500).json({ message: 'Erreur serveur lors de la connexion', error: err.message });
+    console.error('❌ Erreur lors de la connexion:', err);
+    res.status(500).json({ 
+      message: 'Erreur serveur lors de la connexion', 
+      error: err.message 
+    });
   }
 };
 
