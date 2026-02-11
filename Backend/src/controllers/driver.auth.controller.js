@@ -1,7 +1,8 @@
-const User = require('../models/user.model');  // Import manquant
+const User = require('../models/user.model');  
 const Driver = require('../models/driver.model');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const admin = require('../config/firebase');
 
 const loginDriver = async (req, res) => {
   try {
@@ -47,10 +48,37 @@ const loginDriver = async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // 6. Préparer la réponse
+    // 🔹 6. Créer ou récupérer l'utilisateur Firebase
+    const uid = user._id.toString();
+    let firebaseUser;
+    
+    try {
+      // Vérifier si l'utilisateur existe déjà
+      firebaseUser = await admin.auth().getUser(uid);
+      console.log(`✅ Utilisateur Firebase existant (driver): ${uid}`);
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        // Créer l'utilisateur s'il n'existe pas
+        firebaseUser = await admin.auth().createUser({
+          uid: uid,
+          email: user.email,
+          displayName: user.name,
+          // phoneNumber: user.numero ? `+${user.numero}` : undefined, // Décommente si format E.164
+        });
+        console.log(`✅ Nouvel utilisateur Firebase créé (driver): ${uid}`);
+      } else {
+        throw error;
+      }
+    }
+
+    // 🔹 7. Création du Custom Token Firebase
+    const firebaseToken = await admin.auth().createCustomToken(uid);
+
+    // 8. Préparer la réponse
     const response = {
       message: isActive ? 'Connexion réussie' : 'Connexion réussie - Compte en attente de validation',
       token,
+      firebaseToken, // 🔹 Ajout du token Firebase
       user: {
         id: user._id,
         name: user.name,
@@ -67,11 +95,11 @@ const loginDriver = async (req, res) => {
       }
     };
 
-    // 7. Envoyer la réponse
+    // 9. Envoyer la réponse
     res.json(response);
 
   } catch (err) {
-    console.error('Erreur lors de la connexion:', err);
+    console.error('❌ Erreur lors de la connexion driver:', err);
     res.status(500).json({ 
       message: 'Erreur serveur lors de la connexion',
       error: process.env.NODE_ENV === 'development' ? err.message : undefined
