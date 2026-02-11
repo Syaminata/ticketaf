@@ -3,6 +3,7 @@ const Driver = require('../models/driver.model');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const admin = require('../config/firebase');
 
 // === Inscription ===
 const register = async (req, res) => {
@@ -165,49 +166,34 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, numero, password, role } = req.body;
-    // Vérification des champs obligatoires
+
     if ((!email && !numero) || !password) {
-      return res.status(400).json({ 
-        message: 'Numéro et mot de passe sont requis' 
-      });
+      return res.status(400).json({ message: 'Numéro et mot de passe sont requis' });
     }
-    // Vérification du rôle
     if (!role) {
-      return res.status(400).json({ 
-        message: 'Le rôle est requis' 
-      });
+      return res.status(400).json({ message: 'Le rôle est requis' });
     }
-    // Construction de la requête
+
     const query = {
-      $or: [
-        { email: email || '' },
-        { numero: numero || '' }
-      ],
-      role: { $eq: role, $ne: 'conducteur' } // Vérifier que le rôle correspond et exclure les conducteurs
+      $or: [{ email: email || '' }, { numero: numero || '' }],
+      role: { $eq: role, $ne: 'conducteur' }
     };
-    // Recherche de l'utilisateur
     const user = await User.findOne(query);
-    if (!user) {
-      return res.status(403).json({ 
-        message: 'Veuillez choisir le role correspondant' 
-      });
-    }
-    // Vérification du mot de passe
+    if (!user) return res.status(403).json({ message: 'Veuillez choisir le rôle correspondant' });
+
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Mot de passe incorrect' });
-    }
-    // Création du token JWT
+    if (!isMatch) return res.status(401).json({ message: 'Mot de passe incorrect' });
+
+    // 🔹 Création du token JWT classique
     const token = jwt.sign(
-      { 
-        id: user._id, 
-        role: user.role,
-        name: user.name
-      },
+      { id: user._id, role: user.role, name: user.name },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-    // Réponse réussie
+
+    // 🔹 Création du Firebase Custom Token
+    const firebaseToken = await admin.auth().createCustomToken(user._id.toString());
+
     const userResponse = {
       id: user._id,
       name: user.name,
@@ -215,17 +201,18 @@ const login = async (req, res) => {
       numero: user.numero,
       role: user.role
     };
+
+    // 🔹 On renvoie aussi le Custom Token Firebase
     res.json({
       message: 'Connexion réussie',
-      token,
+      token,           // token classique backend
+      firebaseToken,   // token Firebase Custom
       user: userResponse
     });
+
   } catch (err) {
     console.error('Erreur lors de la connexion:', err);
-    res.status(500).json({ 
-      message: 'Erreur serveur lors de la connexion',
-      error: err.message 
-    });
+    res.status(500).json({ message: 'Erreur serveur lors de la connexion', error: err.message });
   }
 };
 

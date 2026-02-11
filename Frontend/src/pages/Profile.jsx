@@ -51,7 +51,7 @@ const Profile = () => {
         const token = sessionStorage.getItem('token');
         const storedUser = JSON.parse(sessionStorage.getItem('user'));
 
-        if (!token || !storedUser?.id) {
+        if (!token || !storedUser?._id) {
           if (storedUser) {
             setUser(storedUser);
             setFormData({
@@ -66,7 +66,7 @@ const Profile = () => {
           return;
         }
 
-        const response = await axios.get(`/users/${storedUser.id}`, {
+        const response = await axios.get(`/users/${storedUser._id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
