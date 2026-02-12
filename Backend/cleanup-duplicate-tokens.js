@@ -2,10 +2,14 @@ const mongoose = require('mongoose');
 const User = require('./src/models/user.model');
 const Driver = require('./src/models/driver.model');
 
+// Charger la configuration de ecosystem.config.js
+const ecosystemConfig = require('./ecosystem.config.js');
+const env = ecosystemConfig.apps[0].env;
+
 async function cleanupDuplicateTokens() {
   try {
-    // Utiliser la même chaîne de connexion que l'application
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ticketaf';
+    // Utiliser la variable d'environnement de ecosystem.config.js
+    const mongoUri = env.MONGODB_URI || env.MONGO_URI || 'mongodb://localhost:27017/ticketaf';
     console.log('🔗 Connexion à MongoDB avec URI:', mongoUri.replace(/\/\/.*@/, '//***:***@'));
     
     await mongoose.connect(mongoUri);
@@ -42,7 +46,7 @@ async function cleanupDuplicateTokens() {
       }
     }
 
-    // Faire la même chose pour les drivers (si ils ont aussi fcmTokens)
+    // Faire la même chose pour les drivers
     const drivers = await Driver.find({});
     console.log(`📊 Traitement de ${drivers.length} chauffeurs...`);
 
@@ -72,6 +76,8 @@ async function cleanupDuplicateTokens() {
     }
 
     console.log(`✅ Nettoyage terminé! ${totalDuplicatesRemoved} doublons supprimés au total.`);
+    
+    await mongoose.connection.close();
     process.exit(0);
 
   } catch (error) {
