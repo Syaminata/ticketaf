@@ -11,7 +11,7 @@ const driverSchema = new mongoose.Schema({
   },
   password: { type: String, required: true },
   numero:{type: String, required: true, unique: true, match: [/^(77|78|76|70|75|33|71)\d{7}$/, 'Le numéro doit contenir exactement 9 chiffres']},
-  address: { type: String, required: true, trim: true },
+  address: { type: String, trim: true },
   matricule: { type: String, required: true, unique: true },
   marque: { type: String, required: true },
   capacity: { type: Number, required: true },

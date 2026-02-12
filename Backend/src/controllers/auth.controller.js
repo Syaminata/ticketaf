@@ -76,6 +76,7 @@ const register = async (req, res) => {
         marque,
         capacity: parseInt(capacity),
         capacity_coffre,
+        address,
         climatisation: climatisation === 'true' || climatisation === true,
         isActive: false,
         role: 'conducteur'

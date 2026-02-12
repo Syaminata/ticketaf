@@ -164,6 +164,7 @@ const createUser = async (req, res) => {
         marque,
         capacity: parseInt(capacity),
         capacity_coffre,
+        address: req.body.address,
         climatisation: climatisation === 'true' || climatisation === true,
         isActive: false,
         role: 'conducteur'
