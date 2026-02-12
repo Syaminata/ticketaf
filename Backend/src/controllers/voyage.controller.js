@@ -212,9 +212,10 @@ const updateVoyage = async (req, res) => {
       }).populate('user');
       
       for (const r of reservations) {
-        if (r.user?.fcmToken) {
+        if (r.user?.fcmTokens && r.user.fcmTokens.length > 0) {
+          const userTokens = [...new Set(r.user.fcmTokens.map(t => t.token))];
           await sendNotification(
-            [r.user.fcmToken],
+            userTokens,
             'Voyage démarré',
             'Le chauffeur a démarré le voyage',
             {
@@ -232,9 +233,10 @@ const updateVoyage = async (req, res) => {
       String(updates.currentClient) !== String(voyage.currentClient)
     ) {
       const client = await User.findById(updates.currentClient);
-      if (client?.fcmToken) {
+      if (client?.fcmTokens && client.fcmTokens.length > 0) {
+        const clientTokens = [...new Set(client.fcmTokens.map(t => t.token))];
         await sendNotification(
-          [client.fcmToken],
+          clientTokens,
           'Le chauffeur arrive',
           'Le chauffeur se dirige vers votre position',
           {

@@ -78,7 +78,7 @@ const createReservation = async (req, res) => {
         });
         
         if (driver.fcmTokens && driver.fcmTokens.length > 0) {
-          const driverTokens = driver.fcmTokens.map(t => t.token);
+          const driverTokens = [...new Set(driver.fcmTokens.map(t => t.token))];
           console.log('📤 Envoi notification chauffeur pour voyage:', voyage._id);
           await sendNotification(
             driverTokens,
@@ -96,7 +96,7 @@ const createReservation = async (req, res) => {
 
         //Notification client : confirmation
         if (user.fcmTokens && user.fcmTokens.length > 0) {
-          const userTokens = user.fcmTokens.map(t => t.token);
+          const userTokens = [...new Set(user.fcmTokens.map(t => t.token))];
           await sendNotification(
             userTokens,
             'Réservation confirmée',
@@ -113,7 +113,7 @@ const createReservation = async (req, res) => {
           await Voyage.findByIdAndUpdate(voyageId, { status: 'FULL' });
 
           if (driver.fcmTokens && driver.fcmTokens.length > 0) {
-            const driverTokens = driver.fcmTokens.map(t => t.token);
+            const driverTokens = [...new Set(driver.fcmTokens.map(t => t.token))];
             await sendNotification(
               driverTokens,
               'Voyage complet',
