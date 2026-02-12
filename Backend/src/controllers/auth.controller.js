@@ -254,14 +254,27 @@ const updateFcmToken = async (req, res) => {
       });
     }
 
-    // Mettre à jour le tableau fcmTokens de l'utilisateur
+    // D'abord, supprimer les tokens existants avec le même token pour cette plateforme
+    const platform = req.body.platform || 'web';
+    await User.findByIdAndUpdate(
+      userId,
+      { 
+        $pull: { 
+          fcmTokens: { 
+            token: fcmToken
+          } 
+        } 
+      }
+    );
+
+    // Ensuite, ajouter le nouveau token avec le timestamp mis à jour
     const user = await User.findByIdAndUpdate(
       userId,
       { 
         $addToSet: { 
           fcmTokens: { 
             token: fcmToken, 
-            platform: req.body.platform || 'web',
+            platform: platform,
             lastActive: new Date()
           } 
         } 

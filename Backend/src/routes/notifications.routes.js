@@ -28,6 +28,8 @@ router.post('/send', auth, adminAuth, async (req, res) => {
           usersCibles.push(user);
           user.fcmTokens.forEach(t => tokens.push(t.token));
         });
+        // Dédupliquer les tokens
+        tokens = [...new Set(tokens)];
         break;
       }
 
@@ -40,6 +42,8 @@ router.post('/send', auth, adminAuth, async (req, res) => {
           usersCibles.push(user);
           user.fcmTokens.forEach(t => tokens.push(t.token));
         });
+        // Dédupliquer les tokens
+        tokens = [...new Set(tokens)];
         targetDescription = 'Clients';
         break;
       }
@@ -53,6 +57,8 @@ router.post('/send', auth, adminAuth, async (req, res) => {
           usersCibles.push(user);
           user.fcmTokens.forEach(t => tokens.push(t.token));
         });
+        // Dédupliquer les tokens
+        tokens = [...new Set(tokens)];
         targetDescription = 'Chauffeurs';
         break;
       }
@@ -65,6 +71,8 @@ router.post('/send', auth, adminAuth, async (req, res) => {
         if (user && user.fcmTokens.length > 0) {
           usersCibles.push(user);
           user.fcmTokens.forEach(t => tokens.push(t.token));
+          // Dédupliquer les tokens
+          tokens = [...new Set(tokens)];
           targetDescription = `Utilisateur ${user.name}`;
         }
         break;
