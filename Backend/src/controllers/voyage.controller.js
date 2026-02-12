@@ -152,7 +152,7 @@ const updateVoyage = async (req, res) => {
     
     console.log('📥 Requête de mise à jour:', { voyageId, updates });
     
-    // 🔹 Récupérer le voyage existant
+    //  Récupérer le voyage existant
     const voyage = await Voyage.findById(voyageId);
     if (!voyage) {
       return res.status(404).json({ message: 'Voyage non trouvé' });
@@ -163,17 +163,14 @@ const updateVoyage = async (req, res) => {
       availableSeats: voyage.availableSeats
     });
     
-    /* ============================
-       🔹 LOGIQUE DES PLACES
-    ============================ */
+ 
     if (updates.totalSeats !== undefined) {
       const newTotalSeats = parseInt(updates.totalSeats, 10);
-      
-      // 🔹 COMPTER LES RÉSERVATIONS ACTIVES (uniquement 'confirmé')
+   
       const activeReservations = await Reservation.countDocuments({
         voyage: voyageId,
         status: 'confirmé',
-        ticket: 'place'  // Ne compter que les réservations de places, pas les colis
+        ticket: 'place'  
       });
       
       console.log('🔍 Analyse des places:');
@@ -190,7 +187,7 @@ const updateVoyage = async (req, res) => {
         });
       }
       
-      // ✅ MISE À JOUR CORRECTE
+    
       updates.totalSeats = newTotalSeats;
       updates.availableSeats = newTotalSeats - activeReservations;
       
@@ -200,9 +197,7 @@ const updateVoyage = async (req, res) => {
       });
     }
     
-    /* ============================
-       🔹 STATUTS & NOTIFS
-    ============================ */
+    
     // Si le chauffeur démarre le voyage
     if (updates.status === 'STARTED' && voyage.status !== 'STARTED') {
       updates.status = 'STARTED';
@@ -265,9 +260,55 @@ const updateVoyage = async (req, res) => {
       );
     }
     
-    /* ============================
-       🔹 UPDATE FINAL
-    ============================ */
+
+    // NOTIFICATION CHANGEMENT DATE/HEURE
+    
+    // Vérifier si la date ou l'heure a été modifiée
+    const dateChanged = updates.date && new Date(updates.date).getTime() !== new Date(voyage.date).getTime();
+    const timeChanged = updates.time && updates.time !== voyage.time;
+    
+    if (dateChanged || timeChanged) {
+      
+      // Récupérer toutes les réservations confirmées pour ce voyage
+      const reservations = await Reservation.find({
+        voyage: voyageId,
+        status: 'confirmé'
+      }).populate('user');
+      
+      for (const r of reservations) {
+        if (r.user?.fcmTokens && r.user.fcmTokens.length > 0) {
+          const userTokens = [...new Set(r.user.fcmTokens.map(t => t.token))];
+          
+          // Préparer le message selon ce qui a changé
+          let notificationBody = 'Votre voyage a été modifié. ';
+          if (dateChanged) {
+            notificationBody += `Nouvelle date: ${new Date(updates.date).toLocaleDateString('fr-FR')}. `;
+          }
+          if (timeChanged) {
+            notificationBody += `Nouvelle heure: ${updates.time}. `;
+          }
+          notificationBody += `Trajet: ${voyage.from} → ${voyage.to}`;
+          
+          const result = await sendNotification(
+            userTokens,
+            'Modification de votre voyage',
+            notificationBody,
+            {
+              type: 'TRIP_MODIFIED',
+              voyageId,
+              modificationType: dateChanged ? 'date' : 'time'
+            }
+          );
+          
+          // Nettoyer les tokens invalides
+          if (result.invalidTokens && result.invalidTokens.length > 0) {
+            await cleanupInvalidTokens(result.invalidTokens);
+          }
+        }
+      }
+    }
+    
+
     const updatedVoyage = await Voyage.findByIdAndUpdate(
       voyageId,
       updates,
@@ -279,7 +320,7 @@ const updateVoyage = async (req, res) => {
       availableSeats: updatedVoyage.availableSeats
     });
     
-    // 🔹 VÉRIFICATION FINALE DE COHÉRENCE
+ 
     if (updatedVoyage.availableSeats > updatedVoyage.totalSeats) {
       console.warn('⚠️ INCOHÉRENCE DÉTECTÉE ! Correction en cours...');
       const finalCount = await Reservation.countDocuments({
