@@ -1,7 +1,7 @@
 const Voyage = require('../models/voyage.model');
 const Reservation = require('../models/reservation.model');
 const Driver = require('../models/driver.model');
-const { sendNotification } = require('../services/notification.service');
+const { sendNotification, cleanupInvalidTokens } = require('../services/notification.service');
 
 const createVoyage = async (req, res) => {
   try {
@@ -214,7 +214,7 @@ const updateVoyage = async (req, res) => {
       for (const r of reservations) {
         if (r.user?.fcmTokens && r.user.fcmTokens.length > 0) {
           const userTokens = [...new Set(r.user.fcmTokens.map(t => t.token))];
-          await sendNotification(
+          const result = await sendNotification(
             userTokens,
             'Voyage démarré',
             'Le chauffeur a démarré le voyage',
@@ -223,6 +223,11 @@ const updateVoyage = async (req, res) => {
               voyageId
             }
           );
+          
+          // Nettoyer les tokens invalides
+          if (result.invalidTokens && result.invalidTokens.length > 0) {
+            await cleanupInvalidTokens(result.invalidTokens);
+          }
         }
       }
     }
@@ -235,7 +240,7 @@ const updateVoyage = async (req, res) => {
       const client = await User.findById(updates.currentClient);
       if (client?.fcmTokens && client.fcmTokens.length > 0) {
         const clientTokens = [...new Set(client.fcmTokens.map(t => t.token))];
-        await sendNotification(
+        const result = await sendNotification(
           clientTokens,
           'Le chauffeur arrive',
           'Le chauffeur se dirige vers votre position',
@@ -244,6 +249,11 @@ const updateVoyage = async (req, res) => {
             voyageId,
           }
         );
+        
+        // Nettoyer les tokens invalides
+        if (result.invalidTokens && result.invalidTokens.length > 0) {
+          await cleanupInvalidTokens(result.invalidTokens);
+        }
       }
     }
     

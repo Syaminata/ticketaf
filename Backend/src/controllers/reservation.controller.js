@@ -3,7 +3,7 @@ const Colis = require('../models/colis.model');
 const Voyage = require('../models/voyage.model');
 const User = require('../models/user.model');
 const Bus = require('../models/bus.model');
-const { sendNotification } = require('../services/notification.service');
+const { sendNotification, cleanupInvalidTokens } = require('../services/notification.service');
 
 
 const createReservation = async (req, res) => {
@@ -80,7 +80,7 @@ const createReservation = async (req, res) => {
         if (driver.fcmTokens && driver.fcmTokens.length > 0) {
           const driverTokens = [...new Set(driver.fcmTokens.map(t => t.token))];
           console.log('📤 Envoi notification chauffeur pour voyage:', voyage._id);
-          await sendNotification(
+          const result = await sendNotification(
             driverTokens,
             'Nouvelle réservation',
             `${user.name} a réservé ${quantity} place(s) sur ${voyage.from} → ${voyage.to}`,
@@ -90,6 +90,11 @@ const createReservation = async (req, res) => {
               reservationId: reservation._id.toString()
             }
           );
+          
+          // Nettoyer les tokens invalides
+          if (result.invalidTokens && result.invalidTokens.length > 0) {
+            await cleanupInvalidTokens(result.invalidTokens);
+          }
         } else {
           console.log('❌ Chauffeur sans token FCM - notification non envoyée');
         }
@@ -97,7 +102,7 @@ const createReservation = async (req, res) => {
         //Notification client : confirmation
         if (user.fcmTokens && user.fcmTokens.length > 0) {
           const userTokens = [...new Set(user.fcmTokens.map(t => t.token))];
-          await sendNotification(
+          const result = await sendNotification(
             userTokens,
             'Réservation confirmée',
             `Votre place pour ${voyage.from} → ${voyage.to} est confirmée`,
@@ -106,6 +111,11 @@ const createReservation = async (req, res) => {
               voyageId: voyage._id.toString()
             }
           );
+          
+          // Nettoyer les tokens invalides
+          if (result.invalidTokens && result.invalidTokens.length > 0) {
+            await cleanupInvalidTokens(result.invalidTokens);
+          }
         }
 
         // Voyage plein
@@ -114,7 +124,7 @@ const createReservation = async (req, res) => {
 
           if (driver.fcmTokens && driver.fcmTokens.length > 0) {
             const driverTokens = [...new Set(driver.fcmTokens.map(t => t.token))];
-            await sendNotification(
+            const result = await sendNotification(
               driverTokens,
               'Voyage complet',
               'Toutes les places ont été réservées',
@@ -123,6 +133,11 @@ const createReservation = async (req, res) => {
                 voyageId: voyage._id.toString()
               }
             );
+            
+            // Nettoyer les tokens invalides
+            if (result.invalidTokens && result.invalidTokens.length > 0) {
+              await cleanupInvalidTokens(result.invalidTokens);
+            }
           }
         }
       }

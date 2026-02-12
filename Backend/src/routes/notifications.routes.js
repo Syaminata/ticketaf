@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { sendNotification } = require('../services/notification.service');
+const { sendNotification, cleanupInvalidTokens } = require('../services/notification.service');
 const User = require('../models/user.model');
 const NotificationLog = require('../models/notifications.model');
 const { auth, adminAuth } = require('../middleware/auth');
@@ -102,12 +102,17 @@ router.post('/send', auth, adminAuth, async (req, res) => {
 
     // 2 Envoyer FCM avec navigation
     try {
-      await sendNotification(tokens, title, body, {
+      const result = await sendNotification(tokens, title, body, {
         type: type || 'ADMIN_MESSAGE',
         screen: 'notifications',
         notificationId: createdNotifications[0]._id.toString()
       });
-      sentCount = tokens.length;
+      sentCount = result.successCount;
+      
+      // Nettoyer les tokens invalides
+      if (result.invalidTokens && result.invalidTokens.length > 0) {
+        await cleanupInvalidTokens(result.invalidTokens);
+      }
     } catch (error) {
       failedCount = tokens.length;
       console.error('Erreur envoi notification:', error);
