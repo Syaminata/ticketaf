@@ -475,7 +475,7 @@ const createVoyageByDriver = async (req, res) => {
 // Mettre à jour un voyage spécifique du conducteur connecté
 const updateMyVoyage = async (req, res) => {
   try {
-    const driverId = req.user._id; // ID du conducteur connecté
+    const driverId = req.user._id;
     const voyageId = req.params.id;
     const updates = req.body;
 
@@ -486,6 +486,28 @@ const updateMyVoyage = async (req, res) => {
       return res.status(404).json({ 
         message: 'Voyage non trouvé ou vous n\'êtes pas autorisé à le modifier' 
       });
+    }
+
+    // ✅ SI totalSeats est modifié, recalculer availableSeats correctement
+    if (updates.totalSeats !== undefined) {
+      const bookedSeats = voyage.totalSeats - voyage.availableSeats;
+      const newTotalSeats = updates.totalSeats;
+
+      // Vérifier qu'on ne réduit pas en dessous des places déjà réservées
+      if (newTotalSeats < bookedSeats) {
+        return res.status(400).json({
+          message: `Impossible de réduire à ${newTotalSeats} places. ${bookedSeats} place(s) sont déjà réservées.`,
+          bookedSeats,
+          requestedTotal: newTotalSeats
+        });
+      }
+
+      // Recalculer availableSeats
+      updates.availableSeats = newTotalSeats - bookedSeats;
+
+      console.log('🔄 Recalcul des places:');
+      console.log(`   Anciennes: total=${voyage.totalSeats}, disponibles=${voyage.availableSeats}, réservées=${bookedSeats}`);
+      console.log(`   Nouvelles: total=${newTotalSeats}, disponibles=${updates.availableSeats}, réservées=${bookedSeats}`);
     }
 
     // Mettre à jour le voyage
