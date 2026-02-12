@@ -4,8 +4,11 @@ const Driver = require('./src/models/driver.model');
 
 async function cleanupDuplicateTokens() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ticketaf');
-    console.log('🔗 Connecté à MongoDB');
+    // Utiliser la même chaîne de connexion que l'application
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ticketaf';
+    console.log('🔗 Connexion à MongoDB avec URI:', mongoUri.replace(/\/\/.*@/, '//***:***@'));
+    
+    await mongoose.connect(mongoUri);
 
     // Nettoyer les tokens pour les utilisateurs
     const users = await User.find({});
