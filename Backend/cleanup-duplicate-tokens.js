@@ -8,11 +8,12 @@ const env = ecosystemConfig.apps[0].env;
 
 async function cleanupDuplicateTokens() {
   try {
-    // Utiliser la variable d'environnement de ecosystem.config.js
-    const mongoUri = env.MONGODB_URI || env.MONGO_URI || 'mongodb://localhost:27017/ticketaf';
-    console.log('🔗 Connexion à MongoDB avec URI:', mongoUri.replace(/\/\/.*@/, '//***:***@'));
+    // Utiliser DATABASE_URL de ecosystem.config.js
+    const mongoUri = env.DATABASE_URL || process.env.DATABASE_URL || 'mongodb://localhost:27017/ticketaf';
+    console.log('🔗 Connexion à MongoDB...');
     
     await mongoose.connect(mongoUri);
+    console.log('✅ Connecté à MongoDB');
 
     // Nettoyer les tokens pour les utilisateurs
     const users = await User.find({});
