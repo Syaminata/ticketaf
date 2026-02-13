@@ -22,6 +22,7 @@ const villeRoutes = require('./routes/ville.routes');
 const notificationsRoutes = require('./routes/notifications.routes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
+const otpRoutes = require('./routes/otp.routes');
 
 // Middleware
 const { auth, adminAuth } = require('./middleware/auth');
@@ -32,14 +33,12 @@ const app = express();
 
 // Middlewares
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 50000 }));
 
 // Servir les fichiers statiques (uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
-// Route documentation Swagger
+
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec)); 
 
 /**
@@ -285,6 +284,11 @@ app.use('/api/notifications', notificationsRoutes);
 // Villes Routes
 // -----------------
 app.use('/api/villes', villeRoutes);
+
+// OTP reénitialisation de mot de passe
+app.use('/api/otp', otpRoutes);
+
+
 
 // Catch-all
 app.use((req, res) => {

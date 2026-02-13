@@ -599,10 +599,10 @@ const confirmDelete = async (id) => {
     
     // Filtre par recherche textuelle
     const searchTermLower = searchTerm ? searchTerm.toLowerCase() : '';
-    const userName = reservation.user?.name ? reservation.user.name.toLowerCase() : '';
-    const voyageInfo = reservation.voyage ? `${reservation.voyage.from} ${reservation.voyage.to}`.toLowerCase() : '';
-    const busInfo = reservation.bus ? reservation.bus.marque.toLowerCase() : '';
-    const status = reservation.status ? reservation.status.toLowerCase() : '';
+    const userName = reservation.user?.name ? (reservation.user.name || '').toLowerCase() : '';
+    const voyageInfo = reservation.voyage ? `${reservation.voyage?.from || ''} ${reservation.voyage?.to || ''}`.toLowerCase() : '';
+    const busInfo = reservation.bus ? (reservation.bus?.marque || '').toLowerCase() : '';
+    const status = reservation.status ? (reservation.status || '').toLowerCase() : '';
     
     const matchesSearch = searchTerm === '' ||
       userName.includes(searchTermLower) ||
