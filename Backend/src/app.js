@@ -153,6 +153,33 @@ app.get('/api/buses', auth, busController.getAllBuses);
 
 /**
  * @swagger
+ * /buses/me:
+ *   get:
+ *     summary: Récupérer les bus de l'entreprise connectée
+ *     tags: [Buses]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des bus de l'entreprise
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 buses:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Bus'
+ *       403:
+ *         description: Accès refusé - Réservé aux entreprises
+ */
+app.get('/api/buses/me', auth, busController.getMyBuses);
+
+/**
+ * @swagger
  * /buses/{id}:
  *   get:
  *     summary: Récupérer un bus par ID

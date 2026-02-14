@@ -207,4 +207,24 @@ const searchBuses = async (req, res) => {
   }
 };
 
-module.exports = { createBus, getAllBuses, getBusById, updateBus, deleteBus, migrateBusSeats, activateBus, deactivateBus, searchBuses };
+const getMyBuses = async (req, res) => {
+  try {
+    // Vérifier que l'utilisateur est une entreprise
+    if (req.user.role !== 'entreprise') {
+      return res.status(403).json({ message: 'Accès refusé. Cette route est réservée aux entreprises.' });
+    }
+
+    // Récupérer uniquement les bus appartenant à l'entreprise connectée
+    const buses = await Bus.find({ owner: req.user._id });
+    
+    res.status(200).json({
+      message: 'Bus de l\'entreprise récupérés avec succès',
+      buses
+    });
+  } catch (err) {
+    console.error('Erreur getMyBuses:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+module.exports = { createBus, getAllBuses, getBusById, updateBus, deleteBus, migrateBusSeats, activateBus, deactivateBus, searchBuses, getMyBuses };
