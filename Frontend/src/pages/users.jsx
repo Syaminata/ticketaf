@@ -303,6 +303,7 @@ export default function Users() {
       case 'gestionnaireColis': return 'gestionnaire de colis';
       case 'conducteur': return 'Conducteur';
       case 'client': return 'Client';
+      case 'entreprise': return 'Entreprise';
       default: return role;
     }
   };
@@ -534,6 +535,7 @@ export default function Users() {
             <MenuItem onClick={() => handleCloseFilter('gestionnaireColis')}>Gestionnaire de colis</MenuItem>
             <MenuItem onClick={() => handleCloseFilter('conducteur')}>Conducteur</MenuItem>
             <MenuItem onClick={() => handleCloseFilter('client')}>Client</MenuItem>
+            <MenuItem onClick={() => handleCloseFilter('entreprise')}>Entreprise</MenuItem>
           </Menu>
         </Box>
         
@@ -921,6 +923,7 @@ export default function Users() {
               <MenuItem value="client">Client</MenuItem>
               <MenuItem value="admin">Administrateur</MenuItem>
               <MenuItem value="gestionnaireColis">Gestionnaire de Colis</MenuItem>
+              <MenuItem value="entreprise">Entreprise</MenuItem>
             </TextField>
 
             {/* Ligne 3: Mot de passe (pleine largeur) */}

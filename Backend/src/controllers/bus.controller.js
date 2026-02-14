@@ -2,6 +2,11 @@ const Bus = require('../models/bus.model');
 
 const createBus = async (req, res) => {
   try {
+    // Vérifier si l'utilisateur a le droit de créer un bus
+    if (!['entreprise', 'admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Accès refusé. Seules les entreprises et les administrateurs peuvent créer des bus.' });
+    }
+
     const { name, plateNumber, capacity, from, to, departureDate, price } = req.body;
     
     // Vérification des champs requis
@@ -18,7 +23,8 @@ const createBus = async (req, res) => {
     const existingBus = await Bus.findOne({ plateNumber });
     if (existingBus) return res.status(400).json({ message: 'Numéro de plaque déjà utilisé' });
 
-    const bus = await Bus.create({ 
+    // Ajouter l'ID de l'utilisateur qui crée le bus (pour les entreprises)
+    const busData = { 
       name, 
       plateNumber, 
       capacity, 
@@ -27,7 +33,14 @@ const createBus = async (req, res) => {
       to, 
       departureDate: new Date(departureDate),
       price 
-    });
+    };
+
+    // Si c'est une entreprise, ajouter son ID comme propriétaire
+    if (req.user.role === 'entreprise') {
+      busData.owner = req.user._id;
+    }
+
+    const bus = await Bus.create(busData);
     res.status(201).json({ message: 'Bus créé', bus });
   } catch (err) {
     console.error('Erreur createBus:', err);
@@ -43,7 +56,6 @@ const getAllBuses = async (req, res) => {
       departureDate: { $gte: now }
     });
 
-    // Migration: Corriger les bus qui n'ont pas de availableSeats
     for (const bus of buses) {
       if (bus.availableSeats === undefined || bus.availableSeats === null) {
         await Bus.findByIdAndUpdate(bus._id, { 
@@ -73,9 +85,20 @@ const getBusById = async (req, res) => {
 
 const updateBus = async (req, res) => {
   try {
-    const bus = await Bus.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const bus = await Bus.findById(req.params.id);
     if (!bus) return res.status(404).json({ message: 'Bus non trouvé' });
-    res.status(200).json({ message: 'Bus mis à jour', bus });
+
+    // Vérifier si l'utilisateur a le droit de modifier ce bus
+    if (req.user.role === 'entreprise' && bus.owner && bus.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Accès refusé. Vous ne pouvez modifier que vos propres bus.' });
+    }
+
+    if (!['entreprise', 'admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Accès refusé. Seules les entreprises et les administrateurs peuvent modifier des bus.' });
+    }
+
+    const updatedBus = await Bus.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.status(200).json({ message: 'Bus mis à jour', bus: updatedBus });
   } catch (err) {
     console.error('Erreur updateBus:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
@@ -84,9 +107,20 @@ const updateBus = async (req, res) => {
 
 const deleteBus = async (req, res) => {
   try {
-    const bus = await Bus.findByIdAndDelete(req.params.id);
+    const bus = await Bus.findById(req.params.id);
     if (!bus) return res.status(404).json({ message: 'Bus non trouvé' });
-    res.status(200).json({ message: 'Bus supprimé' });
+
+    // Vérifier si l'utilisateur a le droit de supprimer ce bus
+    if (req.user.role === 'entreprise' && bus.owner && bus.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Accès refusé. Vous ne pouvez supprimer que vos propres bus.' });
+    }
+
+    if (!['entreprise', 'admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Accès refusé. Seules les entreprises et les administrateurs peuvent supprimer des bus.' });
+    }
+
+    await Bus.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: 'Bus supprimé avec succès' });
   } catch (err) {
     console.error('Erreur deleteBus:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });

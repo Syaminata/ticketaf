@@ -50,10 +50,10 @@ const auth = async (req, res, next) => {
   }
 };
 
-// Middleware pour les administrateurs et gestionnaires de colis
+// Middleware pour les administrateurs, gestionnaires de colis et entreprises
 const adminAuth = (req, res, next) => {
-  if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user.role !== 'gestionnaireColis') {
-    return res.status(403).json({ message: 'Accès refusé. Rôle admin, superadmin ou gestionnaire de colis requis.' });
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user.role !== 'gestionnaireColis' && req.user.role !== 'entreprise') {
+    return res.status(403).json({ message: 'Accès refusé. Rôle admin, superadmin, gestionnaire de colis ou entreprise requis.' });
   }
   next();
 };
@@ -88,13 +88,24 @@ const isClient = (req, res, next) => {
   });
 };
 
-// Vérifie si l'utilisateur est un conducteur ou un administrateur
-const isDriverOrAdmin = (req, res, next) => {
-  if (req.user && (req.user.role === 'conducteur' || req.user.role === 'admin' || req.user.role === 'superadmin')) {
+// Vérifie si l'utilisateur est une entreprise
+const isEntreprise = (req, res, next) => {
+  if (req.user && req.user.role === 'entreprise') {
     return next();
   }
   return res.status(403).json({ 
-    message: 'Accès réservé aux conducteurs et administrateurs',
+    message: 'Accès réservé aux entreprises',
+    code: 'FORBIDDEN'
+  });
+};
+
+// Vérifie si l'utilisateur est un conducteur, un administrateur ou une entreprise
+const isDriverOrAdmin = (req, res, next) => {
+  if (req.user && (req.user.role === 'conducteur' || req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'entreprise')) {
+    return next();
+  }
+  return res.status(403).json({ 
+    message: 'Accès réservé aux conducteurs, administrateurs et entreprises',
     code: 'FORBIDDEN'
   });
 };
@@ -129,6 +140,7 @@ module.exports = {
   superAdminAuth, 
   isDriver, 
   isClient, 
+  isEntreprise,
   isDriverOrAdmin, 
   hasRole, 
   ForbiddenError,

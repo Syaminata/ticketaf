@@ -10,6 +10,7 @@ const busSchema = new mongoose.Schema({
   departureDate: { type: Date, required: true }, 
   price: { type: Number, required: true } ,
   isActive: { type: Boolean, default: false },
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Propriétaire du bus (entreprise)
 }, { timestamps: true });
 
 busSchema.pre('save', function(next) {

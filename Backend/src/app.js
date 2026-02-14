@@ -129,7 +129,7 @@ app.use('/api/drivers', driverRoutes);
  *             schema:
  *               $ref: '#/components/schemas/Bus'
  */
-app.post('/api/buses', busController.createBus);
+app.post('/api/buses', auth, busController.createBus);
 
 /**
  * @swagger
@@ -149,7 +149,7 @@ app.post('/api/buses', busController.createBus);
  *               items:
  *                 $ref: '#/components/schemas/Bus'
  */
-app.get('/api/buses', busController.getAllBuses);
+app.get('/api/buses', auth, busController.getAllBuses);
 
 /**
  * @swagger
@@ -176,7 +176,7 @@ app.get('/api/buses', busController.getAllBuses);
  *       404:
  *         description: Bus non trouvé
  */
-app.get('/api/buses/:id', validateObjectId, busController.getBusById);
+app.get('/api/buses/:id', auth, validateObjectId, busController.getBusById);
 app.get('/api/buses', busController.searchBuses);
 /**
  * @swagger
@@ -224,7 +224,7 @@ app.get('/api/buses', busController.searchBuses);
  *             schema:
  *               $ref: '#/components/schemas/Bus'
  */
-app.put('/api/buses/:id', validateObjectId, busController.updateBus);
+app.put('/api/buses/:id', auth, validateObjectId, busController.updateBus);
 
 /**
  * @swagger
@@ -246,8 +246,8 @@ app.put('/api/buses/:id', validateObjectId, busController.updateBus);
  *       404:
  *         description: Bus non trouvé
  */
-app.put('/api/bus/:id/activate', auth, adminAuth, busController.activateBus);
-app.put('/api/bus/:id/deactivate', auth, adminAuth, busController.deactivateBus);
+app.put('/api/bus/:id/activate', auth, busController.activateBus);
+app.put('/api/bus/:id/deactivate', auth, busController.deactivateBus);
 app.delete('/api/buses/:id', validateObjectId, busController.deleteBus);
 
 // -----------------
