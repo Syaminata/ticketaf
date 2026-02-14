@@ -77,6 +77,48 @@ router.get('/voyage/:voyageId', auth, async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur lors de la récupération des réservations' });
   }
 });
+
+/**
+ * @swagger
+ * /reservations/bus/{busId}:
+ *   get:
+ *     summary: Récupère les réservations pour un bus spécifique
+ *     tags: [Reservations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: busId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID du bus
+ *     responses:
+ *       200:
+ *         description: Liste des réservations pour le bus
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Reservation'
+ *       404:
+ *         description: Aucune réservation trouvée pour ce bus
+ */
+router.get('/bus/:busId', auth, async (req, res) => {
+  try {
+    const reservations = await Reservation.find({ bus: req.params.busId })
+      .populate('user', '-password')
+      .populate('bus')
+      .sort({ createdAt: -1 });
+      
+    res.json(reservations);
+  } catch (err) {
+    console.error('Erreur lors de la récupération des réservations du bus:', err);
+    res.status(500).json({ message: 'Erreur serveur lors de la récupération des réservations du bus' });
+  }
+});
+
 /**
  * @swagger
  * /reservations/chart:

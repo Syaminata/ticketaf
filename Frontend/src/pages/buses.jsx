@@ -40,6 +40,7 @@ import {
   FilterList as FilterListIcon,
   AddLocation,
   Close,
+  Business as BusinessIcon,
 } from "@mui/icons-material";
 import ConfirmationDialog from "../components/ConfirmationDialog";
 
@@ -84,7 +85,8 @@ function Buses() {
 
   const [detailsDialog, setDetailsDialog] = useState({
     open: false,
-    bus: null
+    bus: null,
+    owner: null
   });
 
   // Charger les villes au montage du composant
@@ -209,17 +211,34 @@ function Buses() {
     setError('');
   };
 
-  const handleViewDetails = (bus) => {
+  const handleViewDetails = async (bus) => {
+    let ownerInfo = null;
+    
+    // Si le bus a un propriétaire, récupérer ses informations
+    if (bus.owner) {
+      try {
+        const token = sessionStorage.getItem('token');
+        const response = await axios.get(`/users/${bus.owner}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        ownerInfo = response.data;
+      } catch (error) {
+        console.error('Erreur lors de la récupération des infos du propriétaire:', error);
+      }
+    }
+    
     setDetailsDialog({
       open: true,
-      bus: bus
+      bus: bus,
+      owner: ownerInfo
     });
   };
 
   const handleCloseDetailsDialog = () => {
     setDetailsDialog({
       open: false,
-      bus: null
+      bus: null,
+      owner: null
     });
   };
 
@@ -1330,6 +1349,46 @@ function Buses() {
                   </Box>
                 </Box>
               </Box>
+              
+              {/* Informations de l'entreprise propriétaire */}
+              {detailsDialog.owner && (
+                <Box sx={{ mt: 4, p: 3, backgroundColor: '#fff3e0', borderRadius: '8px', border: '1px solid #ffcc33' }}>
+                  <Typography variant="h6" sx={{ 
+                    color: '#1a1a1a', 
+                    fontWeight: 600, 
+                    mb: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <BusinessIcon sx={{ color: '#ffcc33', fontSize: 20 }} />
+                    Entreprise propriétaire
+                  </Typography>
+                  
+                  <Box sx={{ display: 'grid', gap: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#ffffff', borderRadius: '6px' }}>
+                      <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Nom</Typography>
+                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                        {detailsDialog.owner.name || 'Non renseigné'}
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#ffffff', borderRadius: '6px' }}>
+                      <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Numéro</Typography>
+                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                        {detailsDialog.owner.numero || 'Non renseigné'}
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#ffffff', borderRadius: '6px' }}>
+                      <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Adresse</Typography>
+                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                        {detailsDialog.owner.address || 'Non renseignée'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              )}
             </Box>
           )}
         </DialogContent>
