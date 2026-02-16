@@ -10,8 +10,7 @@ const notificationLogSchema = new mongoose.Schema({
   sentCount: Number,
   failedCount: Number,
   sentBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  createdAt: Date,
-});
+}, { timestamps: true }); 
 
 
 module.exports = mongoose.model('NotificationLog', notificationLogSchema);

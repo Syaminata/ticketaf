@@ -707,7 +707,13 @@ export default function AdminNotifications() {
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedHistory.map((log) => (
+              paginatedHistory.map((log) => {
+                // Debug: afficher la structure de log dans la console
+                console.log('Log structure:', log);
+                console.log('Log createdAt:', log.createdAt);
+                console.log('Log createdAt type:', typeof log.createdAt);
+                
+                return (
                 <TableRow 
                   key={log._id}
                   sx={{ 
@@ -721,17 +727,17 @@ export default function AdminNotifications() {
                 >
                   <TableCell>
                     <Typography variant="body2" sx={{ color: '#666' }}>
-                      {new Date(log.createdAt).toLocaleDateString('fr-FR', {
+                      {log.createdAt ? new Date(log.createdAt).toLocaleDateString('fr-FR', {
                         day: '2-digit',
                         month: 'short',
                         year: 'numeric',
-                      })}
+                      }) : 'Date invalide'}
                     </Typography>
                     <Typography variant="caption" sx={{ color: '#999' }}>
-                      {new Date(log.createdAt).toLocaleTimeString('fr-FR', {
+                      {log.createdAt ? new Date(log.createdAt).toLocaleTimeString('fr-FR', {
                         hour: '2-digit',
                         minute: '2-digit'
-                      })}
+                      }) : 'Heure invalide'}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -778,7 +784,8 @@ export default function AdminNotifications() {
                     </IconButton>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -838,14 +845,14 @@ export default function AdminNotifications() {
                   Date d'envoi
                 </Typography>
                 <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5 }}>
-                  {new Date(currentNotification.createdAt).toLocaleDateString('fr-FR', {
+                  {currentNotification.createdAt ? new Date(currentNotification.createdAt).toLocaleDateString('fr-FR', {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit'
-                  })}
+                  }) : 'Date invalide'}
                 </Typography>
               </Box>
 

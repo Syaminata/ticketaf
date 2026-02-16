@@ -147,8 +147,8 @@ router.get('/history', auth, adminAuth, async (req, res) => {
   try {
     const logs = await NotificationLog.find()
       .populate('sentBy', 'name email')
-      .sort({ createdAt: -1 })
-      .limit(50);
+      .sort({ createdAt: -1 }) 
+      .limit(100); 
     
     res.json({ logs });
   } catch (error) {
