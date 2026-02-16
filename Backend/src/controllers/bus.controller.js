@@ -156,8 +156,33 @@ const activateBus = async (req, res) => {
       req.params.id,
       { isActive: true },
       { new: true }
-    );
+    ).populate('owner');
     if (!bus) return res.status(404).json({ message: 'Bus non trouvé' });
+
+    const { sendNotification } = require('../services/notification.service');
+    const User = require('../models/user.model');
+    const UserNotification = require('../models/userNotification.model');
+
+    if (bus.owner) {
+      const owner = await User.findById(bus.owner);
+      if (owner && owner.fcmTokens && owner.fcmTokens.length > 0) {
+        // Créer la notification utilisateur
+        await UserNotification.create({
+          user: owner._id,
+          title: 'Bus activé',
+          body: `Félicitations ! Votre bus "${bus.name, bus.immatriculation}" a été activé. Vous allez maintenant pouvoir recevoir des reservations.`,
+          type: 'info'
+        });
+
+        // Envoyer la notification push
+        const tokens = owner.fcmTokens.map(t => t.token);
+        await sendNotification(tokens, 'Bus activé', `Votre bus "${bus.name}" a été activé. `, {
+          type: 'info',
+          screen: 'voyages'
+        });
+      }
+    }
+
     res.status(200).json({ message: 'Bus activé', bus });
   } catch (err) {
     console.error('Erreur activateBus:', err);

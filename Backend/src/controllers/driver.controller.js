@@ -439,6 +439,31 @@ const activateDriver = async (req, res) => {
       { new: true }
     ).select('-password');
     if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
+
+    // Envoyer une notification au chauffeur
+    const { sendNotification } = require('../services/notification.service');
+    const User = require('../models/user.model');
+    const UserNotification = require('../models/userNotification.model');
+
+    // Récupérer l'utilisateur associé au chauffeur
+    const user = await User.findById(driver._id);
+    if (user && user.fcmTokens && user.fcmTokens.length > 0) {
+      // Créer la notification utilisateur
+      await UserNotification.create({
+        user: user._id,
+        title: 'Compte activé',
+        body: 'Félicitations ! Votre compte chauffeur a été activé. Vous pouvez maintenant commencer à créer des voyages.',
+        type: 'info'
+      });
+
+      // Envoyer la notification push
+      const tokens = user.fcmTokens.map(t => t.token);
+      await sendNotification(tokens, 'Compte activé', 'Votre compte chauffeur a été activé. Vous pouvez maintenant créer des voyages.', {
+        type: 'info',
+        screen: 'voyages'
+      });
+    }
+
     res.status(200).json({ message: 'Conducteur activé', driver });
   } catch (err) {
     console.error('Erreur activateDriver:', err);
