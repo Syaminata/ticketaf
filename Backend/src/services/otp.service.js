@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const Otp = require('../models/otp.model');
 const User = require('../models/user.model');
+const smsService = require('./sms.service');
 
 //  Config sécurité
 const OTP_LENGTH = 6;            // 6 chiffres
@@ -35,6 +36,8 @@ const generateOtp = async ({ userId, numero, purpose }) => {
     used: false
   });
 
+  // Envoi SMS
+  await smsService.sendOtpSms(numero, otp);
   return { otp }; // ⚠️ uniquement pour dev/debug
 };
 

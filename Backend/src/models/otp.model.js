@@ -28,6 +28,11 @@ const otpSchema = new mongoose.Schema({
     default: 'reset_password'
   },
 
+  resetToken: {
+    type: String,
+    default: null
+  },
+
   // Date d'expiration
   expiresAt: {
     type: Date,
