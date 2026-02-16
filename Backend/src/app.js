@@ -137,8 +137,6 @@ app.post('/api/buses', auth, busController.createBus);
  *   get:
  *     summary: Récupérer tous les bus
  *     tags: [Buses]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Liste des bus
@@ -149,7 +147,7 @@ app.post('/api/buses', auth, busController.createBus);
  *               items:
  *                 $ref: '#/components/schemas/Bus'
  */
-app.get('/api/buses', auth, busController.getAllBuses);
+app.get('/api/buses', busController.getAllBuses);
 
 /**
  * @swagger
@@ -184,8 +182,6 @@ app.get('/api/buses/me', auth, busController.getMyBuses);
  *   get:
  *     summary: Récupérer un bus par ID
  *     tags: [Buses]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -203,7 +199,7 @@ app.get('/api/buses/me', auth, busController.getMyBuses);
  *       404:
  *         description: Bus non trouvé
  */
-app.get('/api/buses/:id', auth, validateObjectId, busController.getBusById);
+app.get('/api/buses/:id', validateObjectId, busController.getBusById);
 app.get('/api/buses', busController.searchBuses);
 /**
  * @swagger
