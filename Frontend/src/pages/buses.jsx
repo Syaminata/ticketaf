@@ -26,7 +26,6 @@ import {
   Menu,
   InputAdornment,
   Autocomplete,
-
 } from "@mui/material";
 import {
   DirectionsBus as BusIcon,
@@ -41,6 +40,9 @@ import {
   AddLocation,
   Close,
   Business as BusinessIcon,
+  CalendarToday as CalendarIcon,
+  Phone as PhoneIcon,
+  ArrowForward as ArrowForwardIcon
 } from "@mui/icons-material";
 import ConfirmationDialog from "../components/ConfirmationDialog";
 
@@ -1290,6 +1292,7 @@ function Buses() {
         <DialogContent sx={{ p: 4 }}>
           {detailsDialog.bus && (
             <Box>
+              
               {/* Informations principales */}
               <Box sx={{ mb: 4 }}>
                 <Typography variant="h6" sx={{ 
@@ -1349,46 +1352,58 @@ function Buses() {
                   </Box>
                 </Box>
               </Box>
-              
               {/* Informations de l'entreprise propriétaire */}
               {detailsDialog.owner && (
-                <Box sx={{ mt: 4, p: 3, backgroundColor: '#fff3e0', borderRadius: '8px', border: '1px solid #ffcc33' }}>
-                  <Typography variant="h6" sx={{ 
-                    color: '#1a1a1a', 
-                    fontWeight: 600, 
-                    mb: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <BusinessIcon sx={{ color: '#ffcc33', fontSize: 20 }} />
-                    Entreprise propriétaire
-                  </Typography>
-                  
-                  <Box sx={{ display: 'grid', gap: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#ffffff', borderRadius: '6px' }}>
-                      <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Nom</Typography>
-                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                        {detailsDialog.owner.name || 'Non renseigné'}
-                      </Typography>
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#ffffff', borderRadius: '6px' }}>
-                      <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Numéro</Typography>
-                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                        {detailsDialog.owner.numero || 'Non renseigné'}
-                      </Typography>
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#ffffff', borderRadius: '6px' }}>
-                      <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Adresse</Typography>
-                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                        {detailsDialog.owner.address || 'Non renseignée'}
-                      </Typography>
-                    </Box>
+                <Box
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e6e8eb'
+                  }}
+                >
+                  {/* Header */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <BusinessIcon sx={{ color: '#ffcc33', mr: 1 }} />
+                    <Typography variant="subtitle1" fontWeight={700}>
+                      Entreprise propriétaire
+                    </Typography>
+                  </Box>
+
+                  {/* Content */}
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: 2
+                    }}
+                  >
+                    {[
+                      { label: 'Nom', value: detailsDialog.owner.name },
+                      { label: 'Numéro', value: detailsDialog.owner.numero },
+                      { label: 'Adresse', value: detailsDialog.owner.address }
+                    ].map((item, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          p: 1.8,
+                          borderRadius: 2,
+                          backgroundColor: '#fffef7ff',
+                          border: '1px solid #e7ab05ff'
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                          {item.label}
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: 14 }}>
+                          {item.value || '—'}
+                        </Typography>
+                      </Box>
+                    ))}
                   </Box>
                 </Box>
               )}
+            
             </Box>
           )}
         </DialogContent>

@@ -488,6 +488,10 @@ const updateMyVoyage = async (req, res) => {
       });
     }
 
+    // Vérifier si l'heure de départ est modifiée
+    const isTimeModified = updates.departureTime && 
+                         new Date(updates.departureTime).getTime() !== new Date(voyage.departureTime).getTime();
+
     // ✅ SI totalSeats est modifié, recalculer availableSeats correctement
     if (updates.totalSeats !== undefined) {
       const bookedSeats = voyage.totalSeats - voyage.availableSeats;
@@ -516,6 +520,37 @@ const updateMyVoyage = async (req, res) => {
       { $set: updates },
       { new: true, runValidators: true }
     ).populate('driver', '-password');
+
+    // Envoyer une notification aux clients si l'heure a été modifiée
+    if (isTimeModified) {
+      const { sendNotification } = require('../services/notification.service');
+      const Reservation = require('../models/reservation.model');
+      const User = require('../models/user.model');
+      const UserNotification = require('../models/userNotification.model');
+
+      // Récupérer les réservations pour ce voyage
+      const reservations = await Reservation.find({ voyage: voyageId }).populate('user');
+      
+      // Envoyer une notification à chaque client ayant réservé
+      for (const reservation of reservations) {
+        if (reservation.user && reservation.user.fcmTokens && reservation.user.fcmTokens.length > 0) {
+          // Créer la notification utilisateur
+          await UserNotification.create({
+            user: reservation.user._id,
+            title: 'Heure de voyage modifiée',
+            body: `L'heure de départ de votre voyage ${voyage.from} → ${voyage.to} a été modifiée. Veuillez vérifier les nouveaux horaires.`,
+            type: 'info'
+          });
+
+          // Envoyer la notification push
+          const tokens = reservation.user.fcmTokens.map(t => t.token);
+          await sendNotification(tokens, 'Heure de voyage modifiée', `L'heure de départ de votre voyage a été modifiée. Veuillez vérifier les nouveaux horaires.`, {
+            type: 'info',
+            screen: 'voyages'
+          });
+        }
+      }
+    }
 
     res.status(200).json({ 
       message: 'Voyage mis à jour avec succès', 
