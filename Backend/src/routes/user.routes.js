@@ -255,6 +255,6 @@ router.put('/:id', auth, adminAuth, updateUser);
  *       404:
  *         description: Utilisateur non trouvé
  */
-router.delete('/:id', auth, adminAuth, deleteUser);
+router.delete('/:id', auth, deleteUser);
 
 module.exports = router;
