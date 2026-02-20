@@ -236,29 +236,6 @@ router.put('/:id', auth, adminAuth, updateUser);
 
 /**
  * @swagger
- * /users/{id}:
- *   delete:
- *     summary: Supprimer un utilisateur
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: ID de l'utilisateur
- *     responses:
- *       200:
- *         description: Utilisateur supprimé avec succès
- *       404:
- *         description: Utilisateur non trouvé
- */
-router.delete('/:id', auth, deleteUser);
-
-/**
- * @swagger
  * /users/me:
  *   delete:
  *     summary: Supprimer le compte de l'utilisateur connecté
@@ -292,5 +269,28 @@ router.delete('/me', auth, async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 });
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   delete:
+ *     summary: Supprimer un utilisateur
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de l'utilisateur
+ *     responses:
+ *       200:
+ *         description: Utilisateur supprimé avec succès
+ *       404:
+ *         description: Utilisateur non trouvé
+ */
+router.delete('/:id', auth, adminAuth, deleteUser);
 
 module.exports = router;
