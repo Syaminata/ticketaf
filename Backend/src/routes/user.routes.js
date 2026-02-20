@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { getAllUsers, getUserById, createUser, updateUser, deleteUser, updateProfile, changePassword } = require('../controllers/user.controller');
 const { auth, adminAuth } = require('../middleware/auth');
+const User = require('../models/user.model');
+const Driver = require('../models/driver.model');
 
 /**
  * @swagger
