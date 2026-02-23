@@ -253,21 +253,21 @@ router.put('/:id', auth, adminAuth, updateUser);
 router.delete('/me', auth, async (req, res) => {
   try {
     const userId = req.user._id;
-    
-    // Essayer de supprimer d'abord dans User
-    let user = await User.findByIdAndDelete(userId);
-    if (!user) {
-      // Si pas trouvé dans User, essayer dans Driver
-      user = await Driver.findByIdAndDelete(userId);
-    }
-    
-    if (!user) {
+    console.log('🗑️ Suppression du compte pour userId:', userId);
+
+    // Supprimer dans les deux collections simultanément
+    const [userResult, driverResult] = await Promise.all([
+      User.findByIdAndDelete(userId),
+      Driver.findByIdAndDelete(userId),
+    ]);
+
+    if (!userResult && !driverResult) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
     res.status(200).json({ message: 'Compte supprimé avec succès' });
   } catch (err) {
-    console.error('Erreur deleteMe:', err);
+    console.error('❌ Erreur deleteMe:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 });
