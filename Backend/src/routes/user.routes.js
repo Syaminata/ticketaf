@@ -187,7 +187,7 @@ router.put('/change-password', auth, changePassword);
  *       404:
  *         description: Utilisateur non trouvé
  */
-router.get('/:id', auth, getUserById);
+router.get('/:id', getUserById);
 
 /**
  * @swagger
