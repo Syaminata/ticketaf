@@ -373,27 +373,13 @@ useEffect(() => {
   };
 
   const handleStatusChange = async (colisId, newStatus) => {
-    console.log(`[handleStatusChange] Début pour colis ${colisId}, newStatus=${newStatus}`);
-    
-    if (newStatus !== 'envoyé') {
-      console.log(`[handleStatusChange] Statut non autorisé, sortie`);
-      return; // uniquement "envoyé"
-    }
+    if (newStatus !== 'envoyé') return;
 
     if (!window.confirm('Êtes-vous sûr de vouloir marquer ce colis comme envoyé ?')) return;
 
     try {
       setLoading(true);
-
-      // Récupérer le colis avant modification pour debug
-      const colisBefore = await colisAPI.getColis(colisId);
-      console.log(`[handleStatusChange] Avant update:`, colisBefore);
-
       await colisAPI.updateColis(colisId, { status: newStatus });
-
-      const colisAfter = await colisAPI.getColis(colisId);
-      console.log(`[handleStatusChange] Après update:`, colisAfter);
-
       await fetchColis();
       setSuccess('Colis marqué comme envoyé avec succès');
       setTimeout(() => setSuccess(''), 3000);
@@ -407,24 +393,13 @@ useEffect(() => {
 
   // Fonction pour que le client accepte le prix
   const handleAcceptPrice = async (colisId) => {
-    console.log(`[handleAcceptPrice] Début pour colis ${colisId}`);
-
     if (!window.confirm('Êtes-vous sûr de vouloir accepter ce prix ? Le colis sera enregistré.')) return;
 
     try {
       setLoading(true);
-
-      // Récupérer le colis avant modification pour debug
-      const colisBefore = await colisAPI.getColis(colisId);
-      console.log(`[handleAcceptPrice] Avant update:`, colisBefore);
-
       await colisAPI.updateColis(colisId, { status: 'enregistré' });
-
-      const colisAfter = await colisAPI.getColis(colisId);
-      console.log(`[handleAcceptPrice] Après update:`, colisAfter);
-
       await fetchColis();
-      setSuccess('Prix accepté avec succès. Le colis est maintenant enregistré.');
+      setSuccess('Prix accepté. Le colis est maintenant enregistré.');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       console.error('Erreur lors de l\'acceptation du prix:', err);
