@@ -8,7 +8,6 @@ const User = require('../models/user.model');
 // Créer un colis avec upload d'image
 const createColis = async (req, res) => {
   try {
-    // Récupérer les données du formulaire
     const { description, voyageId, destination, dateEnvoi, villeDepart } = req.body;
     
     let destinataire;
@@ -26,21 +25,18 @@ const createColis = async (req, res) => {
       };
     }
 
-    // Validation des champs obligatoires
     if (!destinataire.nom || !destinataire.telephone) {
       return res.status(400).json({ 
         message: 'Les informations du destinataire sont requises (nom et téléphone)' 
       });
     }
 
-    // Valider que soit voyage, soit destination+villeDepart+date sont fournis
     if (!voyageId && (!destination || !dateEnvoi || !villeDepart)) {
       return res.status(400).json({ 
         message: 'Vous devez fournir soit un voyage, soit une destination, une ville de départ et une date' 
       });
     }
 
-    // Créer le colis
     const colisData = {
       expediteur: req.user._id,
       destinataire: destinataire,
@@ -49,14 +45,12 @@ const createColis = async (req, res) => {
       createdBy: req.user._id
     };
 
-    // Ajouter les champs conditionnels si pas de voyage
     if (!voyageId) {
       colisData.destination = destination;
       colisData.dateEnvoi = new Date(dateEnvoi);
       colisData.villeDepart = villeDepart;
     }
 
-    // Si un voyage est sélectionné (ancien système)
     if (voyageId) {
       const voyage = await Voyage.findById(voyageId);
       if (!voyage) {
@@ -65,7 +59,6 @@ const createColis = async (req, res) => {
       colisData.voyage = voyageId;
     }
 
-    // Si une image a été téléchargée
     if (req.file) {
       colisData.imageUrl = `/uploads/colis/${req.file.filename}`;
     }
@@ -73,7 +66,6 @@ const createColis = async (req, res) => {
     const colis = new Colis(colisData);
     await colis.save();
 
-    // Peupler les références pour la réponse
     const newColis = await Colis.findById(colis._id)
       .populate('voyage', 'from to date')
       .populate('expediteur', 'name email numero')
@@ -138,7 +130,7 @@ const getAllColis = async (req, res) => {
   }
 };
 
-// Récupérer un colis/place par ID
+// Récupérer un colis par ID
 const getColisById = async (req, res) => {
   try {
     const colis = await Colis.findById(req.params.id)
@@ -146,15 +138,12 @@ const getColisById = async (req, res) => {
       .populate('voyage', 'from to date driver')
       .populate({
         path: 'voyage',
-        populate: {
-          path: 'driver',
-          select: 'name numero'
-        }
+        populate: { path: 'driver', select: 'name numero' }
       })
       .populate('createdBy', 'name email numero');
 
     if (!colis) {
-      return res.status(404).json({ message: 'Colis/Place non trouvé' });
+      return res.status(404).json({ message: 'Colis non trouvé' });
     }
 
     res.status(200).json(colis);
@@ -163,8 +152,8 @@ const getColisById = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
- 
-// Mettre à jour un colis 
+
+// Mettre à jour un colis
 const updateColis = async (req, res) => {
   try {
     const { destinataire, prix, description, status, voyageId, destination, dateEnvoi, villeDepart } = req.body;
@@ -175,17 +164,14 @@ const updateColis = async (req, res) => {
       return res.status(404).json({ message: 'Colis non trouvé' });
     }
 
-    // Préparer les données de mise à jour
     const updateData = {};
 
-    // Valider le statut s'il est fourni
     if (status && !['en attente', 'enregistré', 'envoyé', 'reçu', 'annulé'].includes(status)) {
       return res.status(400).json({ 
         message: 'Statut invalide. Les statuts valides sont: en attente, enregistré, envoyé, reçu, annulé' 
       });
     }
 
-    // Mettre à jour les champs simples
     if (description !== undefined) updateData.description = description;
     if (status !== undefined) updateData.status = status;
     if (voyageId !== undefined) updateData.voyage = voyageId;
@@ -193,18 +179,14 @@ const updateColis = async (req, res) => {
     if (dateEnvoi !== undefined) updateData.dateEnvoi = new Date(dateEnvoi);
     if (villeDepart !== undefined) updateData.villeDepart = villeDepart;
 
-    // Valider et mettre à jour le prix si fourni
     if (prix !== undefined && prix !== null && prix !== '') {
       const prixNumber = parseFloat(prix);
       if (isNaN(prixNumber) || prixNumber < 0) {
-        return res.status(400).json({ 
-          message: 'Le prix doit être un nombre positif' 
-        });
+        return res.status(400).json({ message: 'Le prix doit être un nombre positif' });
       }
       updateData.prix = prixNumber;
     }
 
-    // Mise à jour des champs du destinataire si fournis
     if (destinataire) {
       updateData.$set = updateData.$set || {};
       
@@ -226,7 +208,6 @@ const updateColis = async (req, res) => {
       if (destData.adresse !== undefined) updateData.$set['destinataire.adresse'] = destData.adresse;
     }
 
-    // Gérer l'upload d'image UNIQUEMENT si un fichier est présent
     if (req.file) {
       if (colis.imageUrl) {
         const oldFilename = path.basename(colis.imageUrl);
@@ -267,7 +248,6 @@ const deleteColis = async (req, res) => {
       return res.status(404).json({ message: 'Colis non trouvé' });
     }
 
-    // Supprimer l'image associée si elle existe
     if (colis.imageUrl) {
       const filename = path.basename(colis.imageUrl);
       deleteColisImage(filename);
@@ -294,10 +274,7 @@ const trackColis = async (req, res) => {
       .populate('expediteur', 'name email numero')
       .populate({
         path: 'voyage',
-        populate: {
-          path: 'driver',
-          select: 'name numero'
-        }
+        populate: { path: 'driver', select: 'name numero' }
       });
 
     if (!colis) {
@@ -311,7 +288,7 @@ const trackColis = async (req, res) => {
   }
 };
 
-// Statistiques des colis et places
+// Statistiques des colis
 const getColisStats = async (req, res) => {
   try {
     const totalColis = await Colis.countDocuments();
@@ -379,7 +356,7 @@ const updateColisPrix = async (req, res) => {
   }
 };
 
-// Valider un colis (client)
+// ✅ CORRECTION : Valider un colis (client accepte le prix → statut 'enregistré')
 const validateColis = async (req, res) => {
   try {
     const { id } = req.params;
@@ -389,25 +366,29 @@ const validateColis = async (req, res) => {
       return res.status(404).json({ message: 'Colis non trouvé' });
     }
 
+    // Vérifier que c'est bien l'expéditeur
     if (colis.expediteur.toString() !== req.user._id.toString()) {
       return res.status(403).json({ 
         message: 'Non autorisé à valider ce colis' 
       });
     }
 
+    // Vérifier que le prix a été défini par l'admin
     if (!colis.prix || colis.prix <= 0) {
       return res.status(400).json({ 
         message: 'Le prix doit être défini par l\'administrateur avant validation' 
       });
     }
 
+    // Vérifier que le colis est bien en attente
     if (colis.status !== 'en attente') {
       return res.status(400).json({ 
         message: `Impossible de valider un colis avec le statut "${colis.status}"` 
       });
     }
 
-    colis.status = 'envoyé';
+    // ✅ Le client accepte le prix → statut passe à 'enregistré' (pas 'envoyé')
+    colis.status = 'enregistré';
     await colis.save();
     
     const updatedColis = await Colis.findById(colis._id)
@@ -415,19 +396,21 @@ const validateColis = async (req, res) => {
       .populate('expediteur', 'name email numero');
     
     res.json({ 
-      message: 'Colis validé et envoyé avec succès',
+      success: true,
+      message: 'Prix accepté avec succès. Votre colis est maintenant enregistré.',
       colis: updatedColis
     });
   } catch (error) {
     console.error('Erreur lors de la validation du colis:', error);
     res.status(500).json({ 
+      success: false,
       message: 'Erreur lors de la validation du colis',
       error: error.message 
     });
   }
 };
 
-// Annuler un colis (client)
+// ✅ CORRECTION : Annuler un colis (client peut annuler si 'en attente' OU 'enregistré')
 const cancelColis = async (req, res) => {
   try {
     const { id } = req.params;
@@ -437,15 +420,17 @@ const cancelColis = async (req, res) => {
       return res.status(404).json({ message: 'Colis non trouvé' });
     }
 
+    // Vérifier que c'est bien l'expéditeur
     if (colis.expediteur.toString() !== req.user._id.toString()) {
       return res.status(403).json({ 
         message: 'Non autorisé à annuler ce colis' 
       });
     }
 
-    if (colis.status !== 'en attente') {
+    // ✅ Le client peut annuler si 'en attente' ou 'enregistré' (pas encore envoyé)
+    if (!['en attente', 'enregistré'].includes(colis.status)) {
       return res.status(400).json({ 
-        message: `Impossible d'annuler un colis avec le statut "${colis.status}". Seuls les colis "en attente" peuvent être annulés.` 
+        message: `Impossible d'annuler un colis avec le statut "${colis.status}". Seuls les colis "en attente" ou "enregistré" peuvent être annulés.`
       });
     }
 
@@ -457,12 +442,14 @@ const cancelColis = async (req, res) => {
       .populate('expediteur', 'name email numero');
     
     res.json({ 
+      success: true,
       message: 'Colis annulé avec succès',
       colis: updatedColis
     });
   } catch (error) {
     console.error('Erreur lors de l\'annulation du colis:', error);
     res.status(500).json({ 
+      success: false,
       message: 'Erreur lors de l\'annulation du colis',
       error: error.message 
     });
