@@ -1,146 +1,49 @@
 const Voyage = require('../models/voyage.model');
 const Reservation = require('../models/reservation.model');
 const Driver = require('../models/driver.model');
-const { sendNotification, cleanupInvalidTokens } = require('../services/notification.service');
+const User = require('../models/user.model');
+const { sendAndSaveNotification, cleanupInvalidTokens } = require('../services/notification.service');
 
 const createVoyage = async (req, res) => {
   try {
     const { driverId, from, to, date, price, totalSeats } = req.body;
-
     if (!driverId || !from || !to || !date || !price) {
       return res.status(400).json({ message: 'Tous les champs sont requis' });
     }
+    const driver = await Driver.findOne({ _id: driverId, isActive: true });
+    if (!driver) return res.status(403).json({ message: 'Conducteur inactif' });
 
-    const driver = await Driver.findOne({ 
-      _id: driverId, 
-      isActive: true 
-    });
-
-    if (!driver) {
-      return res.status(403).json({
-        message: 'Conducteur inactif'
-      });
-    }
-
-    // Vérifier si le chauffeur a déjà un voyage à la même date et heure
-    const voyageDate = new Date(date);
-    const twoHoursBefore = new Date(voyageDate.getTime() - 120 * 60000); // 2h avant
-    const twoHoursAfter = new Date(voyageDate.getTime() + 120 * 60000); // 2h après
-    
-    const existingVoyage = await Voyage.findOne({
-      driver: driverId,
-      date: {
-        $gte: twoHoursBefore,
-        $lt: twoHoursAfter
-      }
-    });
-
-    if (existingVoyage) {
-      return res.status(409).json({
-        message: 'Ce conducteur a déjà un voyage programmé à cette période',
-        existingVoyage: {
-          from: existingVoyage.from,
-          to: existingVoyage.to,
-          date: existingVoyage.date
-        }
-      });
-    }
-
-    // Utiliser la capacité du driver par défaut si totalSeats n'est pas fourni
     const seats = totalSeats || driver.capacity || 4;
-
-    const voyage = await Voyage.create({ 
-      driver: driver._id,
-      from,
-      to,
-      date,
-      price,
-      totalSeats: seats,
-      availableSeats: seats
+    const voyage = await Voyage.create({
+      driver: driver._id, from, to, date, price, totalSeats: seats, availableSeats: seats
     });
 
-    // Populate le driver pour la réponse
-    const populatedVoyage = await Voyage
-      .findById(voyage._id)
-      .populate('driver', '-password');
-
-    res.status(201).json({
-      message: 'Voyage créé avec un conducteur actif',
-      voyage: populatedVoyage
-    });
-
+    const populatedVoyage = await Voyage.findById(voyage._id).populate('driver', '-password');
+    res.status(201).json({ message: 'Voyage créé', voyage: populatedVoyage });
   } catch (err) {
-    console.error('Erreur createVoyage:', err);
-    res.status(500).json({
-      message: 'Erreur serveur',
-      error: err.message
-    });
-  }
-};
-
-
-// GET ALL VOYAGES (FUTURS UNIQUEMENT) - Pour les pages de réservation
-const getAllVoyage = async (req, res) => {
-  try {
-    const now = new Date();
-    const voyages = await Voyage.find({
-      date: { $gt: now }
-    })
-    .populate({
-      path: 'driver',
-      select: '-password',
-      options: { retainNullValues: true }
-    })
-    .sort({ date: 1 });
-    
-    // Trier les voyages
-    const sortedVoyages = voyages.sort((a, b) => {
-      // Gérer le cas où le driver est null
-      const aDriver = a.driver || { isPinned: false, pinnedOrder: 0 };
-      const bDriver = b.driver || { isPinned: false, pinnedOrder: 0 };
-      
-      // Si les deux chauffeurs ont le même statut isPinned
-      if (aDriver.isPinned === bDriver.isPinned) {
-        // Trier par pinnedOrder si les deux sont épinglés
-        if (aDriver.isPinned) {
-          return (aDriver.pinnedOrder || 0) - (bDriver.pinnedOrder || 0);
-        }
-        // Sinon garder l'ordre par date
-        return 0;
-      }
-      // Les chauffeurs épinglés en premier
-      return aDriver.isPinned ? -1 : 1;
-    });
-
-    res.status(200).json(sortedVoyages);
-  } catch (error) {
-    console.error('Erreur getAllVoyage:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-};
-
-// GET ALL VOYAGES (INCLUANT EXPIRÉS) - Pour la page historique
-const getAllVoyageIncludingExpired = async (req, res) => {
-  try {
-    const voyage = await Voyage.find()
-      .populate('driver', '-password')
-      .sort({ date: -1 }); // Trier par date décroissante (plus récent en premier)
-    
-    res.status(200).json(voyage);
-  } catch (err) {
-    console.error('Erreur getAllVoyageIncludingExpired:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
 
-const getVoyageById = async (req, res) => {
+const getAllVoyage = async (req, res) => {
   try {
-    const voyage = await Voyage.findById(req.params.id)
-      .populate('driver', '-password');
-    if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
+    const now = new Date();
+    const voyages = await Voyage.find({ date: { $gt: now } })
+      .populate({ path: 'driver', select: '-password' })
+      .sort({ date: 1 });
+    res.status(200).json(voyages);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+const getAllVoyageIncludingExpired = async (req, res) => {
+  try {
+    const voyage = await Voyage.find()
+      .populate('driver', '-password')
+      .sort({ date: -1 });
     res.status(200).json(voyage);
   } catch (err) {
-    console.error(err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
@@ -149,431 +52,163 @@ const updateVoyage = async (req, res) => {
   try {
     const voyageId = req.params.id;
     const updates = req.body;
-    
-    console.log('📥 Requête de mise à jour:', { voyageId, updates });
-    
-    //  Récupérer le voyage existant
     const voyage = await Voyage.findById(voyageId);
-    if (!voyage) {
-      return res.status(404).json({ message: 'Voyage non trouvé' });
-    }
-    
-    console.log('📊 État actuel du voyage:', {
-      totalSeats: voyage.totalSeats,
-      availableSeats: voyage.availableSeats
-    });
-    
- 
-    if (updates.totalSeats !== undefined) {
-      const newTotalSeats = parseInt(updates.totalSeats, 10);
-   
-      const activeReservations = await Reservation.countDocuments({
-        voyage: voyageId,
-        status: 'confirmé',
-        ticket: 'place'  
-      });
-      
-      console.log('🔍 Analyse des places:');
-      console.log('  - Ancien totalSeats:', voyage.totalSeats);
-      console.log('  - Ancien availableSeats:', voyage.availableSeats);
-      console.log('  - Nouveau totalSeats demandé:', newTotalSeats);
-      console.log('  - Réservations actives (confirmées):', activeReservations);
-      console.log('  - Nouveau availableSeats calculé:', newTotalSeats - activeReservations);
-      
-      // Vérifier qu'on ne descend pas en dessous des places réservées
-      if (newTotalSeats < activeReservations) {
-        return res.status(400).json({
-          message: `Impossible de réduire à ${newTotalSeats} places. ${activeReservations} place(s) déjà réservée(s).`
-        });
-      }
-      
-    
-      updates.totalSeats = newTotalSeats;
-      updates.availableSeats = newTotalSeats - activeReservations;
-      
-      console.log('✅ Nouvelles valeurs à enregistrer:', {
-        totalSeats: updates.totalSeats,
-        availableSeats: updates.availableSeats
-      });
-    }
-    
-    
-    // Si le chauffeur démarre le voyage
+    if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
+
     if (updates.status === 'STARTED' && voyage.status !== 'STARTED') {
-      updates.status = 'STARTED';
-      const reservations = await Reservation.find({
-        voyage: voyageId,
-        status: 'confirmé'
-      }).populate('user');
-      
-      for (const r of reservations) {
-        if (r.user?.fcmTokens && r.user.fcmTokens.length > 0) {
-          const userTokens = [...new Set(r.user.fcmTokens.map(t => t.token))];
-          const result = await sendNotification(
-            userTokens,
-            'Voyage démarré',
-            'Le chauffeur a démarré le voyage',
-            {
-              type: 'TRIP_STARTED',
-              voyageId
-            }
-          );
-          
-          // Nettoyer les tokens invalides
-          if (result.invalidTokens && result.invalidTokens.length > 0) {
-            await cleanupInvalidTokens(result.invalidTokens);
-          }
-        }
-      }
-    }
-    
-    // Chauffeur en route vers un client
-    if (
-      updates.currentClient &&
-      String(updates.currentClient) !== String(voyage.currentClient)
-    ) {
-      const client = await User.findById(updates.currentClient);
-      if (client?.fcmTokens && client.fcmTokens.length > 0) {
-        const clientTokens = [...new Set(client.fcmTokens.map(t => t.token))];
-        const result = await sendNotification(
-          clientTokens,
-          'Le chauffeur arrive',
-          'Le chauffeur se dirige vers votre position',
-          {
-            type: 'DRIVER_ON_THE_WAY',
-            voyageId,
-          }
+      const reservations = await Reservation.find({ voyage: voyageId, status: 'confirmé' });
+      const userIds = reservations.map(r => r.user);
+      if (userIds.length > 0) {
+        await sendAndSaveNotification(
+          userIds,
+          'Voyage démarré',
+          `Le chauffeur a démarré le voyage ${voyage.from} → ${voyage.to}`,
+          { type: 'TRIP_STARTED', voyageId }
         );
-        
-        // Nettoyer les tokens invalides
-        if (result.invalidTokens && result.invalidTokens.length > 0) {
-          await cleanupInvalidTokens(result.invalidTokens);
-        }
       }
     }
-    
-    // Client embarqué
-    if (updates.clientPicked === true && voyage.currentClient) {
-      await Reservation.findOneAndUpdate(
-        { voyage: voyageId, user: voyage.currentClient },
-        { status: 'terminé' }
+
+    if (updates.currentClient && String(updates.currentClient) !== String(voyage.currentClient)) {
+      await sendAndSaveNotification(
+        updates.currentClient,
+        'Le chauffeur arrive',
+        'Le chauffeur se dirige vers votre position',
+        { type: 'DRIVER_ON_THE_WAY', voyageId }
       );
     }
-    
 
-    // NOTIFICATION CHANGEMENT DATE/HEURE
-    
-    // Vérifier si la date ou l'heure a été modifiée
     const dateChanged = updates.date && new Date(updates.date).getTime() !== new Date(voyage.date).getTime();
-    const timeChanged = updates.time && updates.time !== voyage.time;
-    
-    if (dateChanged || timeChanged) {
-      
-      // Récupérer toutes les réservations confirmées pour ce voyage
-      const reservations = await Reservation.find({
-        voyage: voyageId,
-        status: 'confirmé'
-      }).populate('user');
-      
-      for (const r of reservations) {
-        if (r.user?.fcmTokens && r.user.fcmTokens.length > 0) {
-          const userTokens = [...new Set(r.user.fcmTokens.map(t => t.token))];
-          
-          // Préparer le message selon ce qui a changé
-          let notificationBody = 'Votre voyage a été modifié. ';
-          if (dateChanged) {
-            notificationBody += `Nouvelle date: ${new Date(updates.date).toLocaleDateString('fr-FR')}. `;
-          }
-          if (timeChanged) {
-            notificationBody += `Nouvelle heure: ${updates.time}. `;
-          }
-          notificationBody += `Trajet: ${voyage.from} → ${voyage.to}`;
-          
-          const result = await sendNotification(
-            userTokens,
-            'Modification de votre voyage',
-            notificationBody,
-            {
-              type: 'TRIP_MODIFIED',
-              voyageId,
-              modificationType: dateChanged ? 'date' : 'time'
-            }
-          );
-          
-          // Nettoyer les tokens invalides
-          if (result.invalidTokens && result.invalidTokens.length > 0) {
-            await cleanupInvalidTokens(result.invalidTokens);
-          }
-        }
+    if (dateChanged) {
+      const reservations = await Reservation.find({ voyage: voyageId, status: 'confirmé' });
+      const userIds = reservations.map(r => r.user);
+      if (userIds.length > 0) {
+        await sendAndSaveNotification(
+          userIds,
+          'Modification de votre voyage',
+          `La date de votre voyage ${voyage.from} → ${voyage.to} a été modifiée au ${new Date(updates.date).toLocaleDateString('fr-FR')}`,
+          { type: 'TRIP_MODIFIED', voyageId }
+        );
       }
     }
-    
 
-    const updatedVoyage = await Voyage.findByIdAndUpdate(
-      voyageId,
-      updates,
-      { new: true, runValidators: true }
-    ).populate('driver', '-password');
-    
-    console.log('📤 Voyage mis à jour:', {
-      totalSeats: updatedVoyage.totalSeats,
-      availableSeats: updatedVoyage.availableSeats
-    });
-    
- 
-    if (updatedVoyage.availableSeats > updatedVoyage.totalSeats) {
-      console.warn('⚠️ INCOHÉRENCE DÉTECTÉE ! Correction en cours...');
-      const finalCount = await Reservation.countDocuments({
-        voyage: voyageId,
-        status: 'confirmé',
-        ticket: 'place'
-      });
-      updatedVoyage.availableSeats = updatedVoyage.totalSeats - finalCount;
-      await updatedVoyage.save();
-      console.log('✅ Corrigé:', {
-        totalSeats: updatedVoyage.totalSeats,
-        availableSeats: updatedVoyage.availableSeats
-      });
-    }
-    
-    res.status(200).json({
-      message: 'Trajet mis à jour',
-      voyage: updatedVoyage
-    });
+    const updatedVoyage = await Voyage.findByIdAndUpdate(voyageId, updates, { new: true })
+      .populate('driver', '-password');
+    res.status(200).json({ message: 'Trajet mis à jour', voyage: updatedVoyage });
   } catch (err) {
-    console.error('❌ Erreur updateVoyage:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
 
+const getVoyageById = async (req, res) => {
+  try {
+    const voyage = await Voyage.findById(req.params.id).populate('driver', '-password');
+    if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
+    res.status(200).json(voyage);
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
 
 const deleteVoyage = async (req, res) => {
   try {
-    const voyage = await Voyage.findByIdAndDelete(req.params.id);
+    const voyage = await Voyage.findById(req.params.id);
     if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
+
+    const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+    const isOwner = req.user.role === 'conducteur' && String(voyage.driver) === String(req.user._id);
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ message: 'Action non autorisée' });
+    }
+
+    await Voyage.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: 'Voyage supprimé' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
 const searchVoyages = async (req, res) => {
   try {
     const { from, to, date } = req.query;
+    const now = new Date();
     const query = {};
-
     if (from) query.from = { $regex: from, $options: 'i' };
     if (to) query.to = { $regex: to, $options: 'i' };
-    
     if (date) {
-      const searchDate = new Date(date);
-      const nextDay = new Date(searchDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      
-      query.date = {
-        $gte: searchDate,
-        $lt: nextDay
-      };
+      const d = new Date(date);
+      // Only show the requested date if it's today or in the future
+      const start = d > now ? d : now;
+      query.date = { $gte: start, $lt: new Date(d.getTime() + 86400000) };
+    } else {
+      query.date = { $gt: now };
     }
-
     const voyages = await Voyage.find(query).populate('driver', '-password');
-    
-    // Trier les voyages : chauffeurs épinglés en premier
-    const sortedVoyages = voyages.sort((a, b) => {
-      if (a.driver.isPinned === b.driver.isPinned) {
-        if (a.driver.isPinned) {
-          return (a.driver.pinnedOrder || 0) - (b.driver.pinnedOrder || 0);
-        }
-        return 0;
-      }
-      return b.driver.isPinned - a.driver.isPinned;
-    });
-    
-    res.json(sortedVoyages);
+    res.json(voyages);
   } catch (err) {
-    console.error('Erreur lors de la recherche de voyages:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// Récupérer les voyages d'un conducteur
 const getMyVoyages = async (req, res) => {
   try {
-    const driverId = req.user._id; // ID déjà disponible via le token
-    const { includeExpired } = req.query;
-
-    let query = { driver: driverId };
-
-    // Filtrer les voyages expirés si nécessaire
-    if (includeExpired === 'false' || includeExpired === false) {
-      query.date = { $gte: new Date() };
-    }
-
-    const voyages = await Voyage.find(query)
-      .populate('driver', '-password')
-      .sort({ date: -1 });
-
+    const voyages = await Voyage.find({ driver: req.user._id }).populate('driver', '-password').sort({ date: -1 });
     res.status(200).json(voyages);
   } catch (err) {
-    console.error('Erreur getMyVoyages:', err);
-    res.status(500).json({
-      message: 'Erreur serveur',
-      error: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-
-// CRÉATION DE VOYAGE PAR LE CONDUCTEUR
 const createVoyageByDriver = async (req, res) => {
   try {
-    const driverId = req.user._id; // vient du token (auth + isDriver)
     const { from, to, date, price, totalSeats } = req.body;
-
-    if (!from || !to || !date || !price) {
-      return res.status(400).json({ message: 'Tous les champs sont requis' });
-    }
-
-    const driver = await Driver.findById(driverId);
-    if (!driver) {
-      return res.status(404).json({ message: 'Conducteur non trouvé' });
-    }
-
-    if (!driver.isActive) {
-      return res.status(403).json({
-        message: 'Conducteur inactif. Veuillez contacter l’administration.'
-      });
-    }
-
-    const seats = totalSeats || driver.capacity || 4;
-
-    const voyage = await Voyage.create({
-      driver: driverId,
-      from,
-      to,
-      date,
-      price,
-      totalSeats: seats,
-      availableSeats: seats
-    });
-
-    const populatedVoyage = await Voyage.findById(voyage._id)
-      .populate('driver', '-password');
-
-    res.status(201).json({
-      message: 'Voyage créé avec succès',
-      voyage: populatedVoyage
-    });
+    const driver = await Driver.findById(req.user._id);
+    if (!driver || !driver.isActive) return res.status(403).json({ message: 'Inactif' });
+    const voyage = await Voyage.create({ driver: req.user._id, from, to, date, price, totalSeats: totalSeats || driver.capacity });
+    res.status(201).json({ message: 'Succès', voyage });
   } catch (err) {
-    console.error('Erreur createVoyageByDriver:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur' });
   }
 };
 
-// Mettre à jour un voyage spécifique du conducteur connecté
 const updateMyVoyage = async (req, res) => {
   try {
-    const driverId = req.user._id;
-    const voyageId = req.params.id;
-    const updates = req.body;
+    const allowedFields = ['from', 'to', 'date', 'price', 'totalSeats'];
+    const updateData = Object.fromEntries(
+      Object.entries(req.body).filter(([key]) => allowedFields.includes(key))
+    );
 
-    // Vérifier si le voyage existe et appartient au conducteur
-    const voyage = await Voyage.findOne({ _id: voyageId, driver: driverId });
-    
-    if (!voyage) {
-      return res.status(404).json({ 
-        message: 'Voyage non trouvé ou vous n\'êtes pas autorisé à le modifier' 
-      });
-    }
+    const oldVoyage = await Voyage.findOne({ _id: req.params.id, driver: req.user._id });
+    if (!oldVoyage) return res.status(404).json({ message: 'Voyage non trouvé ou non autorisé' });
 
-    // Vérifier si l'heure de départ est modifiée
-    const isTimeModified = updates.departureTime && 
-                         new Date(updates.departureTime).getTime() !== new Date(voyage.departureTime).getTime();
+    const voyage = await Voyage.findByIdAndUpdate(req.params.id, updateData, { new: true });
 
-    // ✅ SI totalSeats est modifié, recalculer availableSeats correctement
-    if (updates.totalSeats !== undefined) {
-      const bookedSeats = voyage.totalSeats - voyage.availableSeats;
-      const newTotalSeats = updates.totalSeats;
-
-      // Vérifier qu'on ne réduit pas en dessous des places déjà réservées
-      if (newTotalSeats < bookedSeats) {
-        return res.status(400).json({
-          message: `Impossible de réduire à ${newTotalSeats} places. ${bookedSeats} place(s) sont déjà réservées.`,
-          bookedSeats,
-          requestedTotal: newTotalSeats
-        });
+    // Notifier les passagers confirmés des changements
+    const reservations = await Reservation.find({ voyage: voyage._id, status: 'confirmé' });
+    const userIds = reservations.map(r => r.user).filter(Boolean);
+    if (userIds.length > 0) {
+      const changes = [];
+      if (updateData.date && new Date(updateData.date).getTime() !== new Date(oldVoyage.date).getTime()) {
+        changes.push(`date: ${new Date(updateData.date).toLocaleDateString('fr-FR')}`);
       }
-
-      // Recalculer availableSeats
-      updates.availableSeats = newTotalSeats - bookedSeats;
-
-      console.log('🔄 Recalcul des places:');
-      console.log(`   Anciennes: total=${voyage.totalSeats}, disponibles=${voyage.availableSeats}, réservées=${bookedSeats}`);
-      console.log(`   Nouvelles: total=${newTotalSeats}, disponibles=${updates.availableSeats}, réservées=${bookedSeats}`);
-    }
-
-    // Mettre à jour le voyage
-    const updatedVoyage = await Voyage.findByIdAndUpdate(
-      voyageId,
-      { $set: updates },
-      { new: true, runValidators: true }
-    ).populate('driver', '-password');
-
-    // Envoyer une notification aux clients si l'heure a été modifiée
-    if (isTimeModified) {
-      const { sendNotification } = require('../services/notification.service');
-      const Reservation = require('../models/reservation.model');
-      const User = require('../models/user.model');
-      const UserNotification = require('../models/userNotification.model');
-
-      // Récupérer les réservations pour ce voyage
-      const reservations = await Reservation.find({ voyage: voyageId }).populate('user');
-      
-      // Envoyer une notification à chaque client ayant réservé
-      for (const reservation of reservations) {
-        if (reservation.user && reservation.user.fcmTokens && reservation.user.fcmTokens.length > 0) {
-          // Créer la notification utilisateur
-          await UserNotification.create({
-            user: reservation.user._id,
-            title: 'Heure de voyage modifiée',
-            body: `L'heure de départ de votre voyage ${voyage.from} → ${voyage.to} a été modifiée. Veuillez vérifier les nouveaux horaires.`,
-            type: 'info'
-          });
-
-          // Envoyer la notification push
-          const tokens = reservation.user.fcmTokens.map(t => t.token);
-          await sendNotification(tokens, 'Heure de voyage modifiée', `L'heure de départ de votre voyage a été modifiée. Veuillez vérifier les nouveaux horaires.`, {
-            type: 'info',
-            screen: 'voyages'
-          });
-        }
+      if (updateData.price !== undefined && updateData.price !== oldVoyage.price) {
+        changes.push(`prix: ${updateData.price} FCFA`);
+      }
+      if (updateData.from && updateData.from !== oldVoyage.from) changes.push(`départ: ${updateData.from}`);
+      if (updateData.to && updateData.to !== oldVoyage.to) changes.push(`destination: ${updateData.to}`);
+      if (changes.length > 0) {
+        await sendAndSaveNotification(
+          userIds,
+          'Voyage modifié',
+          `Votre voyage ${oldVoyage.from} → ${oldVoyage.to} a été modifié: ${changes.join(', ')}`,
+          { type: 'TRIP_MODIFIED', voyageId: voyage._id.toString(), screen: 'voyages' }
+        );
       }
     }
 
-    res.status(200).json({ 
-      message: 'Voyage mis à jour avec succès', 
-      voyage: updatedVoyage 
-    });
+    res.status(200).json({ message: 'Succès', voyage });
   } catch (err) {
-    console.error('Erreur updateMyVoyage:', err);
-    res.status(500).json({ 
-      message: 'Erreur lors de la mise à jour du voyage',
-      error: err.message 
-    });
+    res.status(500).json({ message: 'Erreur' });
   }
 };
 
-module.exports = { 
-  createVoyage, 
-  getAllVoyage, 
-  getAllVoyageIncludingExpired, 
-  getVoyageById, 
-  updateVoyage, 
-  deleteVoyage, 
-  searchVoyages,
-  getMyVoyages,
-  createVoyageByDriver,
-  updateMyVoyage
-};
+module.exports = { createVoyage, getAllVoyage, getAllVoyageIncludingExpired, getVoyageById, updateVoyage, deleteVoyage, searchVoyages, getMyVoyages, createVoyageByDriver, updateMyVoyage };

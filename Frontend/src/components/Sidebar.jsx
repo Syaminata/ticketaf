@@ -14,6 +14,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import logo from '../images/logo.png';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import InfoIcon from '@mui/icons-material/Info';
 
 const Sidebar = ({ onLogout }) => {
   const location = useLocation();
@@ -47,7 +48,7 @@ const Sidebar = ({ onLogout }) => {
       : []),
     // Voyages - accessible par tous sauf gestionnaireColis
     ...(userRole !== 'gestionnaireColis'
-      ? [{ text: 'Voyages', icon: <DirectionsBusIcon />, path: '/voyage' }]
+      ? [{ text: 'Covoiturages', icon: <DirectionsBusIcon />, path: '/voyage' }]
       : []),
     // Réservations - accessible par admin et superadmin
     ...(userRole === 'superadmin' || userRole === 'admin'
@@ -68,6 +69,10 @@ const Sidebar = ({ onLogout }) => {
     // Notifications - accessible par admin et superadmin
     ...(userRole === 'superadmin' || userRole === 'admin'
       ? [{ text: 'Notifications', icon: <NotificationsIcon />, path: '/notifications' }]
+      : []),
+    // Informations (Confidentialité / À propos) - accessible par admin et superadmin
+    ...(userRole === 'superadmin' || userRole === 'admin'
+      ? [{ text: 'Informations', icon: <InfoIcon />, path: '/informations' }]
       : []),
     // Historique - accessible par tous
     { text: 'Historique', icon: <HistoryIcon />, path: '/historique' },

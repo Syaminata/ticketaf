@@ -10,30 +10,22 @@ exports.getStats = async (req, res) => {
   try {
     const utilisateurs = await User.countDocuments();
     const conducteurs = await Driver.countDocuments();
-    
-    const now = new Date();
-    now.setHours(0, 0, 0, 0); // Debut de la journee
-    
-    // Bus valides (departureDate >= aujourd'hui)
-    const bus = await Bus.countDocuments({ departureDate: { $gte: now } });
-    
-    // Voyages valides (date >= aujourd'hui)
-    const voyages = await Voyage.countDocuments({ date: { $gte: now } });
-    
-    // Reservations valides (liees a des voyages ou bus non expires)
-    const validVoyages = await Voyage.find({ date: { $gte: now } }).select('_id');
-    const validBuses = await Bus.find({ departureDate: { $gte: now } }).select('_id');
-    const validVoyageIds = validVoyages.map(v => v._id);
-    const validBusIds = validBuses.map(b => b._id);
-    
-    const reservations = await Reservation.countDocuments({
-      $or: [
-        { voyage: { $in: validVoyageIds } },
-        { bus: { $in: validBusIds } }
-      ]
-    });
 
-    res.json({ utilisateurs, conducteurs, reservations, bus, voyages });
+    // Voyages valides (date >= aujourd'hui)
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const voyages = await Voyage.countDocuments({ date: { $gte: now } });
+
+    // KPI commandes : total toutes réservations non annulées
+    const reservations = await Reservation.countDocuments({ status: { $ne: 'annulée' } });
+
+    // KPI colis : total tous colis
+    const colis = await Colis.countDocuments();
+
+    // KPI bus actifs : champ métier isActive
+    const bus = await Bus.countDocuments({ isActive: true });
+
+    res.json({ utilisateurs, conducteurs, reservations, colis, bus, voyages });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });

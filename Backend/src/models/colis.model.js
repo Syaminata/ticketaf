@@ -18,6 +18,7 @@ const colisSchema = new mongoose.Schema({
     ref: 'User', 
     required: true 
   },
+  // Nouveaux champs pour destination et date
   destination: {
     type: String,
     required: function() {

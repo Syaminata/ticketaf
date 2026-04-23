@@ -678,37 +678,37 @@ function Buses() {
               }
             }}>
               <TableRow>
-                <TableCell sx={{ 
-                  color: '#1a1a1a', 
+                <TableCell sx={{
+                  color: '#1a1a1a',
                   fontWeight: 700,
                   fontSize: '16px'
                 }}>
                   Bus
                 </TableCell>
-                <TableCell sx={{ 
-                  color: '#1a1a1a', 
+                <TableCell sx={{
+                  color: '#1a1a1a',
                   fontWeight: 700,
                   fontSize: '16px'
                 }}>
                   Trajet
                 </TableCell>
-                <TableCell sx={{ 
-                  color: '#1a1a1a', 
+                <TableCell sx={{
+                  color: '#1a1a1a',
                   fontWeight: 700,
                   fontSize: '16px'
                 }}>
                   Date
                 </TableCell>
-                <TableCell sx={{ 
-                  color: '#1a1a1a', 
+                <TableCell sx={{
+                  color: '#1a1a1a',
                   fontWeight: 700,
                   fontSize: '16px',
                   textAlign: 'center'
                 }}>
                   Statut
                 </TableCell>
-                <TableCell sx={{ 
-                  color: '#1a1a1a', 
+                <TableCell sx={{
+                  color: '#1a1a1a',
                   fontWeight: 700,
                   fontSize: '16px',
                   textAlign: 'center'
@@ -730,7 +730,7 @@ function Buses() {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                       <BusIcon sx={{ color: '#ffcc33', fontSize: 24 }} />
                       <Box>
-                        <Typography sx={{ 
+                        <Typography sx={{
                           fontWeight: 600,
                           color: '#1a1a1a',
                           fontSize: '16px'
@@ -791,20 +791,20 @@ function Buses() {
                       >
                         Voir détails
                       </Button>
-                      <IconButton 
+                      <IconButton
                         onClick={() => handleOpenDialog(bus)}
                         size="small"
-                        sx={{ 
+                        sx={{
                           color: '#ffcc33',
                           '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' }
                         }}
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
-                      <IconButton 
+                      <IconButton
                         onClick={() => handleDelete(bus._id)}
                         size="small"
-                        sx={{ 
+                        sx={{
                           color: '#f44336',
                           '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' }
                         }}
@@ -833,8 +833,8 @@ function Buses() {
           />
         </Paper>
       ) : (
-        <Paper sx={{ 
-          p: 6, 
+        <Paper sx={{
+          p: 6,
           textAlign: 'center',
           borderRadius: '12px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
@@ -850,8 +850,8 @@ function Buses() {
       )}
 
       {/* Dialog d'ajout/modification */}
-      <Dialog 
-        open={openDialog} 
+      <Dialog
+        open={openDialog}
         onClose={handleCloseDialog}
         maxWidth="md"
         fullWidth
@@ -863,7 +863,7 @@ function Buses() {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle sx={{
           borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
@@ -876,17 +876,17 @@ function Buses() {
             {editingBus ? 'Modifier le bus' : 'Ajouter un nouveau bus'}
           </Box>
         </DialogTitle>
-        
-        <DialogContent sx={{ 
+
+        <DialogContent sx={{
           p: 0,
           backgroundColor: '#ffffff'
         }}>
           <Box sx={{ p: 4 }}>
             {/* Section Informations du bus */}
             <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ 
-                color: '#1a1a1a', 
-                fontWeight: 600, 
+              <Typography variant="h6" sx={{
+                color: '#1a1a1a',
+                fontWeight: 600,
                 mb: 2,
                 display: 'flex',
                 alignItems: 'center',
@@ -924,9 +924,9 @@ function Buses() {
 
             {/* Section Détails techniques */}
             <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ 
-                color: '#1a1a1a', 
-                fontWeight: 600, 
+              <Typography variant="h6" sx={{
+                color: '#1a1a1a',
+                fontWeight: 600,
                 mb: 2,
                 display: 'flex',
                 alignItems: 'center',
@@ -1113,16 +1113,16 @@ function Buses() {
 
             {/* Résumé du bus */}
             {formData.name && formData.plateNumber && formData.capacity && formData.from && formData.to && formData.departureDate && formData.price && (
-              <Box sx={{ 
-                p: 3, 
-                backgroundColor: '#f8f9fa', 
+              <Box sx={{
+                p: 3,
+                backgroundColor: '#f8f9fa',
                 borderRadius: '12px',
                 border: '2px solid #ffcc33',
                 mb: 3
               }}>
-                <Typography variant="h6" sx={{ 
-                  color: '#1a1a1a', 
-                  fontWeight: 600, 
+                <Typography variant="h6" sx={{
+                  color: '#1a1a1a',
+                  fontWeight: 600,
                   mb: 2,
                   display: 'flex',
                   alignItems: 'center',
@@ -1173,9 +1173,9 @@ function Buses() {
             )}
 
             {error && (
-              <Box sx={{ 
-                p: 3, 
-                backgroundColor: '#ffebee', 
+              <Box sx={{
+                p: 3,
+                backgroundColor: '#ffebee',
                 borderRadius: '12px',
                 border: '2px solid #f44336',
                 mb: 3
@@ -1187,14 +1187,14 @@ function Buses() {
             )}
           </Box>
         </DialogContent>
-        
-        <DialogActions sx={{ 
-          p: 2, 
+
+        <DialogActions sx={{
+          p: 2,
           backgroundColor: '#f8f9fa',
           gap: 2,
           borderTop: '1px solid #e0e0e0'
         }}>
-          <Button 
+          <Button
             onClick={handleCloseDialog}
             variant="outlined"
             sx={{
@@ -1213,8 +1213,8 @@ function Buses() {
           >
             Annuler
           </Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             variant="contained"
             disabled={loading}
             sx={{
@@ -1253,8 +1253,8 @@ function Buses() {
       />
 
       {/* Dialogue des détails du bus */}
-      <Dialog 
-        open={detailsDialog.open} 
+      <Dialog
+        open={detailsDialog.open}
         onClose={handleCloseDetailsDialog}
         maxWidth="sm"
         fullWidth
@@ -1266,7 +1266,7 @@ function Buses() {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle sx={{
           borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
@@ -1288,16 +1288,16 @@ function Buses() {
             Détails du bus
           </Box>
         </DialogTitle>
-        
+
         <DialogContent sx={{ p: 4 }}>
           {detailsDialog.bus && (
             <Box>
-              
+
               {/* Informations principales */}
               <Box sx={{ mb: 4 }}>
-                <Typography variant="h6" sx={{ 
-                  color: '#1a1a1a', 
-                  fontWeight: 600, 
+                <Typography variant="h6" sx={{
+                  color: '#1a1a1a',
+                  fontWeight: 600,
                   mb: 3,
                   pt: 2,
                   display: 'flex',
@@ -1307,7 +1307,7 @@ function Buses() {
                   <BusIcon sx={{ color: '#ffcc33' }} />
                   {detailsDialog.bus.name}
                 </Typography>
-                
+
                 <Box sx={{ display: 'grid', gap: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
                     <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Numéro de plaque</Typography>
@@ -1315,35 +1315,35 @@ function Buses() {
                       {detailsDialog.bus.plateNumber}
                     </Typography>
                   </Box>
-                  
+
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
                     <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Capacité totale</Typography>
                     <Typography sx={{ fontWeight: 600, color: '#4caf50' }}>
                       {detailsDialog.bus.capacity} places
                     </Typography>
                   </Box>
-                  
+
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
                     <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Places disponibles</Typography>
                     <Typography sx={{ fontWeight: 600, color: '#ffcc33' }}>
                       {detailsDialog.bus.availableSeats || detailsDialog.bus.capacity} places
                     </Typography>
                   </Box>
-                  
+
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
                     <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Trajet</Typography>
                     <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
                       {detailsDialog.bus.from && detailsDialog.bus.to ? `${detailsDialog.bus.from} → ${detailsDialog.bus.to}` : 'Non défini'}
                     </Typography>
                   </Box>
-                  
+
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
                     <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Date de départ</Typography>
                     <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
                       {detailsDialog.bus.departureDate ? new Date(detailsDialog.bus.departureDate).toLocaleDateString('fr-FR') : 'Non défini'}
                     </Typography>
                   </Box>
-                  
+
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
                     <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Prix de la place</Typography>
                     <Typography sx={{ fontWeight: 600, color: '#4caf50' }}>
@@ -1403,17 +1403,17 @@ function Buses() {
                   </Box>
                 </Box>
               )}
-            
+
             </Box>
           )}
         </DialogContent>
-        
-        <DialogActions sx={{ 
-          p: 3, 
+
+        <DialogActions sx={{
+          p: 3,
           backgroundColor: '#f8f9fa',
           borderTop: '1px solid #e0e0e0'
         }}>
-          <Button 
+          <Button
             onClick={handleCloseDetailsDialog}
             variant="contained"
             sx={{
@@ -1435,8 +1435,8 @@ function Buses() {
       </Dialog>
 
       {/* Boîte de dialogue pour ajouter une nouvelle ville */}
-      <Dialog 
-        open={newCityDialogOpen} 
+      <Dialog
+        open={newCityDialogOpen}
         onClose={() => setNewCityDialogOpen(false)}
         maxWidth="sm"
         fullWidth
@@ -1447,7 +1447,7 @@ function Buses() {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle sx={{
           borderBottom: '1px solid #e0e0e0',
           color: '#1a1a1a',
           fontWeight: 600,
@@ -1459,7 +1459,7 @@ function Buses() {
           <AddLocation />
           Ajouter une nouvelle ville
         </DialogTitle>
-        
+
         <DialogContent sx={{ pt: 3, pb: 2 }}>
           <TextField
             autoFocus
@@ -1488,9 +1488,9 @@ function Buses() {
             }}
           />
         </DialogContent>
-        
+
         <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button 
+          <Button
             onClick={() => setNewCityDialogOpen(false)}
             variant="outlined"
             sx={{
@@ -1509,7 +1509,7 @@ function Buses() {
           >
             Annuler
           </Button>
-          <Button 
+          <Button
             onClick={handleAddNewCity}
             variant="contained"
             sx={{

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, updateFcmToken } = require('../controllers/auth.controller');
+const { register, login, updateFcmToken, logout } = require('../controllers/auth.controller');
 const { loginDriver } = require('../controllers/driver.auth.controller');
 const { auth } = require('../middleware/auth');
 /**
@@ -36,6 +36,9 @@ const { auth } = require('../middleware/auth');
  *                 type: string
  *                 format: password
  *                 description: Mot de passe
+ *               address:
+ *                 type: string
+ *                 description: Adresse de l'utilisateur (optionnel)
  *               role:
  *                 type: string
  *                 enum: [client, admin, conducteur, superadmin]
@@ -51,7 +54,18 @@ const { auth } = require('../middleware/auth');
  *                 message:
  *                   type: string
  *                 user:
- *                   $ref: '#/components/schemas/User'
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     numero:
+ *                       type: string
+ *                     role:
+ *                       type: string
  *       400:
  *         description: Erreur de validation
  *         content:
@@ -63,10 +77,11 @@ router.post('/register', register);
 
 /**
  * @swagger
- * /api/auth/login:
+ * /auth/login:
  *   post:
  *     summary: Connexion des utilisateurs (clients et admins)
  *     tags: [Auth]
+ *     security: []
  *     requestBody:
  *       required: true
  *       content:
@@ -75,6 +90,7 @@ router.post('/register', register);
  *             type: object
  *             required:
  *               - password
+ *               - role
  *             properties:
  *               email:
  *                 type: string
@@ -82,21 +98,43 @@ router.post('/register', register);
  *                 type: string
  *               password:
  *                 type: string
+ *               role:
+ *                 type: string
+ *                 description: Rôle attendu de l'utilisateur
+ *                 enum: [client, admin, conducteur, superadmin, gestionnaireColis, entreprise]
  *     responses:
  *       200:
  *         description: Connexion réussie
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *                   description: JWT token
+ *                 firebaseToken:
+ *                   type: string
+ *                   description: Firebase Custom Token for mobile authentication
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
  *       400:
  *         description: Données invalides
  *       401:
  *         description: Authentification échouée
+ *       403:
+ *         description: Rôle incorrect
  */
 router.post('/login', login);
 /**
  * @swagger
- * /api/auth/login/driver:
+ * /auth/login/driver:
  *   post:
  *     summary: Connexion des conducteurs
  *     tags: [Auth]
+ *     security: []
  *     requestBody:
  *       required: true
  *       content:
@@ -115,6 +153,16 @@ router.post('/login', login);
  *     responses:
  *       200:
  *         description: Connexion réussie
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   description: JWT token
+ *                 user:
+ *                   $ref: '#/components/schemas/Driver'
  *       400:
  *         description: Données invalides
  *       401:
@@ -161,5 +209,29 @@ router.post('/login/driver', loginDriver);
  */
 router.put('/fcm-token', auth, updateFcmToken);
 
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Déconnexion (nettoyage token FCM côté serveur)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fcmToken:
+ *                 type: string
+ *                 description: Token FCM à supprimer
+ *     responses:
+ *       200:
+ *         description: Déconnexion réussie
+ */
+router.post('/logout', auth, logout);
+
 module.exports = router;
+
 

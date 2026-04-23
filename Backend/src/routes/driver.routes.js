@@ -59,6 +59,8 @@ router.get('/pinned', driverController.getPinnedDrivers);
  *                 enum: [petit, moyen, grand]
  *               climatisation:
  *                 type: boolean
+ *               wifi:
+ *                 type: boolean
  *               permis:
  *                 type: string
  *                 format: binary
@@ -124,6 +126,8 @@ router.post('/register', uploadDriverFiles, driverController.createDriver);
  *                 type: string
  *                 enum: [petit, moyen, grand]
  *               climatisation:
+ *                 type: boolean
+ *               wifi:
  *                 type: boolean
  *               permis:
  *                 type: string
@@ -212,6 +216,8 @@ router.get('/me', auth, driverController.getMyProfile);
  *                 enum: [petit, moyen, grand]
  *               climatisation:
  *                 type: boolean
+ *               wifi:
+ *                 type: boolean
  *               permis:
  *                 type: string
  *                 format: binary
@@ -293,6 +299,8 @@ router.put('/me/password', auth, driverController.changePassword);
  *                 type: string
  *                 enum: [petit, moyen, grand]
  *               climatisation:
+ *                 type: boolean
+ *               wifi:
  *                 type: boolean
  *               permis:
  *                 type: string

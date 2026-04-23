@@ -44,6 +44,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import { red } from '@mui/material/colors';
+import API_BASE_URL from '../config/api';
 
 export default function Historique() {
   const [tab, setTab] = useState(0); // 0: Voyages, 1: Réservations, 2: Colis
@@ -136,12 +137,12 @@ export default function Historique() {
     
     // Récupérer les réservations pour le voyage
     const resReservations = await fetch(
-      `https://ticket-taf.itea.africa/api/reservations/voyage/${voyageId}`, 
-      { 
-        headers: { 
+      `${API_BASE_URL}/reservations/voyage/${voyageId}`,
+      {
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
-        } 
+        }
       }
     );
 

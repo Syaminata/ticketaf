@@ -4,10 +4,11 @@ const otpController = require('../controllers/otp.controller');
 
 /**
  * @swagger
- * /api/otp/request:
+ * /otp/request:
  *   post:
  *     summary: Demander un code OTP pour réinitialiser le mot de passe
  *     tags: [OTP]
+ *     security: []
  *     requestBody:
  *       required: true
  *       content:
@@ -61,10 +62,11 @@ router.post('/request', otpController.requestOtp);
 
 /**
  * @swagger
- * /api/otp/verify:
+ * /otp/verify:
  *   post:
  *     summary: Vérifier un code OTP
  *     tags: [OTP]
+ *     security: []
  *     requestBody:
  *       required: true
  *       content:
@@ -123,10 +125,11 @@ router.post('/verify', otpController.verifyOtp);
 
 /**
  * @swagger
- * /api/otp/confirm:
+ * /otp/confirm:
  *   post:
  *     summary: Confirmer la réinitialisation du mot de passe avec OTP
  *     tags: [OTP]
+ *     security: []
  *     requestBody:
  *       required: true
  *       content:

@@ -5,7 +5,9 @@ const userNotificationSchema = new mongoose.Schema({
   title: String,
   body: String,
   type: String,
+  data: { type: mongoose.Schema.Types.Mixed, default: null },
   read: { type: Boolean, default: false },
+  readAt: { type: Date, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('UserNotification', userNotificationSchema);

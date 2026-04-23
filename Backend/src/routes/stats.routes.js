@@ -19,14 +19,21 @@ const { auth, adminAuth } = require('../middleware/auth');
  *             schema:
  *               type: object
  *               properties:
- *                 totalUsers:
+ *                 utilisateurs:
  *                   type: number
- *                 totalDrivers:
+ *                   description: Nombre total d'utilisateurs
+ *                 conducteurs:
  *                   type: number
- *                 totalVoyages:
+ *                   description: Nombre total de conducteurs
+ *                 reservations:
  *                   type: number
- *                 totalReservations:
+ *                   description: Nombre total de réservations
+ *                 bus:
  *                   type: number
+ *                   description: Nombre total de bus
+ *                 voyages:
+ *                   type: number
+ *                   description: Nombre total de voyages
  */
 router.get('/', auth, adminAuth, statsController.getStats);
 
@@ -38,6 +45,13 @@ router.get('/', auth, adminAuth, statsController.getStats);
  *     tags: [Stats]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: period
+ *         schema:
+ *           type: string
+ *           enum: [today, week, month, year]
+ *         description: Période d'analyse des revenus
  *     responses:
  *       200:
  *         description: Statistiques de revenus
@@ -48,8 +62,36 @@ router.get('/', auth, adminAuth, statsController.getStats);
  *               properties:
  *                 totalRevenue:
  *                   type: number
- *                 monthlyRevenue:
+ *                   description: Revenu total sur la période
+ *                 reservationsCount:
+ *                   type: number
+ *                   description: Nombre de réservations sur la période
+ *                 averageRevenue:
+ *                   type: number
+ *                   description: Revenu moyen par réservation
+ *                 dailyRevenue:
  *                   type: array
+ *                   description: Revenus journaliers
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       date:
+ *                         type: string
+ *                       revenue:
+ *                         type: number
+ *                 routeRevenue:
+ *                   type: array
+ *                   description: Revenus par route
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       route:
+ *                         type: string
+ *                       revenue:
+ *                         type: number
+ *                 period:
+ *                   type: string
+ *                   description: Période analysée
  */
 router.get('/revenue', auth, adminAuth, statsController.getRevenue);
 
@@ -71,14 +113,18 @@ router.get('/revenue', auth, adminAuth, statsController.getRevenue);
  *               items:
  *                 type: object
  *                 properties:
+ *                   _id:
+ *                     type: string
  *                   name:
  *                     type: string
  *                   phone:
  *                     type: string
- *                   email:
- *                     type: string
- *                   totalVoyages:
+ *                     description: Numéro de téléphone du conducteur
+ *                   isActive:
+ *                     type: boolean
+ *                   tripCount:
  *                     type: number
+ *                     description: Nombre de voyages effectués
  *                   status:
  *                     type: string
  */
@@ -169,6 +215,7 @@ router.get('/top-colis-destinations', auth, adminAuth, statsController.getTopCol
  *                     type: string
  *                   phone:
  *                     type: string
+ *                     description: Numéro de téléphone du client
  *                   totalColis:
  *                     type: number
  *                   lastActivity:

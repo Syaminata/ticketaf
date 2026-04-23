@@ -18,11 +18,13 @@ import {
   TablePagination,
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import API_BASE_URL from '../config/api';
+import storage from '../utils/storage';
 
 export default function Annonce() {
   const [title, setTitle] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(9);
   const [description, setDescription] = useState('');
   const [datePublication, setDatePublication] = useState('');
   const [dateFin, setDateFin] = useState('');
@@ -40,7 +42,11 @@ export default function Annonce() {
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
   const [now, setNow] = useState(new Date());
-  const token = typeof window !== 'undefined' ? sessionStorage.getItem('token') : null;
+
+  // Récupérer le token via la fonction storage
+  const getToken = () => {
+    return storage.getToken();
+  };
 
   const resetForm = () => {
     setTitle('');
@@ -63,7 +69,7 @@ export default function Annonce() {
       dateFin: toInput(a.dateFin)
     });
     setEditImageFile(null);
-    const abs = a.imageUrl && a.imageUrl.startsWith('http') ? a.imageUrl : (a.imageUrl ? `https://ticket-taf.itea.africa${a.imageUrl}` : '');
+    const abs = a.imageUrl && a.imageUrl.startsWith('http') ? a.imageUrl : (a.imageUrl ? `${API_BASE_URL.replace('/api', '')}${a.imageUrl}` : '');
     setEditImagePreview(abs);
     setEditOpen(true);
   };
@@ -92,15 +98,16 @@ export default function Annonce() {
     if (!editData.dateFin) { setError('La date de fin est requise'); return; }
     try {
       setEditLoading(true);
+      const currentToken = getToken();
       const formData = new FormData();
       formData.append('title', editData.title.trim());
       formData.append('description', editData.description.trim());
       formData.append('datePublication', new Date(editData.datePublication).toISOString());
       formData.append('dateFin', new Date(editData.dateFin).toISOString());
       if (editImageFile) formData.append('image', editImageFile);
-      const resp = await fetch(`https://ticket-taf.itea.africa/api/annonces/${editData.id}`, {
+      const resp = await fetch(`${API_BASE_URL}/annonces/${editData.id}`, {
         method: 'PUT',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
         body: formData,
       });
       const data = await resp.json().catch(() => ({}));
@@ -119,9 +126,10 @@ export default function Annonce() {
     if (!window.confirm('Supprimer cette annonce ?')) return;
     try {
       setDeleteLoadingId(id);
-      const resp = await fetch(`https://ticket-taf.itea.africa/api/annonces/${id}`, {
+      const currentToken = getToken();
+      const resp = await fetch(`${API_BASE_URL}/annonces/${id}`, {
         method: 'DELETE',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data?.message || 'Erreur lors de la suppression');
@@ -168,6 +176,7 @@ export default function Annonce() {
 
     try {
       setLoading(true);
+      const currentToken = getToken();
       const formData = new FormData();
       formData.append('title', title.trim());
       formData.append('description', description.trim());
@@ -175,9 +184,9 @@ export default function Annonce() {
       formData.append('dateFin', new Date(dateFin).toISOString());
       formData.append('image', imageFile);
 
-      const resp = await fetch('https://ticket-taf.itea.africa/api/annonces', {
+      const resp = await fetch(`${API_BASE_URL}/annonces`, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
         body: formData,
       });
 
@@ -189,8 +198,18 @@ export default function Annonce() {
       setSuccess("Annonce créée avec succès");
       resetForm();
       await fetchAnnonces();
+
+      // Effacer le message de succès après 3 secondes
+      setTimeout(() => {
+        setSuccess('');
+      }, 3000);
     } catch (err) {
       setError(err.message || 'Erreur inconnue');
+
+      // Effacer le message d'erreur après 5 secondes
+      setTimeout(() => {
+        setError('');
+      }, 5000);
     } finally {
       setLoading(false);
     }
@@ -199,16 +218,22 @@ export default function Annonce() {
   const fetchAnnonces = async () => {
     try {
       setListLoading(true);
-      const resp = await fetch('https://ticket-taf.itea.africa/api/annonces', {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      setError('');
+      const currentToken = getToken();
+      console.log('🔐 Token utilisé pour fetch annonces:', currentToken ? '✅ Présent' : '❌ Absent');
+
+      const resp = await fetch(`${API_BASE_URL}/annonces`, {
+        headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
       });
       const data = await resp.json();
-      console.log('📢 Annonces API:', data);
+      console.log('📢 Annonces API réponse:', data);
       if (!resp.ok) throw new Error(data?.message || 'Erreur chargement annonces');
       const list = Array.isArray(data) ? data : [];
+      console.log(`📋 ${list.length} annonce(s) chargée(s)`);
       setAnnonces(list);
     } catch (e) {
-      // garder silencieux côté liste; l'erreur principale reste dans error
+      console.error('❌ Erreur lors du chargement des annonces:', e);
+      setError(`Erreur chargement annonces: ${e.message || 'Vérifiez la connexion au serveur'}`);
     } finally {
       setListLoading(false);
     }
@@ -290,34 +315,30 @@ export default function Annonce() {
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
             />
 
-            <Grid container spacing={1}>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  type="datetime-local"
-                  label="Date de publication"
-                  value={datePublication}
-                  onChange={(e) => setDatePublication(e.target.value)}
-                  required
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  size="small"
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  type="datetime-local"
-                  label="Date de fin"
-                  value={dateFin}
-                  onChange={(e) => setDateFin(e.target.value)}
-                  required
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  size="small"
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                />
-              </Grid>
-            </Grid>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1.5 }}>
+              <TextField
+                type="datetime-local"
+                label="Date de publication"
+                value={datePublication}
+                onChange={(e) => setDatePublication(e.target.value)}
+                required
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                size="small"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+              />
+              <TextField
+                type="datetime-local"
+                label="Date de fin"
+                value={dateFin}
+                onChange={(e) => setDateFin(e.target.value)}
+                required
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                size="small"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+              />
+            </Box>
 
             <Box sx={{
               border: '1px dashed #d1d5db',
@@ -395,20 +416,20 @@ export default function Annonce() {
           </Box>
         ) : (
           <>
-          <Grid container spacing={2}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
             {paginatedAnnonces.map((a) => {
               const status = getAnnonceStatus(a);
 
-              return ( 
-                <Grid item xs={12} sm={6} md={4} key={a._id}>
+              return (
+                <Box key={a._id}>
                   <Card sx={{ borderRadius: '12px', border: '1px solid #eee', position: 'relative' }}>
                     {a.imageUrl && (
                       <CardMedia
-                        component="img"
-                        height="160"
-                        image={a.imageUrl.startsWith('http') ? a.imageUrl : `https://ticket-taf.itea.africa${a.imageUrl}`}
-                        alt={a.title}
-                      />
+                    component="img"
+                    height="160"
+                    image={a.imageUrl && (a.imageUrl.startsWith('http') ? a.imageUrl : `${API_BASE_URL.replace('/api', '')}${a.imageUrl}`)}
+                    alt={a.title}
+                  />
                     )}
                     <CardContent>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{a.title}</Typography>
@@ -473,17 +494,15 @@ export default function Annonce() {
                       />
                     )}
                   </Card>
-                </Grid>
+                </Box>
               );
             })}
             {annonces.length === 0 && !listLoading && (
-              <Grid item xs={12}>
-                <Box sx={{ textAlign: 'center', color: '#888', py: 4, border: '1px dashed #ddd', borderRadius: '12px' }}>
-                  Aucune annonce pour le moment
-                </Box>
-              </Grid>
+              <Box sx={{ gridColumn: '1 / -1', textAlign: 'center', color: '#888', py: 4, border: '1px dashed #ddd', borderRadius: '12px' }}>
+                Aucune annonce pour le moment
+              </Box>
             )}
-          </Grid>
+          </Box>
           <TablePagination
             component="div"
             count={annonces.length}

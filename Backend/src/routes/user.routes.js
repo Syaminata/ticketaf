@@ -4,12 +4,14 @@ const { getAllUsers, getUserById, createUser, updateUser, deleteUser, updateProf
 const { auth, adminAuth } = require('../middleware/auth');
 const User = require('../models/user.model');
 const Driver = require('../models/driver.model');
+const { sendAndSaveNotification } = require('../services/notification.service');
 
 /**
  * @swagger
  * /users:
  *   get:
  *     summary: Récupérer tous les utilisateurs
+ *     description: Accessible uniquement aux admins et superadmins. Retourne tous les utilisateurs hors conducteurs.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -58,6 +60,9 @@ router.get('/', auth, adminAuth, getAllUsers);
  *               password:
  *                 type: string
  *                 format: password
+ *               address:
+ *                 type: string
+ *                 description: Adresse de l'utilisateur (optionnel)
  *               role:
  *                 type: string
  *                 enum: [client, admin, conducteur, superadmin]
@@ -71,8 +76,26 @@ router.get('/', auth, adminAuth, getAllUsers);
  *       400:
  *         description: Erreur de validation
  */
-router.post('/', auth, adminAuth, createUser); 
+router.post('/', auth, adminAuth, createUser);
 
+/**
+ * @swagger
+ * /users/me:
+ *   get:
+ *     summary: Profil de l'utilisateur connecté
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profil de l'utilisateur connecté
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Non authentifié
+ */
 router.get('/me', auth, (req, res) => {
   res.status(200).json(req.user);
 });
@@ -101,6 +124,9 @@ router.get('/me', auth, (req, res) => {
  *               numero:
  *                 type: string
  *                 description: Nouveau numéro de téléphone
+ *               address:
+ *                 type: string
+ *                 description: Nouvelle adresse (optionnel)
  *     responses:
  *       200:
  *         description: Profil mis à jour avec succès
@@ -187,7 +213,7 @@ router.put('/change-password', auth, changePassword);
  *       404:
  *         description: Utilisateur non trouvé
  */
-router.get('/:id', getUserById);
+router.get('/:id', auth, getUserById);
 
 /**
  * @swagger
@@ -250,24 +276,105 @@ router.put('/:id', auth, adminAuth, updateUser);
  *       401:
  *         description: Non authentifié
  */
+// Demande de suppression avec délai de 24h
 router.delete('/me', auth, async (req, res) => {
   try {
     const userId = req.user._id;
-    console.log('🗑️ Suppression du compte pour userId:', userId);
+    const deletionScheduledAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Supprimer dans les deux collections simultanément
-    const [userResult, driverResult] = await Promise.all([
-      User.findByIdAndDelete(userId),
-      Driver.findByIdAndDelete(userId),
-    ]);
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { pendingDeletion: true, deletionScheduledAt },
+      { new: true }
+    );
 
-    if (!userResult && !driverResult) {
+    if (!user) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
-    res.status(200).json({ message: 'Compte supprimé avec succès' });
+    // Notifier l'utilisateur en push uniquement (pas de notif in-app)
+    await sendAndSaveNotification(
+      userId,
+      'Compte supprimé',
+      'Votre compte a été supprimé. La suppression définitive sera effective dans 24h. Pour demander une restauration, contactez notre assistance.',
+      { type: 'alert', action: 'pending_deletion' },
+      { saveToDb: false }
+    );
+
+    // Notifier les admins
+    const admins = await User.find({ role: { $in: ['admin', 'superadmin'] }, pendingDeletion: false });
+    for (const admin of admins) {
+      await sendAndSaveNotification(
+        admin._id,
+        'Suppression de compte',
+        `${user.name} (${user.numero}) a supprimé son compte. Suppression définitive dans 24h.`,
+        { type: 'alert', action: 'user_deletion_request', userId: userId.toString() }
+      );
+    }
+
+    res.status(200).json({
+      message: 'Suppression planifiée dans 24h',
+      deletionScheduledAt,
+    });
   } catch (err) {
-    console.error('❌ Erreur deleteMe:', err);
+    console.error('Erreur deleteMe:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+});
+
+// Annuler sa propre demande de suppression
+router.post('/me/cancel-deletion', auth, async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { pendingDeletion: false, deletionScheduledAt: null },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+
+    await sendAndSaveNotification(
+      req.user._id,
+      'Suppression annulée',
+      'Votre demande de suppression de compte a été annulée. Votre compte est toujours actif.',
+      { type: 'success' }
+    );
+
+    // Notifier les admins de l'annulation
+    const admins = await User.find({ role: { $in: ['admin', 'superadmin'] }, pendingDeletion: false });
+    for (const admin of admins) {
+      await sendAndSaveNotification(
+        admin._id,
+        'Annulation de suppression de compte',
+        `${user.name} (${user.numero}) a annulé sa demande de suppression de compte.`,
+        { type: 'info', action: 'deletion_cancelled', userId: user._id.toString() }
+      );
+    }
+
+    res.status(200).json({ message: 'Suppression annulée' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+});
+
+// Admin : restaurer le compte d'un utilisateur en attente de suppression
+router.post('/:id/restore-deletion', auth, adminAuth, async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { pendingDeletion: false, deletionScheduledAt: null },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+
+    await sendAndSaveNotification(
+      user._id,
+      'Compte restauré',
+      'Un administrateur a annulé la suppression de votre compte. Votre compte est toujours actif.',
+      { type: 'success' }
+    );
+
+    res.status(200).json({ message: 'Compte restauré', user });
+  } catch (err) {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 });
@@ -294,5 +401,24 @@ router.delete('/me', auth, async (req, res) => {
  *         description: Utilisateur non trouvé
  */
 router.delete('/:id', auth, adminAuth, deleteUser);
+
+// Admin : effacer toutes les réservations et colis d'un utilisateur (nettoyage données de test)
+router.delete('/:id/clear-data', auth, adminAuth, async (req, res) => {
+  try {
+    const Reservation = require('../models/reservation.model');
+    const Colis = require('../models/colis.model');
+    const [reservations, colis] = await Promise.all([
+      Reservation.deleteMany({ user: req.params.id }),
+      Colis.deleteMany({ expediteur: req.params.id }),
+    ]);
+    res.status(200).json({
+      message: 'Données effacées',
+      deletedReservations: reservations.deletedCount,
+      deletedColis: colis.deletedCount,
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+});
 
 module.exports = router;

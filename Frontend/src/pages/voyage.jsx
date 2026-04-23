@@ -97,7 +97,7 @@ export default function Voyage() {
     }
     
     try {
-      const res = await voyageAPI.getAllVoyages();
+      const res = await voyageAPI.getAllVoyagesIncludingExpired();
       
       setVoyages(res);
       setError('');

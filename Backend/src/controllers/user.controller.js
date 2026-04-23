@@ -2,18 +2,19 @@ const User = require('../models/user.model');
 const Driver = require('../models/driver.model');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
+const { sendAndSaveNotification } = require('../services/notification.service');
 
 
 const getAllUsers = async (req, res) => {
   try {
     const { search } = req.query;
-    
+
     // Récupérer d'abord les IDs des chauffeurs
     const driverIds = (await Driver.find({}, '_id')).map(d => d._id);
-    
+
     let userQuery = { _id: { $nin: driverIds } };
     let driverQuery = {};
-    
+
     // Ajouter la recherche si fournie
     if (search) {
       const searchRegex = new RegExp(search, 'i');
@@ -28,7 +29,7 @@ const getAllUsers = async (req, res) => {
         { email: searchRegex }
       ];
     }
-    
+
     // Récupérer les utilisateurs qui ne sont pas des chauffeurs
     const users = await User.find(userQuery).select('-password');
 
@@ -46,7 +47,7 @@ const getAllUsers = async (req, res) => {
 
     // Combiner les utilisateurs normaux et les chauffeurs formatés
     const allUsers = [...users, ...formattedDrivers];
-    
+
     // Retourner les résultats
     if (search) {
       res.json({ users: allUsers });
@@ -64,7 +65,7 @@ const getUserById = async (req, res) => {
   try {
     // Récupérer les données User
     const user = await User.findById(req.params.id).select('-password');
-    
+
     if (!user) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
@@ -72,28 +73,29 @@ const getUserById = async (req, res) => {
     // Si c'est un conducteur, récupérer aussi ses données spécifiques
     if (user.role === 'conducteur') {
       const driver = await Driver.findById(req.params.id).select('-password');
-      
+
       if (driver) {
         // Combiner les données User et Driver
         const combinedData = {
-          ...user.toObject(), 
+          ...user.toObject(),
           marque: driver.marque,
           matricule: driver.matricule,
           climatisation: driver.climatisation,
+          wifi: driver.wifi,
           capacity: driver.capacity,
           capacity_coffre: driver.capacity_coffre,
           photo: driver.photo,
           rating: driver.rating,
           isActive: driver.isActive,
         };
-        
+
         return res.status(200).json(combinedData);
       }
     }
 
     // Si ce n'est pas un conducteur, ou si les données driver n'existent pas
     res.status(200).json(user);
-    
+
   } catch (err) {
     console.error('Erreur getUserById:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
@@ -102,12 +104,10 @@ const getUserById = async (req, res) => {
 
 
 const createUser = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
+
   try {
     const { name, email, password, numero, role, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
-    
+
     if (!name || !numero || !password) {
       return res.status(400).json({ message: 'Le nom, le numéro et le mot de passe sont requis' });
     }
@@ -128,7 +128,7 @@ const createUser = async (req, res) => {
     if (role === 'conducteur') {
       // Vérifier les champs requis pour un conducteur
       if (!matricule || !marque || !capacity || !capacity_coffre) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: 'Pour un conducteur, les champs matricule, marque, capacity et capacity_coffre sont requis',
           requiredFields: {
             matricule: !matricule,
@@ -152,7 +152,7 @@ const createUser = async (req, res) => {
         role: 'conducteur',
         address: req.body.address
       });
-      await user.save({ session });
+      await user.save();
 
       // Créer le conducteur associé
       driver = new Driver({
@@ -169,27 +169,24 @@ const createUser = async (req, res) => {
         isActive: false,
         role: 'conducteur'
       });
-      await driver.save({ session });
+      await driver.save();
     } else {
       // Créer un utilisateur normal
-      user = await User.create([{
+      user = await User.create({
         name,
         email: email || undefined,
         password,
         numero,
         address: req.body.address,
         role: role || 'client'
-      }], { session });
-      user = user[0];
+      });
     }
 
-    await session.commitTransaction();
-    session.endSession();
 
     const userSafe = user.toObject();
     delete userSafe.password;
 
-    const response = { 
+    const response = {
       message: role === 'conducteur' ? 'Conducteur créé avec succès' : 'Utilisateur créé avec succès',
       user: userSafe
     };
@@ -202,9 +199,6 @@ const createUser = async (req, res) => {
 
     res.status(201).json(response);
   } catch (err) {
-    await session.abortTransaction();
-    session.endSession();
-    
     console.error('Erreur createUser:', err);
 
     // Gestion des erreurs de validation Mongoose
@@ -216,8 +210,8 @@ const createUser = async (req, res) => {
     // Gestion des erreurs de clé unique
     if (err.code === 11000) {
       const field = Object.keys(err.keyPattern)[0];
-      return res.status(400).json({ 
-        message: field === 'email' ? 'Email déjà utilisé' : 
+      return res.status(400).json({
+        message: field === 'email' ? 'Email déjà utilisé' :
                 field === 'numero' ? 'Numéro déjà utilisé' :
                 field === 'matricule' ? 'Matricule déjà utilisé' :
                 'Duplication détectée',
@@ -235,12 +229,12 @@ const updateUser = async (req, res) => {
 
     // Construction des champs à mettre à jour
     const updateData = { name, numero, role };
-    
+
     // Ajouter l'adresse si elle est fournie
     if (address !== undefined) {
       updateData.address = address;
     }
-    
+
     // Gérer l'email optionnel
     if (email !== undefined) {
       updateData.email = email || undefined;
@@ -270,13 +264,13 @@ const updateUser = async (req, res) => {
         return res.status(404).json({ message: 'Utilisateur non trouvé' });
       }
 
-      return res.status(200).json({ 
-        message: 'Conducteur mis à jour', 
-        user: { 
-          ...driver.toObject(), 
+      return res.status(200).json({
+        message: 'Conducteur mis à jour',
+        user: {
+          ...driver.toObject(),
           role: 'conducteur',
           isDriver: true
-        } 
+        }
       });
     }
 
@@ -289,7 +283,7 @@ const updateUser = async (req, res) => {
       if (address !== undefined) {
         driverUpdate.address = address;
       }
-      
+
       await Driver.findByIdAndUpdate(
         req.params.id,
         driverUpdate,
@@ -297,12 +291,12 @@ const updateUser = async (req, res) => {
       );
     }
 
-    res.status(200).json({ 
-      message: 'Utilisateur mis à jour', 
+    res.status(200).json({
+      message: 'Utilisateur mis à jour',
       user: {
         ...user.toObject(),
         isDriver: user.role === 'conducteur'
-      } 
+      }
     });
   } catch (err) {
     console.error('Erreur updateUser:', err);
@@ -345,12 +339,12 @@ const updateProfile = async (req, res) => {
 
     // Construction des champs à mettre à jour
     const updateData = { name, numero };
-    
+
     // Ajouter l'adresse si elle est fournie
     if (address !== undefined) {
       updateData.address = address;
     }
-    
+
     // Gérer l'email optionnel
     if (email !== undefined) {
       updateData.email = email || undefined;
@@ -359,10 +353,14 @@ const updateProfile = async (req, res) => {
     // Vérifier si l'utilisateur existe
     const Model = isDriver ? Driver : User;
     const user = await Model.findById(userId);
-    
+
     if (!user) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
+
+    // Détecter ce qui a changé avant la mise à jour
+    const nameChanged = name && name !== user.name;
+    const numeroChanged = numero && numero !== user.numero;
 
     // Mettre à jour l'utilisateur
     const updatedUser = await Model.findByIdAndUpdate(
@@ -371,10 +369,36 @@ const updateProfile = async (req, res) => {
       { new: true, runValidators: true, context: 'query' }
     ).select('-password');
 
-    res.status(200).json({ 
+    // Envoyer les notifications selon ce qui a changé (non bloquant)
+    if (nameChanged || numeroChanged) {
+      const notifications = [];
+      if (nameChanged) {
+        notifications.push(
+          sendAndSaveNotification(
+            userId,
+            'Nom mis à jour',
+            `Votre nom a été modifié en "${name}" avec succès.`,
+            { type: 'info', screen: 'profile' }
+          )
+        );
+      }
+      if (numeroChanged) {
+        notifications.push(
+          sendAndSaveNotification(
+            userId,
+            'Numéro modifié',
+            `Votre numéro de téléphone a été modifié en "${numero}" avec succès.`,
+            { type: 'info', screen: 'profile' }
+          )
+        );
+      }
+      Promise.all(notifications).catch(e => console.warn('⚠️ Notif updateProfile:', e.message));
+    }
+
+    res.status(200).json({
       success: true,
-      message: 'Profil mis à jour avec succès', 
-      user: updatedUser 
+      message: 'Profil mis à jour avec succès',
+      user: updatedUser
     });
   } catch (err) {
     console.error('Erreur updateProfile:', err);
@@ -402,29 +426,29 @@ const changePassword = async (req, res) => {
 
     // Vérifier que les champs requis sont présents
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Le mot de passe actuel et le nouveau mot de passe sont requis' 
+        message: 'Le mot de passe actuel et le nouveau mot de passe sont requis'
       });
     }
 
     // Vérifier si l'utilisateur existe
     const Model = isDriver ? Driver : User;
     const user = await Model.findById(userId);
-    
+
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Utilisateur non trouvé' 
+        message: 'Utilisateur non trouvé'
       });
     }
 
     // Vérifier le mot de passe actuel
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Mot de passe actuel incorrect' 
+        message: 'Mot de passe actuel incorrect'
       });
     }
     
@@ -432,26 +456,39 @@ const changePassword = async (req, res) => {
     user.password = newPassword;
     await user.save();
 
-    res.status(200).json({ 
+    // Pour un conducteur : synchroniser le hash dans User (loginDriver lit User.password)
+    if (isDriver) {
+      await User.findByIdAndUpdate(userId, { password: user.password });
+    }
+
+    // Notification de sécurité (non bloquant)
+    sendAndSaveNotification(
+      userId,
+      'Mot de passe modifié',
+      'Votre mot de passe a été changé avec succès. Si vous n\'êtes pas à l\'origine de cette action, contactez le support immédiatement.',
+      { type: 'info', screen: 'profile' }
+    ).catch(e => console.warn('⚠️ Notif changePassword:', e.message));
+
+    res.status(200).json({
       success: true,
-      message: 'Mot de passe mis à jour avec succès' 
+      message: 'Mot de passe mis à jour avec succès'
     });
   } catch (err) {
     console.error('Erreur changePassword:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: 'Erreur serveur lors du changement de mot de passe',
-      error: err.message 
+      error: err.message
     });
   }
 };
 
-module.exports = { 
-  getAllUsers, 
-  getUserById, 
-  createUser, 
-  updateUser, 
-  deleteUser, 
+module.exports = {
+  getAllUsers,
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser,
   updateProfile,
   changePassword
 };

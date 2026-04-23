@@ -6,6 +6,7 @@ const reservationSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   ticket: { type: String, enum: ['place', 'colis'], default: 'place' },
   quantity: { type: Number, default: 1 },
+  lockedPrice: { type: Number, default: 0 },
   status: {
     type: String,
     enum: [

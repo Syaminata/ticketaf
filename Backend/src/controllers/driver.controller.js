@@ -46,11 +46,9 @@ const cleanMissingFiles = async () => {
 
 
 const createDriver = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   
   try {
-    const { name, email, numero, password, matricule, marque, capacity, capacity_coffre, climatisation, address } = req.body;
+    const { name, email, numero, password, matricule, marque, capacity, capacity_coffre, climatisation, wifi, address } = req.body;
 
     // 1. Validation des entrées
     if (!name || !numero || !password || !matricule || !marque || !capacity || !capacity_coffre) {
@@ -90,7 +88,7 @@ const createDriver = async (req, res) => {
     }
     
     console.log('Requête de recherche:', JSON.stringify(query));
-    const existingUser = await User.findOne(query).session(session);
+    const existingUser = await User.findOne(query);
     
     if (existingUser) {
       const numeroExists = existingUser.numero === numero;
@@ -130,7 +128,7 @@ const createDriver = async (req, res) => {
     }
     
     console.log('Recherche de conducteur existant:', JSON.stringify(driverQuery));
-    const existingDriver = await Driver.findOne(driverQuery).session(session);
+    const existingDriver = await Driver.findOne(driverQuery);
     
     if (existingDriver) {
       const numeroExists = existingDriver.numero === numero;
@@ -182,7 +180,7 @@ const createDriver = async (req, res) => {
       role: 'conducteur'
     });
     
-    await user.save({ session });
+    await user.save();
 
     // 5. Créer le conducteur avec le mot de passe déjà haché
     const driver = new Driver({
@@ -190,14 +188,18 @@ const createDriver = async (req, res) => {
       name,
       email: email || undefined, // Même logique que pour l'utilisateur
       numero,
-      password: user.password, 
+      password: password,
       matricule,
       marque,
       capacity: parseInt(capacity),
       capacity_coffre,
       address: req.body.address.trim(), // Utiliser la même adresse que l'utilisateur
       climatisation: climatisation === 'true' || climatisation === true,
-      isActive: false,
+      wifi: wifi === 'true' || wifi === true,
+      // Admin-created drivers are active by default; public /register always inactive
+      isActive: req.user
+        ? (req.body.isActive !== undefined ? (req.body.isActive === 'true' || req.body.isActive === true) : true)
+        : false,
       role: 'conducteur',
       permis: [{
         filename: req.files.permis[0].filename,
@@ -213,9 +215,7 @@ const createDriver = async (req, res) => {
       }]
     });
 
-    await driver.save({ session });
-    await session.commitTransaction();
-    session.endSession();
+    await driver.save();
 
     // 6. Réponse
     res.status(201).json({
@@ -230,9 +230,6 @@ const createDriver = async (req, res) => {
     });
 
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    
     console.error('Erreur lors de l\'inscription du conducteur:', error);
     res.status(500).json({ 
       message: 'Erreur lors de l\'inscription',
@@ -593,7 +590,7 @@ const getMyProfile = async (req, res) => {
 // 2. Mettre à jour son propre profil (sans fichiers)
 const updateMyProfile = async (req, res) => {
   try {
-    const { name, email, numero, matricule, marque, capacity, capacity_coffre, climatisation, address } = req.body;
+    const { name, email, numero, matricule, marque, capacity, capacity_coffre, climatisation, wifi, address } = req.body;
     
     // Vérifier que l'adresse est fournie
     if (address !== undefined && (!address || address.trim() === '')) {
@@ -660,7 +657,10 @@ const updateMyProfile = async (req, res) => {
     if (climatisation !== undefined) {
       updateData.climatisation = climatisation === 'true' || climatisation === true;
     }
-    
+    if (wifi !== undefined) {
+      updateData.wifi = wifi === 'true' || wifi === true;
+    }
+
     // Gérer l'email (peut être vide)
     if (email !== undefined) {
       updateData.email = email.trim() || undefined;
@@ -730,57 +730,74 @@ const updateMyProfile = async (req, res) => {
 // 3. Changer son mot de passe
 const changePassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ 
+    // Vérifier que tous les champs sont présents
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
         success: false,
-        message: 'Tous les champs sont requis' 
+        message: 'Tous les champs sont requis'
       });
     }
 
-    if (newPassword.length < 5) {
-      return res.status(400).json({ 
+    // Vérifier que les nouveaux mots de passe correspondent
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
         success: false,
-        message: 'Le nouveau mot de passe doit contenir au moins 5 caractères' 
+        message: 'Les nouveaux mots de passe ne correspondent pas'
       });
     }
 
-    // Récupérer le conducteur avec le mot de passe
-    const driver = await Driver.findById(req.user.id);
-    if (!driver) {
-      return res.status(404).json({ 
+    // Vérifier la longueur du nouveau mot de passe
+    if (newPassword.length < 6) {
+      return res.status(400).json({
         success: false,
-        message: 'Conducteur non trouvé' 
+        message: 'Le nouveau mot de passe doit contenir au moins 6 caractères'
+      });
+    }
+
+    // Obtenir l'ID utilisateur de req.user._id ou req.user.id
+    const userId = req.user._id || req.user.id;
+    console.log('[changePassword] Changement de mot de passe pour utilisateur:', userId);
+
+    // Vérifier via User (toujours hachage simple, fiable pour tous les conducteurs)
+    const user = await User.findById(userId);
+    if (!user || !user.password) {
+      console.log('[changePassword] Utilisateur non trouvé:', userId);
+      return res.status(404).json({
+        success: false,
+        message: 'Conducteur non trouvé'
       });
     }
 
     // Vérifier le mot de passe actuel
-    const isMatch = await bcrypt.compare(currentPassword, driver.password);
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
-      return res.status(400).json({ 
+      console.log('[changePassword] Mot de passe actuel incorrect pour:', userId);
+      return res.status(400).json({
         success: false,
-        message: 'Mot de passe actuel incorrect' 
+        message: 'Mot de passe actuel incorrect'
       });
     }
 
     // Hasher le nouveau mot de passe
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Mettre à jour le mot de passe dans Driver et User
-    await Driver.findByIdAndUpdate(req.user.id, { password: hashedPassword });
-    await User.findByIdAndUpdate(req.user.id, { password: hashedPassword });
+    // Mettre à jour les deux collections
+    await User.findByIdAndUpdate(userId, { password: hashedPassword });
+    await Driver.findByIdAndUpdate(userId, { password: hashedPassword });
 
-    res.status(200).json({ 
+    console.log('[changePassword] Mot de passe modifié avec succès pour:', userId);
+    res.status(200).json({
       success: true,
-      message: 'Mot de passe modifié avec succès' 
+      message: 'Mot de passe modifié avec succès'
     });
   } catch (err) {
-    console.error('Erreur changePassword:', err);
-    res.status(500).json({ 
+    console.error('[changePassword] Erreur:', err);
+    res.status(500).json({
       success: false,
-      message: 'Erreur serveur', 
-      error: err.message 
+      message: 'Erreur serveur',
+      error: err.message
     });
   }
 };

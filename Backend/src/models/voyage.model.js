@@ -3,7 +3,7 @@ const Reservation = require('./reservation.model');
 const Colis = require('./colis.model');
 
 const voyageSchema = new mongoose.Schema({
-  driver: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  driver: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver', required: true },
   from: { type: String, required: true },
   to: { type: String, required: true },
   date: { type: Date, required: true },
@@ -19,6 +19,14 @@ const voyageSchema = new mongoose.Schema({
   currentClient: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+
+  notificationDayJSent: {
+    type: Boolean,
+    default: false
+  },
+  notificationDayJSentAt: {
+    type: Date
   }
 }, { timestamps: true });
 

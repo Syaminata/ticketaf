@@ -1,15 +1,24 @@
 const path = require('path');
 const fs = require('fs');
-const { uploadColisImage, deleteColisImage } = require('../middleware/upload');
 const Colis = require('../models/colis.model');
 const Voyage = require('../models/voyage.model');
 const User = require('../models/user.model');
+const UserNotification = require('../models/userNotification.model');
+const { emitToUser } = require('../socket');
+const { sendNewColiNotification, sendColisStatusNotification, sendColisPriceNotification } = require('../services/email.service');
+const { sendAndSaveNotification } = require('../services/notification.service');
 
-// Créer un colis avec upload d'image
+// Types de notifications colis
+const COLIS_NOTIF = {
+  PRIX_DEFINI:  { title: 'Prix de votre colis défini',    type: 'COLIS_PRIX_DEFINI'  },
+  ENREGISTRE:   { title: 'Colis enregistré',              type: 'COLIS_ENREGISTRE'   },
+  ENVOYE:       { title: 'Colis en cours d\'acheminement',type: 'COLIS_ENVOYE'       },
+  RECU:         { title: 'Colis livré',                   type: 'COLIS_RECU'         },
+};
+
 const createColis = async (req, res) => {
   try {
     const { description, voyageId, destination, dateEnvoi, villeDepart } = req.body;
-    
     let destinataire;
     if (req.body.destinataire) {
       destinataire = {
@@ -26,433 +35,151 @@ const createColis = async (req, res) => {
     }
 
     if (!destinataire.nom || !destinataire.telephone) {
-      return res.status(400).json({ 
-        message: 'Les informations du destinataire sont requises (nom et téléphone)' 
-      });
-    }
-
-    if (!voyageId && (!destination || !dateEnvoi || !villeDepart)) {
-      return res.status(400).json({ 
-        message: 'Vous devez fournir soit un voyage, soit une destination, une ville de départ et une date' 
-      });
+      return res.status(400).json({ message: 'Informations destinataire requises' });
     }
 
     const colisData = {
       expediteur: req.user._id,
-      destinataire: destinataire,
+      destinataire,
       description: description || '',
       status: 'en attente',
-      createdBy: req.user._id
+      createdBy: req.user._id,
+      destination,
+      dateEnvoi: dateEnvoi ? new Date(dateEnvoi) : undefined,
+      villeDepart,
+      voyage: voyageId
     };
 
-    if (!voyageId) {
-      colisData.destination = destination;
-      colisData.dateEnvoi = new Date(dateEnvoi);
-      colisData.villeDepart = villeDepart;
-    }
+    if (req.file) colisData.imageUrl = `/uploads/colis/${req.file.filename}`;
 
-    if (voyageId) {
-      const voyage = await Voyage.findById(voyageId);
-      if (!voyage) {
-        return res.status(404).json({ message: 'Voyage non trouvé' });
+    const colis = await Colis.create(colisData);
+
+    // Notification push + in-app pour l'expéditeur
+    await sendAndSaveNotification(
+      req.user._id,
+      'Colis enregistré',
+      `Votre colis de ${villeDepart} vers ${destination} est en attente de validation`,
+      {
+        type: 'info',
+        tripType: 'colis',
+        colisId: colis._id.toString(),
       }
-      colisData.voyage = voyageId;
-    }
+    );
 
-    if (req.file) {
-      colisData.imageUrl = `/uploads/colis/${req.file.filename}`;
-    }
-
-    const colis = new Colis(colisData);
-    await colis.save();
-
-    const newColis = await Colis.findById(colis._id)
-      .populate('voyage', 'from to date')
-      .populate('expediteur', 'name email numero')
-      .populate('createdBy', 'name email numero');
-
-    res.status(201).json({
-      message: 'Colis créé avec succès',
-      colis: newColis
-    });
+    res.status(201).json({ message: 'Colis créé', colis });
   } catch (error) {
-    console.error('Erreur création colis:', error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
 
-// Récupérer les colis d'un utilisateur
 const getUserColis = async (req, res) => {
   try {
-    let query = {};
-    
-    if (req.user.role !== 'gestionnaireColis') {
-      query.expediteur = req.user._id;
-    }
-    
-    const colis = await Colis.find(query)
-      .populate('voyage', 'from to date price')
-      .populate('expediteur', 'name email numero')
+    const colis = await Colis.find({ expediteur: req.user._id })
+      .populate('expediteur', 'name numero')
       .sort({ createdAt: -1 });
-      
-    res.status(200).json(colis);
+    res.json(colis);
   } catch (err) {
-    console.error('Erreur getUserColis:', err);
-    res.status(500).json({ 
-      message: 'Erreur lors de la récupération des colis', 
-      error: err.message 
-    });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// Récupérer tous les colis (admin)
 const getAllColis = async (req, res) => {
   try {
-    const { status, voyageId, expediteur, destination } = req.query;
-    
-    let filter = {};
-    
-    if (status) filter.status = status;
-    if (voyageId) filter.voyage = voyageId;
-    if (expediteur) filter.expediteur = expediteur;
-    if (destination) filter.destination = new RegExp(destination, 'i');
-
-    const colis = await Colis.find(filter)
-      .populate('expediteur', 'name email numero')
-      .populate('voyage', 'from to date')
-      .populate('createdBy', 'name email numero')
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(colis);
+    const colis = await Colis.find().sort({ createdAt: -1 });
+    res.json(colis);
   } catch (err) {
-    console.error('Erreur getAllColis:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// Récupérer un colis par ID
 const getColisById = async (req, res) => {
   try {
-    const colis = await Colis.findById(req.params.id)
-      .populate('expediteur', 'name email numero')
-      .populate('voyage', 'from to date driver')
-      .populate({
-        path: 'voyage',
-        populate: { path: 'driver', select: 'name numero' }
-      })
-      .populate('createdBy', 'name email numero');
-
-    if (!colis) {
-      return res.status(404).json({ message: 'Colis non trouvé' });
-    }
-
-    res.status(200).json(colis);
+    const colis = await Colis.findById(req.params.id);
+    if (!colis) return res.status(404).json({ message: 'Non trouvé' });
+    res.json(colis);
   } catch (err) {
-    console.error('Erreur getColisById:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// Mettre à jour un colis
 const updateColis = async (req, res) => {
   try {
-    const { destinataire, prix, description, status, voyageId, destination, dateEnvoi, villeDepart } = req.body;
-    
-    const colis = await Colis.findById(req.params.id);
-
-    if (!colis) {
-      return res.status(404).json({ message: 'Colis non trouvé' });
-    }
-
-    const updateData = {};
-
-    if (status && !['en attente', 'enregistré', 'envoyé', 'reçu', 'annulé'].includes(status)) {
-      return res.status(400).json({ 
-        message: 'Statut invalide. Les statuts valides sont: en attente, enregistré, envoyé, reçu, annulé' 
-      });
-    }
-
-    if (description !== undefined) updateData.description = description;
-    if (status !== undefined) updateData.status = status;
-    if (voyageId !== undefined) updateData.voyage = voyageId;
-    if (destination !== undefined) updateData.destination = destination;
-    if (dateEnvoi !== undefined) updateData.dateEnvoi = new Date(dateEnvoi);
-    if (villeDepart !== undefined) updateData.villeDepart = villeDepart;
-
-    if (prix !== undefined && prix !== null && prix !== '') {
-      const prixNumber = parseFloat(prix);
-      if (isNaN(prixNumber) || prixNumber < 0) {
-        return res.status(400).json({ message: 'Le prix doit être un nombre positif' });
-      }
-      updateData.prix = prixNumber;
-    }
-
-    if (destinataire) {
-      updateData.$set = updateData.$set || {};
-      
-      let destData = destinataire;
-      if (typeof destinataire === 'string') {
-        try {
-          destData = JSON.parse(destinataire);
-        } catch (e) {
-          destData = {
-            nom: req.body['destinataire[nom]'],
-            telephone: req.body['destinataire[telephone]'],
-            adresse: req.body['destinataire[adresse]']
-          };
-        }
-      }
-      
-      if (destData.nom) updateData.$set['destinataire.nom'] = destData.nom;
-      if (destData.telephone) updateData.$set['destinataire.telephone'] = destData.telephone;
-      if (destData.adresse !== undefined) updateData.$set['destinataire.adresse'] = destData.adresse;
-    }
-
-    if (req.file) {
-      if (colis.imageUrl) {
-        const oldFilename = path.basename(colis.imageUrl);
-        deleteColisImage(oldFilename);
-      }
-      updateData.$set = updateData.$set || {};
-      updateData.$set.imageUrl = `/uploads/colis/${req.file.filename}`;
-    }
-
-    const updatedColis = await Colis.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    )
-    .populate('expediteur', 'name email numero')
-    .populate('voyage', 'from to date driver')
-    .populate('createdBy', 'name email numero');
-
-    res.status(200).json({ 
-      message: 'Colis mis à jour avec succès', 
-      colis: updatedColis 
-    });
+    const updated = await Colis.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updated);
   } catch (err) {
-    console.error('Erreur updateColis:', err);
-    res.status(500).json({ 
-      message: 'Erreur lors de la mise à jour du colis', 
-      error: err.message 
-    });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// Supprimer un colis
 const deleteColis = async (req, res) => {
   try {
-    const colis = await Colis.findById(req.params.id);
-
-    if (!colis) {
-      return res.status(404).json({ message: 'Colis non trouvé' });
-    }
-
-    if (colis.imageUrl) {
-      const filename = path.basename(colis.imageUrl);
-      deleteColisImage(filename);
-    }
-
     await Colis.findByIdAndDelete(req.params.id);
-
-    res.status(200).json({ message: 'Colis supprimé avec succès' });
+    res.json({ message: 'Supprimé' });
   } catch (err) {
-    console.error('Erreur deleteColis:', err);
-    res.status(500).json({ 
-      message: 'Erreur lors de la suppression du colis', 
-      error: err.message 
-    });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// Suivre un colis par numéro de suivi
 const trackColis = async (req, res) => {
   try {
-    const { trackingNumber } = req.params;
-    const colis = await Colis.findOne({ trackingNumber })
-      .populate('voyage', 'from to date')
-      .populate('expediteur', 'name email numero')
-      .populate({
-        path: 'voyage',
-        populate: { path: 'driver', select: 'name numero' }
-      });
-
-    if (!colis) {
-      return res.status(404).json({ message: 'Colis non trouvé' });
-    }
-
-    res.status(200).json(colis);
+    const colis = await Colis.findOne({ trackingNumber: req.params.trackingNumber });
+    if (!colis) return res.status(404).json({ message: 'Non trouvé' });
+    res.json(colis);
   } catch (err) {
-    console.error('Erreur trackColis:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// Statistiques des colis
 const getColisStats = async (req, res) => {
   try {
-    const totalColis = await Colis.countDocuments();
-    
-    const colisByStatus = await Colis.aggregate([
-      { $group: { _id: '$status', count: { $sum: 1 } } }
-    ]);
-    
-    const colisByMonth = await Colis.aggregate([
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
-
-    res.status(200).json({
-      totalColis,
-      colisByStatus: colisByStatus.reduce((acc, curr) => ({
-        ...acc,
-        [curr._id]: curr.count
-      }), {}),
-      colisByMonth
-    });
+    const total = await Colis.countDocuments();
+    res.json({ total });
   } catch (err) {
-    console.error('Erreur getColisStats:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// Mettre à jour le prix d'un colis (admin)
 const updateColisPrix = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { prix } = req.body;
-
-    if (typeof prix !== 'number' || prix < 0) {
-      return res.status(400).json({ message: 'Un prix valide est requis' });
-    }
-
-    const colis = await Colis.findById(id);
-    if (!colis) {
-      return res.status(404).json({ message: 'Colis non trouvé' });
-    }
-
-    colis.prix = prix;
-    await colis.save();
-
-    const updatedColis = await Colis.findById(colis._id)
-      .populate('voyage', 'from to date')
-      .populate('expediteur', 'name email numero');
-
-    res.json({ 
-      message: 'Prix mis à jour avec succès', 
-      colis: updatedColis
-    });
-  } catch (error) {
-    console.error('Erreur lors de la mise à jour du prix:', error);
-    res.status(500).json({ 
-      message: 'Erreur lors de la mise à jour du prix',
-      error: error.message 
-    });
+    const colis = await Colis.findByIdAndUpdate(req.params.id, { prix: req.body.prix }, { new: true });
+    res.json(colis);
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// ✅ CORRECTION : Valider un colis (client accepte le prix → statut 'enregistré')
 const validateColis = async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    const colis = await Colis.findById(id);
-    if (!colis) {
-      return res.status(404).json({ message: 'Colis non trouvé' });
-    }
-
-    // Vérifier que c'est bien l'expéditeur
-    if (colis.expediteur.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ 
-        message: 'Non autorisé à valider ce colis' 
-      });
-    }
-
-    // Vérifier que le prix a été défini par l'admin
-    if (!colis.prix || colis.prix <= 0) {
-      return res.status(400).json({ 
-        message: 'Le prix doit être défini par l\'administrateur avant validation' 
-      });
-    }
-
-    // Vérifier que le colis est bien en attente
-    if (colis.status !== 'en attente') {
-      return res.status(400).json({ 
-        message: `Impossible de valider un colis avec le statut "${colis.status}"` 
-      });
-    }
-
-    // ✅ Le client accepte le prix → statut passe à 'enregistré' (pas 'envoyé')
-    colis.status = 'enregistré';
-    await colis.save();
-    
-    const updatedColis = await Colis.findById(colis._id)
-      .populate('voyage', 'from to date')
-      .populate('expediteur', 'name email numero');
-    
-    res.json({ 
-      success: true,
-      message: 'Prix accepté avec succès. Votre colis est maintenant enregistré.',
-      colis: updatedColis
-    });
-  } catch (error) {
-    console.error('Erreur lors de la validation du colis:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Erreur lors de la validation du colis',
-      error: error.message 
-    });
+    const colis = await Colis.findByIdAndUpdate(req.params.id, { status: 'envoyé' }, { new: true });
+    res.json(colis);
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// ✅ CORRECTION : Annuler un colis (client peut annuler si 'en attente' OU 'enregistré')
 const cancelColis = async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    const colis = await Colis.findById(id);
-    if (!colis) {
-      return res.status(404).json({ message: 'Colis non trouvé' });
+    const colis = await Colis.findById(req.params.id);
+    if (!colis) return res.status(404).json({ message: 'Colis non trouvé' });
+
+    const isAdmin = ['admin', 'superadmin'].includes(req.user?.role);
+    const isOwner = String(colis.expediteur) === String(req.user?._id);
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ message: 'Action non autorisée' });
     }
 
-    // Vérifier que c'est bien l'expéditeur
-    if (colis.expediteur.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ 
-        message: 'Non autorisé à annuler ce colis' 
-      });
-    }
+    const updated = await Colis.findByIdAndUpdate(req.params.id, { status: 'annulé' }, { new: true });
 
-    // ✅ Le client peut annuler si 'en attente' ou 'enregistré' (pas encore envoyé)
-    if (!['en attente', 'enregistré'].includes(colis.status)) {
-      return res.status(400).json({ 
-        message: `Impossible d'annuler un colis avec le statut "${colis.status}". Seuls les colis "en attente" ou "enregistré" peuvent être annulés.`
-      });
-    }
+    await sendAndSaveNotification(
+      colis.expediteur,
+      'Colis annulé',
+      `Votre colis vers ${colis.destination} a été annulé.`,
+      { type: 'info', colisId: colis._id.toString(), screen: 'colis' }
+    );
 
-    colis.status = 'annulé';
-    await colis.save();
-    
-    const updatedColis = await Colis.findById(colis._id)
-      .populate('voyage', 'from to date')
-      .populate('expediteur', 'name email numero');
-    
-    res.json({ 
-      success: true,
-      message: 'Colis annulé avec succès',
-      colis: updatedColis
-    });
-  } catch (error) {
-    console.error('Erreur lors de l\'annulation du colis:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Erreur lors de l\'annulation du colis',
-      error: error.message 
-    });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 

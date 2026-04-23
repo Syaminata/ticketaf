@@ -3,24 +3,20 @@ const Colis = require('../models/colis.model');
 const Voyage = require('../models/voyage.model');
 const User = require('../models/user.model');
 const Bus = require('../models/bus.model');
-const { sendNotification, cleanupInvalidTokens } = require('../services/notification.service');
+const { sendAndSaveNotification } = require('../services/notification.service');
 
 
 const createReservation = async (req, res) => {
   try {
-    const { voyageId, busId, ticket, quantity, description, delivery } = req.body;
+    const { voyageId, busId, ticket, quantity, description } = req.body;
 
-    
+
     if ( !ticket || !quantity) {
       return res.status(400).json({ message: 'type de ticket et quantité sont requis' });
     }
 
     if (!voyageId && !busId) {
       return res.status(400).json({ message: 'Au moins un voyage ou un bus doit être spécifié' });
-    }
-
-    if (voyageId && busId) {
-      return res.status(400).json({ message: 'Uniquement un voyage OU un bus peut être spécifié, pas les deux' });
     }
 
     const userId = req.user._id;
@@ -38,112 +34,93 @@ const createReservation = async (req, res) => {
     if (busId) {
       const bus = await Bus.findById(busId);
       if (!bus) return res.status(404).json({ message: 'Bus non trouvé' });
-      
-      // Vérifier si le bus est actif
+
       if (bus.isActive === false) {
         return res.status(400).json({ message: 'Ce bus n\'est pas disponible pour le moment' });
       }
-      
-      if (ticket === 'place' && (bus.availableSeats === undefined || bus.availableSeats === null)) {
-        await Bus.findByIdAndUpdate(busId, { availableSeats: bus.capacity });
-        bus.availableSeats = bus.capacity;
-      }
+
       if (ticket === 'place' && bus.availableSeats < quantity) {
         return res.status(400).json({ message: `Pas assez de places disponibles. Places restantes: ${bus.availableSeats}` });
       }
     }
 
-    // Créer la réservation
-    const reservationData = { user: userId, ticket, quantity };
+    // Verrouiller le prix au moment de la réservation
+    let lockedPrice = 0;
+    if (voyageId) {
+      const v = await Voyage.findById(voyageId);
+      if (v) lockedPrice = (v.price ?? 0) * quantity;
+    }
+    if (busId) {
+      const b = await Bus.findById(busId);
+      if (b) lockedPrice = (b.price ?? 0) * quantity;
+    }
+
+    const reservationData = { user: userId, ticket, quantity, lockedPrice };
     if (voyageId) reservationData.voyage = voyageId;
     if (busId) reservationData.bus = busId;
 
     const reservation = await Reservation.create(reservationData);
 
-    // NOTIFICATIONS METIER
+    // NOTIFICATIONS POUR VOYAGE (COVOITURAGE)
     if (ticket === 'place' && voyageId) {
-      const voyage = await Voyage.findById(voyageId)
-        .populate('driver');
+      const voyage = await Voyage.findById(voyageId).populate('driver');
 
-      if (voyage && voyage.driver) {
-        const driver = voyage.driver;
-
-        // Notification chauffeur : nouvelle réservation
-        console.log('🔍 Vérification notification chauffeur:', {
-          driverId: driver._id,
-          driverName: driver.name,
-          hasTokens: driver.fcmTokens && driver.fcmTokens.length > 0,
-          tokenCount: driver.fcmTokens?.length || 0,
-          tokens: driver.fcmTokens?.map(t => t.token.substring(0, 20) + '...') || []
-        });
-        
-        if (driver.fcmTokens && driver.fcmTokens.length > 0) {
-          const driverTokens = [...new Set(driver.fcmTokens.map(t => t.token))];
-          console.log('📤 Envoi notification chauffeur pour voyage:', voyage._id);
-          const result = await sendNotification(
-            driverTokens,
+      if (voyage) {
+        // Notification chauffeur (uniquement s'il existe)
+        if (voyage.driver) {
+          await sendAndSaveNotification(
+            voyage.driver._id,
             'Nouvelle réservation',
             `${user.name} a réservé ${quantity} place(s) sur ${voyage.from} → ${voyage.to}`,
             {
-              type: 'NEW_RESERVATION',
+              type: 'alert',
+              tripType: 'covoiturage',
               voyageId: voyage._id.toString(),
               reservationId: reservation._id.toString()
             }
           );
-          
-          // Nettoyer les tokens invalides
-          if (result.invalidTokens && result.invalidTokens.length > 0) {
-            await cleanupInvalidTokens(result.invalidTokens);
-          }
-        } else {
-          console.log('❌ Chauffeur sans token FCM - notification non envoyée');
         }
 
-        //Notification client : confirmation
-        if (user.fcmTokens && user.fcmTokens.length > 0) {
-          const userTokens = [...new Set(user.fcmTokens.map(t => t.token))];
-          const result = await sendNotification(
-            userTokens,
-            'Réservation confirmée',
-            `Votre place pour ${voyage.from} → ${voyage.to} est confirmée`,
-            {
-              type: 'RESERVATION_CONFIRMED',
-              voyageId: voyage._id.toString()
-            }
-          );
-          
-          // Nettoyer les tokens invalides
-          if (result.invalidTokens && result.invalidTokens.length > 0) {
-            await cleanupInvalidTokens(result.invalidTokens);
+        // Notification client (toujours envoyée, avec infos chauffeur)
+        await sendAndSaveNotification(
+          user._id,
+          'Réservation confirmée',
+          `Votre place pour ${voyage.from} → ${voyage.to} est confirmée`,
+          {
+            type: 'success',
+            tripType: 'covoiturage',
+            voyageId: voyage._id.toString(),
+            reservationId: reservation._id.toString(),
+            driverName: voyage.driver?.name || '',
+            driverPhone: voyage.driver?.numero || '',
+            driverMatricule: voyage.driver?.matricule || '',
+            driverMarque: voyage.driver?.marque || ''
           }
-        }
-
-        // Voyage plein
-        if (voyage.availableSeats - quantity === 0) {
-          await Voyage.findByIdAndUpdate(voyageId, { status: 'FULL' });
-
-          if (driver.fcmTokens && driver.fcmTokens.length > 0) {
-            const driverTokens = [...new Set(driver.fcmTokens.map(t => t.token))];
-            const result = await sendNotification(
-              driverTokens,
-              'Voyage complet',
-              'Toutes les places ont été réservées',
-              {
-                type: 'VOYAGE_FULL',
-                voyageId: voyage._id.toString()
-              }
-            );
-            
-            // Nettoyer les tokens invalides
-            if (result.invalidTokens && result.invalidTokens.length > 0) {
-              await cleanupInvalidTokens(result.invalidTokens);
-            }
-          }
-        }
+        );
       }
     }
 
-    // Créer le colis si ticket === 'colis'
+    // NOTIFICATIONS POUR BUS
+    if (ticket === 'place' && busId) {
+      const bus = await Bus.findById(busId);
+      if (bus) {
+        await sendAndSaveNotification(
+          user._id,
+          'Réservation Bus confirmée',
+          `Votre place dans le bus ${bus.name} pour ${bus.from} → ${bus.to} est confirmée`,
+          {
+            type: 'success',
+            tripType: 'bus',
+            busId: bus._id.toString(),
+            vehicleModel: bus.name || '',
+            licensePlate: bus.plateNumber || '',
+            agencyName: bus.name || ''
+          }
+        );
+      }
+    }
+
+    // NOTIFICATIONS POUR COLIS
     let colisDoc = null;
     if (ticket === 'colis') {
       if (!description) {
@@ -154,15 +131,21 @@ const createReservation = async (req, res) => {
         description,
         status: 'en attente'
       });
+
+      await sendAndSaveNotification(
+        user._id,
+        'Colis enregistré',
+        'Votre demande d\'envoi de colis est en attente de validation',
+        { type: 'info' }
+      );
     }
 
-    // Diminuer le nombre de places disponibles si ticket === place
+    // Mise à jour des places
     if (ticket === 'place') {
       if (voyageId) await Voyage.findByIdAndUpdate(voyageId, { $inc: { availableSeats: -quantity } });
       if (busId) await Bus.findByIdAndUpdate(busId, { $inc: { availableSeats: -quantity } });
     }
 
-    // Populate pour retourner les données complètes
     const populatedReservation = await Reservation.findById(reservation._id)
       .populate('user', '-password')
       .populate({
@@ -183,8 +166,6 @@ const createReservation = async (req, res) => {
   }
 };
 
-// GET ALL RESERVATIONS
-
 const getAllReservations = async (req, res) => {
   try {
     const reservations = await Reservation.find()
@@ -196,27 +177,11 @@ const getAllReservations = async (req, res) => {
       .populate('bus')
       .sort({ createdAt: -1 });
 
-    // Récupérer les descriptions de colis associées aux réservations (si existantes)
-    const reservationIds = reservations.map(r => r._id);
-    const colisList = await Colis.find({ reservation: { $in: reservationIds } })
-      .select('reservation description');
-    const colisByReservation = new Map(colisList.map(c => [String(c.reservation), c.description]));
-
-    const enriched = reservations.map(r => {
-      const obj = r.toObject();
-      obj.colisDescription = colisByReservation.get(String(r._id)) || null;
-      return obj;
-    });
-
-    res.status(200).json(enriched);
+    res.status(200).json(reservations);
   } catch (err) {
-    console.error('Erreur getAllReservations:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
-
-
-// GET RESERVATION BY ID
 
 const getReservationById = async (req, res) => {
   try {
@@ -228,87 +193,106 @@ const getReservationById = async (req, res) => {
       })
       .populate('bus');
     if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
-
-    const colis = await Colis.findOne({ reservation: reservation._id }).select('description');
-    const obj = reservation.toObject();
-    obj.colisDescription = colis ? colis.description : null;
-
-    res.status(200).json(obj);
+    res.status(200).json(reservation);
   } catch (err) {
-    console.error('Erreur getReservationById:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
-
-
-// UPDATE RESERVATION
 
 const updateReservation = async (req, res) => {
   try {
+    if (!['admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Action réservée aux administrateurs' });
+    }
     const reservation = await Reservation.findById(req.params.id);
-    if (!reservation) {
-      return res.status(404).json({ message: 'Réservation non trouvée' });
-    }
-
-    // Si pas admin/superadmin, vérifier que la réservation appartient au user
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      if (String(reservation.user) !== String(req.user._id)) {
-        return res.status(403).json({ message: 'Vous ne pouvez modifier que vos propres réservations' });
-      }
-    }
-
-    // Appliquer la mise à jour
+    if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
     Object.assign(reservation, req.body);
     await reservation.save();
-
-    const populated = await Reservation.findById(reservation._id)
-      .populate('user', '-password')
-      .populate({
-        path: 'voyage',
-        populate: { path: 'driver', select: '-password' }
-      })
-      .populate('bus');
-
-    res.status(200).json({ message: 'Réservation mise à jour', reservation: populated });
+    res.status(200).json({ message: 'Réservation mise à jour', reservation });
   } catch (err) {
-    console.error('Erreur updateReservation:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
-
-
-// DELETE RESERVATION
 
 const deleteReservation = async (req, res) => {
   try {
     const reservation = await Reservation.findById(req.params.id);
     if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
 
-    // Si pas admin/superadmin, vérifier que la réservation appartient au user
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      if (String(reservation.user) !== String(req.user._id)) {
-        return res.status(403).json({ message: 'Vous ne pouvez supprimer que vos propres réservations' });
-      }
-    }
-
-    // Remettre les places disponibles si ticket === 'place'
     if (reservation.ticket === 'place') {
       if (reservation.voyage) await Voyage.findByIdAndUpdate(reservation.voyage, { $inc: { availableSeats: reservation.quantity } });
       if (reservation.bus) await Bus.findByIdAndUpdate(reservation.bus, { $inc: { availableSeats: reservation.quantity } });
     }
 
     await Reservation.findByIdAndDelete(req.params.id);
-
-    if (reservation.ticket === 'colis') {
-      await Colis.deleteOne({ reservation: reservation._id });
-    }
+    if (reservation.ticket === 'colis') await Colis.deleteOne({ reservation: reservation._id });
 
     res.status(200).json({ message: 'Réservation supprimée' });
   } catch (err) {
-    console.error('Erreur deleteReservation:', err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+// PATCH /reservations/:id/cancel — utilisateur annule son propre ticket
+const cancelReservation = async (req, res) => {
+  try {
+    const reservation = await Reservation.findById(req.params.id)
+      .populate({ path: 'voyage', populate: { path: 'driver' } })
+      .populate('bus');
+
+    if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
+
+    // Vérification propriétaire (compatible Mongoose ObjectId et plain object)
+    const reservationUserId = reservation.user?._id?.toString() ?? reservation.user?.toString();
+    const requestUserId = req.user?._id?.toString() ?? req.user?.id?.toString();
+    if (reservationUserId !== requestUserId) {
+      return res.status(403).json({ message: 'Action non autorisée' });
+    }
+
+    if (reservation.status === 'annulé') {
+      return res.status(400).json({ message: 'Cette réservation est déjà annulée' });
+    }
+
+    // Changer le statut
+    reservation.status = 'annulé';
+    await reservation.save();
+
+    // Restituer les places
+    if (reservation.ticket === 'place') {
+      if (reservation.voyage) await Voyage.findByIdAndUpdate(reservation.voyage._id, { $inc: { availableSeats: reservation.quantity } });
+      if (reservation.bus) await Bus.findByIdAndUpdate(reservation.bus._id, { $inc: { availableSeats: reservation.quantity } });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    const from = reservation.voyage?.from || reservation.bus?.from || '';
+    const to = reservation.voyage?.to || reservation.bus?.to || '';
+    const trajet = from && to ? `${from} → ${to}` : 'votre trajet';
+
+    // Notification utilisateur (in-app + push)
+    await sendAndSaveNotification(
+      req.user._id,
+      'Réservation annulée ✓',
+      `Votre réservation ${trajet} a été annulée. ${reservation.quantity} place(s) libérée(s).`,
+      { type: 'info', reservationId: reservation._id.toString(), screen: 'tickets' }
+    );
+
+    // Notification chauffeur covoiturage (in-app + push)
+    if (reservation.voyage?.driver) {
+      const driver = reservation.voyage.driver;
+      await sendAndSaveNotification(
+        driver._id,
+        'Annulation de réservation',
+        `${user?.name || 'Un passager'} a annulé ${reservation.quantity} place(s) sur ${trajet}.`,
+        { type: 'alert', reservationId: reservation._id.toString(), voyageId: reservation.voyage._id.toString() }
+      );
+    }
+
+    res.status(200).json({ message: 'Réservation annulée', reservation });
+  } catch (err) {
+    console.error('Erreur cancelReservation:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
 
-module.exports = {createReservation,getAllReservations, getReservationById,updateReservation,deleteReservation};
-
+module.exports = { createReservation, getAllReservations, getReservationById, updateReservation, deleteReservation, cancelReservation };

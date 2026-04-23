@@ -191,7 +191,7 @@ export default function Drivers() {
         [name]: type === 'checkbox' ? checked : value 
       }));
     }
-    
+
     // Debug pour la climatisation
     if (name === 'climatisation') {
       console.log('Climatisation changée:', checked);
@@ -239,10 +239,10 @@ export default function Drivers() {
     try {
       // Créer FormData pour gérer les fichiers
       const formDataToSubmit = new FormData();
-      
+
       // Debug pour la climatisation
       console.log('FormData climatisation avant envoi:', formData.climatisation);
-      
+
       // Ajouter tous les champs du formulaire
       console.log('Données du formulaire avant envoi:', formData);
       Object.keys(formData).forEach(key => {
@@ -270,10 +270,10 @@ export default function Drivers() {
       }
 
       let updatedDriver;
-      
+
       if (editDriver) {
         console.log("Mise à jour du conducteur:", editDriver._id);
-        const response = await axios.put(`/drivers/${editDriver._id}`, formDataToSubmit, { 
+        const response = await axios.put(`/drivers/${editDriver._id}`, formDataToSubmit, {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
@@ -282,12 +282,12 @@ export default function Drivers() {
         console.log("Réponse mise à jour:", response.data);
         updatedDriver = response.data.driver;
         setSuccess('Conducteur mis à jour avec succès');
-        
+
         // Mise à jour optimiste de l'interface
-        setDrivers(prevDrivers => 
-          prevDrivers.map(driver => 
-            driver._id === editDriver._id 
-              ? { ...driver, ...updatedDriver } 
+        setDrivers(prevDrivers =>
+          prevDrivers.map(driver =>
+            driver._id === editDriver._id
+              ? { ...driver, ...updatedDriver }
               : driver
           )
         );
@@ -295,16 +295,13 @@ export default function Drivers() {
         window.dispatchEvent(new CustomEvent('driverUpdated', { detail: updatedDriver }));
       } else {
         console.log("Création d'un nouveau conducteur");
-        const response = await axios.post('/drivers', formDataToSubmit, { 
+        const response = await axios.post('/drivers', formDataToSubmit, {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           } 
         });
         setSuccess('Conducteur créé avec succès');
-        
-        // Ajout du nouveau conducteur à la liste
-        setDrivers(prevDrivers => [...prevDrivers, response.data.driver]);
       }
 
       console.log("Succès de l'opération");
@@ -319,7 +316,7 @@ export default function Drivers() {
     } catch (err) {
       console.error("Erreur soumission :", err);
       console.error("Détails de l'erreur:", err.response?.data);
-      
+
       if (err.response?.status === 401) {
         setError("Session expirée. Veuillez vous reconnecter.");
         sessionStorage.removeItem('token');
@@ -457,7 +454,7 @@ export default function Drivers() {
       }
       
       // Récupérer les données complètes du conducteur depuis la route /stats/top-drivers
-      const response = await axios.get(`/stats/top-drivers`, { 
+      const response = await axios.get(`/stats/top-drivers`, {
         headers: { Authorization: `Bearer ${token}` } 
       });
       
@@ -680,46 +677,46 @@ export default function Drivers() {
             }
           }}>
             <TableRow>
-              <TableCell sx={{ 
-                color: '#1a1a1a', 
+              <TableCell sx={{
+                color: '#1a1a1a',
                 fontWeight: 700,
                 fontSize: '16px'
               }}>
                 Chauffeur
               </TableCell>
-              
-              <TableCell sx={{ 
-                color: '#1a1a1a', 
+
+              <TableCell sx={{
+                color: '#1a1a1a',
                 fontWeight: 700,
                 fontSize: '16px'
               }}>
                 Numero
               </TableCell>
-              <TableCell sx={{ 
-                color: '#1a1a1a', 
+              <TableCell sx={{
+                color: '#1a1a1a',
                 fontWeight: 700,
                 fontSize: '16px'
               }}>
                 Véhicule
               </TableCell>
-              <TableCell sx={{ 
-                color: '#1a1a1a', 
+              <TableCell sx={{
+                color: '#1a1a1a',
                 fontWeight: 700,
                 fontSize: '16px',
                 textAlign: 'center'
               }}>
                 Documents
               </TableCell>
-              <TableCell sx={{ 
-                color: '#1a1a1a', 
+              <TableCell sx={{
+                color: '#1a1a1a',
                 fontWeight: 700,
                 fontSize: '16px',
                 textAlign: 'center'
               }}>
                 Status
               </TableCell>
-              <TableCell sx={{ 
-                color: '#1a1a1a', 
+              <TableCell sx={{
+                color: '#1a1a1a',
                 fontWeight: 700,
                 fontSize: '16px',
                 textAlign: 'center'
@@ -755,7 +752,7 @@ export default function Drivers() {
                     )}
                     <Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography sx={{ 
+                        <Typography sx={{
                           fontWeight: 600,
                           color: '#1a1a1a',
                           fontSize: '16px'
@@ -763,10 +760,10 @@ export default function Drivers() {
                           {driver.name}
                         </Typography>
                         {driver.isPinned && (
-                          <Chip 
-                            label="Recommandé" 
+                          <Chip
+                            label="Recommandé"
                             size="small"
-                            sx={{ 
+                            sx={{
                               backgroundColor: '#fff8e1',
                               color: '#ffcc33',
                               fontWeight: 600,
@@ -779,7 +776,7 @@ export default function Drivers() {
                     </Box>
                   </Box>
                 </TableCell>
-                
+
                 <TableCell>
                   <Typography sx={{ fontWeight: 600, color: '#1a1a1a', fontSize: '15px' }}>
                     {driver.numero}
@@ -802,7 +799,7 @@ export default function Drivers() {
                         <IconButton
                           size="small"
                           onClick={() => handleViewFile(driver.permis[0], 'permis')}
-                          sx={{ 
+                          sx={{
                             color: '#ffcc33',
                             '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' }
                           }}
@@ -812,7 +809,7 @@ export default function Drivers() {
                         <IconButton
                           size="small"
                           onClick={() => handleDownloadFile(driver.permis[0], 'permis')}
-                          sx={{ 
+                          sx={{
                             color: '#4caf50',
                             '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.1)' }
                           }}
@@ -829,7 +826,7 @@ export default function Drivers() {
                         <IconButton
                           size="small"
                           onClick={() => handleViewFile(driver.photo[0], 'photo')}
-                          sx={{ 
+                          sx={{
                             color: '#ffcc33',
                             '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' }
                           }}
@@ -839,7 +836,7 @@ export default function Drivers() {
                         <IconButton
                           size="small"
                           onClick={() => handleDownloadFile(driver.photo[0], 'photo')}
-                          sx={{ 
+                          sx={{
                             color: '#4caf50',
                             '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.1)' }
                           }}
@@ -880,12 +877,12 @@ export default function Drivers() {
                     <IconButton
                       onClick={() => handlePinDriver(driver._id, driver.isPinned)}
                       size="small"
-                      sx={{ 
+                      sx={{
                         color: driver.isPinned ? '#ffcc33' : '#ccc',
-                        '&:hover': { 
-                          backgroundColor: driver.isPinned 
-                            ? 'rgba(255, 204, 51, 0.1)' 
-                            : 'rgba(204, 204, 204, 0.1)' 
+                        '&:hover': {
+                          backgroundColor: driver.isPinned
+                            ? 'rgba(255, 204, 51, 0.1)'
+                            : 'rgba(204, 204, 204, 0.1)'
                         }
                       }}
                       title={driver.isPinned ? 'Désépingler ce chauffeur' : 'Épingler ce chauffeur'}
@@ -912,20 +909,20 @@ export default function Drivers() {
                     >
                       Voir détails
                     </Button>
-                    <IconButton 
+                    <IconButton
                       onClick={() => handleOpen(driver)}
                       size="small"
-                      sx={{ 
+                      sx={{
                         color: '#ffcc33',
                         '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' }
                       }}
                     >
                       <Edit fontSize="small" />
                     </IconButton>
-                    <IconButton 
+                    <IconButton
                       onClick={() => handleDelete(driver._id)}
                       size="small"
-                      sx={{ 
+                      sx={{
                         color: '#f44336',
                         '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' }
                       }}
@@ -954,8 +951,8 @@ export default function Drivers() {
         />
       </Paper>
 
-      <Dialog 
-        open={open} 
+      <Dialog
+        open={open}
         onClose={handleClose}
         maxWidth="sm"
         fullWidth
@@ -966,7 +963,7 @@ export default function Drivers() {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle sx={{
           borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
@@ -976,11 +973,11 @@ export default function Drivers() {
         }}>
           {editDriver ? 'Modifier le chauffeur' : 'Ajouter un nouveau chauffeur'}
         </DialogTitle>
-        <DialogContent sx={{ 
+        <DialogContent sx={{
           p: 3,
           backgroundColor: '#ffffff'
         }}>
-          <Box sx={{ 
+          <Box sx={{
             display: 'grid',
             gridTemplateColumns: 'repeat(2, 1fr)',
             gap: 2.5,
@@ -1199,7 +1196,7 @@ export default function Drivers() {
             />
             {/* Ligne 4: Capacité coffre et Mot de passe */}
             <FormControl fullWidth required>
-              <InputLabel sx={{ 
+              <InputLabel sx={{
                 '&.Mui-focused': {
                   color: '#ffcc33',
                 }
@@ -1262,7 +1259,7 @@ export default function Drivers() {
                 },
               }}
             />
-            
+
             {/* Ligne 5: Climatisation  */}
             <FormControlLabel
               control={
@@ -1287,16 +1284,16 @@ export default function Drivers() {
                 }
               }}
             />
-            
+
             {/* Upload du permis (pleine largeur) */}
             <FormControl fullWidth sx={{ gridColumn: 'span 2' }}>
-              <InputLabel sx={{ 
+              <InputLabel sx={{
                 color: '#ffcc33',
                 '&.Mui-focused': {
                   color: '#ffcc33',
                 }
               }}>
-                
+
               </InputLabel>
               <Box sx={{ mt: 1 }}>
                 <input
@@ -1326,10 +1323,10 @@ export default function Drivers() {
                 </label>
               </Box>
             </FormControl>
-            
+
             {/* Upload de la photo (pleine largeur) */}
             <FormControl fullWidth sx={{ gridColumn: 'span 2' }}>
-              <InputLabel sx={{ 
+              <InputLabel sx={{
                 color: '#ffcc33',
                 '&.Mui-focused': {
                   color: '#ffcc33',
@@ -1364,12 +1361,12 @@ export default function Drivers() {
                 </label>
               </Box>
             </FormControl>
-            
+
             {error && (
-              <Box sx={{ 
+              <Box sx={{
                 gridColumn: 'span 2',
-                p: 2, 
-                backgroundColor: '#ffebee', 
+                p: 2,
+                backgroundColor: '#ffebee',
                 borderRadius: '8px',
                 border: '1px solid #f44336'
               }}>
@@ -1380,12 +1377,12 @@ export default function Drivers() {
             )}
           </Box>
         </DialogContent>
-        <DialogActions sx={{ 
-          p: 3, 
+        <DialogActions sx={{
+          p: 3,
           backgroundColor: '#f8f9fa',
           gap: 2
         }}>
-          <Button 
+          <Button
             onClick={handleClose}
             sx={{
               color: '#666666',
@@ -1397,8 +1394,8 @@ export default function Drivers() {
           >
             Annuler
           </Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             variant="contained"
             disabled={loading}
             sx={{
@@ -1446,7 +1443,7 @@ export default function Drivers() {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle sx={{
           borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
@@ -1463,8 +1460,8 @@ export default function Drivers() {
                 {fileViewer.file.originalName}
               </Typography>
               {fileViewer.file.filename && (
-                <Box sx={{ 
-                  border: '1px solid #e0e0e0', 
+                <Box sx={{
+                  border: '1px solid #e0e0e0',
                   borderRadius: '8px',
                   overflow: 'hidden',
                   maxHeight: '60vh'
@@ -1495,7 +1492,7 @@ export default function Drivers() {
                       title={fileViewer.file.originalName}
                     />
                   )}
-                  <Box sx={{ 
+                  <Box sx={{
                     display: 'none',
                     p: 3,
                     textAlign: 'center',
@@ -1513,12 +1510,12 @@ export default function Drivers() {
             </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{ 
-          p: 2, 
+        <DialogActions sx={{
+          p: 2,
           backgroundColor: '#f8f9fa',
           gap: 2
         }}>
-          <Button 
+          <Button
             onClick={() => setFileViewer({ open: false, file: null, type: null })}
             sx={{
               color: '#666666',
@@ -1531,7 +1528,7 @@ export default function Drivers() {
             Fermer
           </Button>
           {fileViewer.file && (
-            <Button 
+            <Button
               onClick={() => handleDownloadFile(fileViewer.file, fileViewer.type)}
               variant="contained"
               startIcon={<Download />}
@@ -1555,8 +1552,8 @@ export default function Drivers() {
       </Dialog>
 
       {/* Dialogue des détails du conducteur */}
-      <Dialog 
-        open={detailsDialog.open} 
+      <Dialog
+        open={detailsDialog.open}
         onClose={handleCloseDetailsDialog}
         maxWidth="sm"
         fullWidth
@@ -1568,7 +1565,7 @@ export default function Drivers() {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle sx={{
           borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
@@ -1581,16 +1578,16 @@ export default function Drivers() {
             Détails du chauffeur
           </Box>
         </DialogTitle>
-        
+
         <DialogContent sx={{ p: 0 }}>
           {detailsDialog.driver && (
             <Box>
               {/* Section Informations personnelles */}
               <Box sx={{ p: 4, borderBottom: '1px solid #f0f0f0' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="h6" sx={{ 
-                    color: '#1a1a1a', 
-                    fontWeight: 600, 
+                  <Typography variant="h6" sx={{
+                    color: '#1a1a1a',
+                    fontWeight: 600,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1
@@ -1599,18 +1596,18 @@ export default function Drivers() {
                     Informations personnelles
                   </Typography>
                 </Box>
-                
+
                 <Box sx={{ display: 'grid', gap: 2, mt: 2 }}>
                   <InfoRow label="Nom complet">
                     <Typography sx={{ fontWeight: 500 }}>{detailsDialog.driver.name}</Typography>
                   </InfoRow>
-                  
+
                   <InfoRow label="Email">
                     <Typography sx={{ color: detailsDialog.driver.email ? '#1a1a1a' : '#999999' }}>
                       {detailsDialog.driver.email || 'Non renseigné'}
                     </Typography>
                   </InfoRow>
-                  
+
                   <InfoRow label="Téléphone">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography sx={{ fontWeight: 500 }}>
@@ -1618,13 +1615,13 @@ export default function Drivers() {
                       </Typography>
                     </Box>
                   </InfoRow>
-                  
+
                   <InfoRow label="Matricule">
                     <Typography sx={{ fontWeight: 500 }}>
                       {detailsDialog.driver.matricule || 'Non renseigné'}
                     </Typography>
                   </InfoRow>
-                  
+
                   <InfoRow label="Adresse">
                     <Typography sx={{ fontWeight: 500 }}>
                       {detailsDialog.driver.address || 'Non renseignée'}
@@ -1632,13 +1629,13 @@ export default function Drivers() {
                   </InfoRow>
                 </Box>
               </Box>
-              
+
               {/* Section Informations du véhicule */}
               <Box sx={{ p: 4, borderBottom: '1px solid #f0f0f0' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="h6" sx={{ 
-                    color: '#1a1a1a', 
-                    fontWeight: 600, 
+                  <Typography variant="h6" sx={{
+                    color: '#1a1a1a',
+                    fontWeight: 600,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1
@@ -1647,29 +1644,29 @@ export default function Drivers() {
                     Informations du véhicule
                   </Typography>
                 </Box>
-                
+
                 <Box sx={{ display: 'grid', gap: 2, mt: 2 }}>
                   <InfoRow label="Marque et modèle">
                     <Typography sx={{ fontWeight: 500 }}>
                       {detailsDialog.driver.marque || 'Non renseigné'}
                     </Typography>
                   </InfoRow>
-                  
+
                   <InfoRow label="Capacité">
                     <Typography sx={{ fontWeight: 500 }}>
                       {detailsDialog.driver.capacity ? `${detailsDialog.driver.capacity} places` : 'Non renseigné'}
                     </Typography>
                   </InfoRow>
-                  
+
                   <InfoRow label="Capacité du coffre">
                     <Typography sx={{ fontWeight: 500, textTransform: 'capitalize' }}>
                       {detailsDialog.driver.capacity_coffre || 'Non renseigné'}
                     </Typography>
                   </InfoRow>
-                  
+
                   <InfoRow label="Climatisation">
-                    <Chip 
-                      label={detailsDialog.driver.climatisation ? 'Oui' : 'Non'} 
+                    <Chip
+                      label={detailsDialog.driver.climatisation ? 'Oui' : 'Non'}
                       color={detailsDialog.driver.climatisation ? 'success' : 'default'}
                       size="small"
                       sx={{ fontWeight: 600 }}
@@ -1677,13 +1674,13 @@ export default function Drivers() {
                   </InfoRow>
                 </Box>
               </Box>
-              
+
               {/* Section Statistiques */}
               <Box sx={{ p: 4 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="h6" sx={{ 
-                    color: '#1a1a1a', 
-                    fontWeight: 600, 
+                  <Typography variant="h6" sx={{
+                    color: '#1a1a1a',
+                    fontWeight: 600,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1
@@ -1692,18 +1689,18 @@ export default function Drivers() {
                     Statistiques
                   </Typography>
                 </Box>
-                
+
                 <Box sx={{ display: 'grid', gap: 2, mt: 2 }}>
                   <InfoRow label="Nombre de collaboration">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Chip 
-                        label={detailsDialog.driver.tripCount || 0} 
+                      <Chip
+                        label={detailsDialog.driver.tripCount || 0}
                         variant="outlined"
-                        sx={{ 
-                          fontWeight: 'bold', 
-                          minWidth: '40px', 
+                        sx={{
+                          fontWeight: 'bold',
+                          minWidth: '40px',
                           justifyContent: 'center',
-                          borderColor: '#C26E60', 
+                          borderColor: '#C26E60',
                           color: '#D4710F'
                         }}
                       />
@@ -1717,13 +1714,13 @@ export default function Drivers() {
             </Box>
           )}
         </DialogContent>
-        
-        <DialogActions sx={{ 
-          p: 3, 
+
+        <DialogActions sx={{
+          p: 3,
           backgroundColor: '#f8f9fa',
           borderTop: '1px solid #e0e0e0'
         }}>
-          <Button 
+          <Button
             onClick={handleCloseDetailsDialog}
             variant="contained"
             sx={{

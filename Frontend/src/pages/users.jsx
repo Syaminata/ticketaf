@@ -25,7 +25,7 @@ import {
   Menu,
   Tooltip
 } from '@mui/material';
-import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search as SearchIcon, FilterList as FilterIcon, LocationOn } from '@mui/icons-material';
+import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search as SearchIcon, FilterList as FilterIcon, LocationOn, RestoreFromTrash } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import storage from '../utils/storage';
 
@@ -296,6 +296,19 @@ export default function Users() {
     }
   };
 
+
+  const handleRestore = async (id) => {
+    const token = sessionStorage.getItem('token');
+    if (!token) return setError("Authentification nécessaire.");
+    try {
+      await axios.post(`/users/${id}/restore-deletion`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      setSuccess('Compte restauré avec succès');
+      fetchUsers();
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err) {
+      setError("Erreur lors de la restauration du compte.");
+    }
+  };
 
   const getRoleLabel = (role) => {
     switch (role) {
@@ -625,12 +638,18 @@ export default function Users() {
                     }}>
                       <Person />
                     </Avatar>
-                    <Typography sx={{ 
-                      fontWeight: 600,
-                      color: '#1a1a1a'
-                    }}>
-                      {user.name}
-                    </Typography>
+                    <Box>
+                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                        {user.name}
+                      </Typography>
+                      {user.pendingDeletion && (
+                        <Chip
+                          label="Suppression en attente"
+                          size="small"
+                          sx={{ backgroundColor: '#ff9800', color: 'white', fontSize: '10px', height: '18px', mt: 0.5 }}
+                        />
+                      )}
+                    </Box>
                   </Box>
                 </TableCell>
                 <TableCell sx={{ color: '#666666' }}>
@@ -709,15 +728,26 @@ export default function Users() {
                   >
                     <Edit />
                   </IconButton>
-                  <IconButton 
-                    onClick={() => handleDelete(user._id)}
-                    sx={{ 
-                      color: '#f44336',
-                      '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' }
-                    }}
-                  >
-                    <Delete />
-                  </IconButton>
+                  {user.pendingDeletion ? (
+                    <Tooltip title="Restaurer le compte" arrow>
+                      <IconButton
+                        onClick={() => handleRestore(user._id)}
+                        sx={{ color: '#ff9800', '&:hover': { backgroundColor: 'rgba(255, 152, 0, 0.1)' } }}
+                      >
+                        <RestoreFromTrash />
+                      </IconButton>
+                    </Tooltip>
+                  ) : (
+                    <IconButton
+                      onClick={() => handleDelete(user._id)}
+                      sx={{
+                        color: '#f44336',
+                        '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' }
+                      }}
+                    >
+                      <Delete />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

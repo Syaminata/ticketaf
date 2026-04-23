@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { reservationsAPI } from '../api/reservations';
+import API_BASE_URL from '../config/api';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import {
   Box,
@@ -324,7 +325,7 @@ export default function Reservations() {
     setNewUserLoading(true);
     try {
       const token = sessionStorage.getItem('token');
-      const resp = await fetch('https://ticket-taf.itea.africa/api/users', {
+      const resp = await fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(newUserData)

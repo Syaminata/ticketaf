@@ -83,6 +83,19 @@ export const colisAPI = {
     return response.data;
   },
 
+  // Fixer le prix d'un colis (admin/gestionnaire colis uniquement)
+  updateColisPrix: async (id, prix) => {
+    const token = sessionStorage.getItem('token');
+    const response = await axios.put(
+      `/colis/${id}/prix`,
+      { prix },
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+    return response.data;
+  },
+
   // Récupérer les statistiques des colis
   getColisStats: async () => {
     const token = sessionStorage.getItem('token');

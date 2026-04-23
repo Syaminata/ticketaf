@@ -1,12 +1,51 @@
 const express = require('express');
 const router = express.Router();
-const { sendNotification, cleanupInvalidTokens } = require('../services/notification.service');
+const { sendNotification, sendAndSaveNotification, cleanupInvalidTokens, sendDayJNotifications } = require('../services/notification.service');
 const User = require('../models/user.model');
 const NotificationLog = require('../models/notifications.model');
 const { auth, adminAuth } = require('../middleware/auth');
 const UserNotification = require('../models/userNotification.model');
 
-
+/**
+ * @swagger
+ * /notifications/send:
+ *   post:
+ *     summary: Envoyer une notification FCM
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - target
+ *               - title
+ *               - body
+ *             properties:
+ *               target:
+ *                 type: string
+ *                 enum: [all, clients, drivers, specific]
+ *                 description: Cible des destinataires
+ *               userId:
+ *                 type: string
+ *                 description: ID de l'utilisateur cible (requis si target=specific)
+ *               title:
+ *                 type: string
+ *                 description: Titre de la notification
+ *               body:
+ *                 type: string
+ *                 description: Contenu de la notification
+ *               type:
+ *                 type: string
+ *                 description: Type de notification (optionnel, défaut ADMIN_MESSAGE)
+ *                 default: ADMIN_MESSAGE
+ *     responses:
+ *       200:
+ *         description: Notification envoyée avec succès
+ */
 router.post('/send', auth, adminAuth, async (req, res) => {
   try {
     const { target, userId, title, body, type } = req.body;
@@ -28,7 +67,6 @@ router.post('/send', auth, adminAuth, async (req, res) => {
           usersCibles.push(user);
           user.fcmTokens.forEach(t => tokens.push(t.token));
         });
-        // Dédupliquer les tokens
         tokens = [...new Set(tokens)];
         break;
       }
@@ -42,7 +80,6 @@ router.post('/send', auth, adminAuth, async (req, res) => {
           usersCibles.push(user);
           user.fcmTokens.forEach(t => tokens.push(t.token));
         });
-        // Dédupliquer les tokens
         tokens = [...new Set(tokens)];
         targetDescription = 'Clients';
         break;
@@ -57,7 +94,6 @@ router.post('/send', auth, adminAuth, async (req, res) => {
           usersCibles.push(user);
           user.fcmTokens.forEach(t => tokens.push(t.token));
         });
-        // Dédupliquer les tokens
         tokens = [...new Set(tokens)];
         targetDescription = 'Chauffeurs';
         break;
@@ -71,7 +107,6 @@ router.post('/send', auth, adminAuth, async (req, res) => {
         if (user && user.fcmTokens.length > 0) {
           usersCibles.push(user);
           user.fcmTokens.forEach(t => tokens.push(t.token));
-          // Dédupliquer les tokens
           tokens = [...new Set(tokens)];
           targetDescription = `Utilisateur ${user.name}`;
         }
@@ -82,43 +117,28 @@ router.post('/send', auth, adminAuth, async (req, res) => {
         return res.status(400).json({ message: 'Cible non valide' });
     }
 
-    if (!tokens.length || !usersCibles.length) {
+    if (!usersCibles.length) {
       return res.status(404).json({ message: 'Aucun destinataire trouvé' });
     }
 
-    // 1 Créer les notifications utilisateur
-    const UserNotification = require('../models/userNotification.model');
-
-    const createdNotifications = await Promise.all(
-      usersCibles.map(user =>
-        UserNotification.create({
-          user: user._id,
-          title,
-          body,
-          type: type || 'ADMIN_MESSAGE'
-        })
-      )
-    );
-
-    // 2 Envoyer FCM avec navigation
+    // Utilise sendAndSaveNotification pour :
+    // - créer un UserNotification par utilisateur avec son propre _id
+    // - émettre via Socket.IO
+    // - envoyer le push FCM avec les données correctement stringify et le bon notificationId
     try {
-      const result = await sendNotification(tokens, title, body, {
-        type: type || 'ADMIN_MESSAGE',
-        screen: 'notifications',
-        notificationId: createdNotifications[0]._id.toString()
-      });
-      sentCount = result.successCount;
-      
-      // Nettoyer les tokens invalides
-      if (result.invalidTokens && result.invalidTokens.length > 0) {
-        await cleanupInvalidTokens(result.invalidTokens);
-      }
+      const userIds = usersCibles.map(u => u._id);
+      const result = await sendAndSaveNotification(
+        userIds,
+        title,
+        body,
+        { type: type || 'ADMIN_MESSAGE', screen: 'notifications' }
+      );
+      sentCount = result.saved ? userIds.length : 0;
     } catch (error) {
-      failedCount = tokens.length;
-      console.error('Erreur envoi notification:', error);
+      failedCount = usersCibles.length;
+      console.error('Erreur envoi notification admin:', error);
     }
 
-    // 3 Log admin
     const log = await NotificationLog.create({
       title,
       body,
@@ -133,7 +153,7 @@ router.post('/send', auth, adminAuth, async (req, res) => {
       message: 'Notification envoyée avec succès',
       sent: sentCount,
       failed: failedCount,
-      total: tokens.length,
+      total: usersCibles.length,
       logId: log._id
     });
 
@@ -147,9 +167,9 @@ router.get('/history', auth, adminAuth, async (req, res) => {
   try {
     const logs = await NotificationLog.find()
       .populate('sentBy', 'name email')
-      .sort({ createdAt: -1 }) 
-      .limit(100); 
-    
+      .sort({ createdAt: -1 })
+      .limit(100);
+
     res.json({ logs });
   } catch (error) {
     console.error('Erreur notification history:', error);
@@ -185,11 +205,111 @@ router.get('/stats', auth, adminAuth, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /notifications/my:
+ *   get:
+ *     summary: Récupérer TOUTES les notifications de l'utilisateur (historique complet)
+ *     tags: [Notifications]
+ */
 router.get('/my', auth, async (req, res) => {
-  const notifs = await UserNotification.find({ user: req.user._id })
-    .sort({ createdAt: -1 });
+  try {
+    // Suppression de la limite des 24h pour permettre à l'utilisateur de retrouver TOUT son historique
+    const notifs = await UserNotification.find({
+      user: req.user._id
+    }).sort({ createdAt: -1 });
 
-  res.json(notifs);
+    res.json(notifs);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+});
+
+router.get('/my/unread', auth, async (req, res) => {
+  try {
+    const notifs = await UserNotification.find({
+      user: req.user._id,
+      read: false
+    }).sort({ createdAt: -1 });
+    res.json(notifs);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+});
+
+router.get('/my/unread-count', auth, async (req, res) => {
+  try {
+    const count = await UserNotification.countDocuments({
+      user: req.user._id,
+      read: false
+    });
+    res.json({ count });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+});
+
+router.get('/:id', auth, async (req, res) => {
+  try {
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: 'ID de notification invalide' });
+    }
+
+    const notif = await UserNotification.findOne({
+      _id: req.params.id,
+      user: req.user._id
+    });
+
+    if (!notif) {
+      return res.status(404).json({ message: 'Notification non trouvée' });
+    }
+
+    res.json(notif);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+});
+
+router.put('/:id/read', auth, async (req, res) => {
+  try {
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: 'ID de notification invalide' });
+    }
+
+    const notif = await UserNotification.findOne({
+      _id: req.params.id,
+      user: req.user._id
+    });
+
+    if (!notif) {
+      return res.status(404).json({ message: 'Notification non trouvée' });
+    }
+
+    if (!notif.read) {
+      notif.read = true;
+      notif.readAt = new Date();
+      await notif.save();
+    }
+
+    res.json(notif);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+});
+
+router.post('/dayj/send', auth, adminAuth, async (req, res) => {
+  try {
+    const result = await sendDayJNotifications();
+    res.json({
+      message: 'Notifications du jour J traitées avec succès',
+      processed: result.processed
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Erreur lors du traitement des notifications du jour J',
+      error: error.message
+    });
+  }
 });
 
 module.exports = router;

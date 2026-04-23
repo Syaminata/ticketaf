@@ -29,7 +29,10 @@ const reservationController = require('../controllers/reservation.controller');
 router.get('/me', auth, async (req, res) => {
   try {
     const reservations = await Reservation.find({ user: req.user.id })
-      .populate('voyage')
+      .populate({
+        path: 'voyage',
+        populate: { path: 'driver', select: '-password -permis -photo', model: 'Driver' }
+      })
       .populate('bus')
       .populate('user', '-password');
     res.json(reservations);
@@ -334,6 +337,9 @@ router.put('/:id', auth, reservationController.updateReservation);
  *       404:
  *         description: Réservation non trouvée
  */
-router.delete('/:id', auth, reservationController.deleteReservation);
+router.delete('/:id', auth, adminAuth, reservationController.deleteReservation);
+
+// Annulation par l'utilisateur (change status → 'annulé' + notifications)
+router.patch('/:id/cancel', auth, reservationController.cancelReservation);
 
 module.exports = router;

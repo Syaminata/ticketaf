@@ -20,6 +20,8 @@ const annonceRoutes = require('./routes/annonce.routes');
 const colisRoutes = require('./routes/colis.routes');
 const villeRoutes = require('./routes/ville.routes');
 const notificationsRoutes = require('./routes/notifications.routes');
+const appContentRoutes = require('./routes/appContent.routes');
+const faqRoutes = require('./routes/faq.routes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const otpRoutes = require('./routes/otp.routes');
@@ -62,8 +64,29 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *                   type: string
  *                   format: date-time
  */
+const admin = require('./config/firebase');
+
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Serveur backend fonctionne!', timestamp: new Date() });
+});
+
+/**
+ * @swagger
+ * /test-firebase:
+ *   get:
+ *     summary: Teste la connexion à Firebase
+ *     tags: [Test]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Statut Firebase
+ */
+app.get('/api/test-firebase', (req, res) => {
+  res.json({
+    message: 'Firebase',
+    firebaseAvailable: admin.isAvailable,
+    timestamp: new Date()
+  });
 });
 
 // -----------------
@@ -200,7 +223,6 @@ app.get('/api/buses/me', auth, busController.getMyBuses);
  *         description: Bus non trouvé
  */
 app.get('/api/buses/:id', validateObjectId, busController.getBusById);
-app.get('/api/buses', busController.searchBuses);
 /**
  * @swagger
  * /buses/{id}:
@@ -271,7 +293,7 @@ app.put('/api/buses/:id', auth, validateObjectId, busController.updateBus);
  */
 app.put('/api/bus/:id/activate', auth, busController.activateBus);
 app.put('/api/bus/:id/deactivate', auth, busController.deactivateBus);
-app.delete('/api/buses/:id', validateObjectId, busController.deleteBus);
+app.delete('/api/buses/:id', auth, validateObjectId, busController.deleteBus);
 
 // -----------------
 // Voyage Routes
@@ -284,7 +306,7 @@ app.use('/api/voyages', voyageRoutes);
 app.use('/api/stats', statsRoutes);
 
 // -----------------
-// Reservation Routes (Chart endpoint)
+// Reservation Routes
 // -----------------
 app.use('/api/reservations', reservationRoutes);
 
@@ -311,6 +333,15 @@ app.use('/api/villes', villeRoutes);
 // OTP reénitialisation de mot de passe
 app.use('/api/otp', otpRoutes);
 
+// -----------------
+// App Content Routes
+// -----------------
+app.use('/api/app-content', appContentRoutes);
+
+// -----------------
+// FAQ Routes
+// -----------------
+app.use('/api/faqs', faqRoutes);
 
 
 // Catch-all

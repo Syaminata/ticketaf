@@ -2,4 +2,7 @@ node_modules/
 .env
 /dist
 /build
+/uploads
+OPENAPI_AUDIT.md
+
 firebase-service-account.json

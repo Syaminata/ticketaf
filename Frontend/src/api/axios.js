@@ -1,11 +1,15 @@
 import axios from "axios";
 
-// Prefer env value, fallback to production instance URL
-const root = (import.meta.env.VITE_API_URL || "https://ticket-taf.itea.africa").replace(/\/$/, "");
+// Get the API base URL from environment or use development default
+// VITE_API_URL should include /api already (e.g., http://localhost:3000/api)
+const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+
+console.log('🔧 Axios Base URL:', apiBaseUrl);
 
 export default axios.create({
-  baseURL: `${root}/api`,
+  baseURL: apiBaseUrl,
   headers: {
     "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true",
   },
 });

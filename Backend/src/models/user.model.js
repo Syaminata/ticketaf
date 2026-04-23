@@ -1,7 +1,5 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const { type } = require('os');
-
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { 
@@ -23,7 +21,21 @@ const userSchema = new mongoose.Schema({
       platform: { type: String, enum: ['android', 'ios', 'web'] },
       lastActive: { type: Date, default: Date.now }
     }
-  ]
+  ],
+  welcomeNotificationSent: {
+    type: Boolean,
+    default: false
+  },
+  firstLoginDate: {
+    type: Date
+  },
+  pendingDeletion: {
+    type: Boolean,
+    default: false
+  },
+  deletionScheduledAt: {
+    type: Date
+  }
 }, { timestamps: true });
 
 // Hash du mot de passe avant sauvegarde

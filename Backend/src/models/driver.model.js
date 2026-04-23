@@ -1,13 +1,12 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const { type } = require('os');
 
 const driverSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { 
     type: String, 
     unique: true, 
-    sparse: true, // Permet plusieurs documents avec email null
+    sparse: true,
   },
   password: { type: String, required: true },
   numero:{type: String, required: true, unique: true, match: [/^(77|78|76|70|75|33|71)\d{7}$/, 'Le numéro doit contenir exactement 9 chiffres']},
@@ -20,7 +19,8 @@ const driverSchema = new mongoose.Schema({
     enum: ['petit', 'moyen', 'grand'], 
     required: true 
   },
-  climatisation: { type: Boolean, default: false }, 
+  climatisation: { type: Boolean, default: false },
+  wifi: { type: Boolean, default: false },
   permis: { 
     required: true,
     type: [
@@ -32,8 +32,7 @@ const driverSchema = new mongoose.Schema({
       }
     ],
   },
-  
-  photo: { 
+  photo: {
     required: true,
     type: [
       {
@@ -44,6 +43,13 @@ const driverSchema = new mongoose.Schema({
       }
     ],
   },
+  fcmTokens: [
+    {
+      token: { type: String },
+      platform: { type: String, enum: ['android', 'ios', 'web'] },
+      lastActive: { type: Date, default: Date.now }
+    }
+  ],
   isActive: { type: Boolean, default: false },
   isPinned: { type: Boolean, default: false },
   pinnedAt: { type: Date },
@@ -55,7 +61,6 @@ const driverSchema = new mongoose.Schema({
 // Middleware pour supprimer les voyages associés avant de supprimer un conducteur
 driverSchema.pre('remove', async function(next) {
   try {
-    // Supprimer tous les voyages associés à ce conducteur
     await this.model('Voyage').deleteMany({ driver: this._id });
     next();
   } catch (err) {

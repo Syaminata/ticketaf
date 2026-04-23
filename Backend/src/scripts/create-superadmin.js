@@ -22,8 +22,9 @@ const createSuperAdmin = async () => {
     const superAdmin = await User.create({
       name: 'Super Administrateur',
       email: 'superadmin@ticketaf.com',
-      numero: '771234567',
+      numero: '777777777',
       password: 'superadmin123',
+      address: "Dakar",
       role: 'superadmin'
     });
 

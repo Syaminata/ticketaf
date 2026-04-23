@@ -7,10 +7,11 @@ import {
 import RevenueWidget from "../components/RevenueWidget";
 
 import PeopleIcon from '@mui/icons-material/People';
-import DriveEtaIcon from '@mui/icons-material/DriveEta'; 
-import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber'; 
-import DirectionsBusIcon from '@mui/icons-material/DirectionsBus'; 
-import MapIcon from '@mui/icons-material/Map'; 
+import DriveEtaIcon from '@mui/icons-material/DriveEta';
+import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
+import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
+import MapIcon from '@mui/icons-material/Map';
+import Inventory2Icon from '@mui/icons-material/Inventory2';
 import WarningIcon from '@mui/icons-material/Warning'; 
 import BarChartIcon from '@mui/icons-material/BarChart';
 import NotificationsIcon from '@mui/icons-material/Notifications';
@@ -44,16 +45,18 @@ function Dashboard() {
     utilisateurs: 0,
     conducteurs: 0,
     reservations: 0,
+    colis: 0,
     bus: 0,
     voyages: 0,
   });
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [animatedStats, setAnimatedStats] = useState({
     utilisateurs: 0,
     conducteurs: 0,
     reservations: 0,
+    colis: 0,
     bus: 0,
     voyages: 0,
   });
@@ -93,7 +96,11 @@ function Dashboard() {
   const [topReservationsClients, setTopReservationsClients] = useState([]);
   const [topColisDestinations, setTopColisDestinations] = useState([]);
 
-
+  // Filtres pour les statistiques
+  const [filters, setFilters] = useState({
+    showActiveColisOrders: false,
+    showActiveBuses: false
+  });
 
   useEffect(() => {
     const token = sessionStorage.getItem('token');
@@ -465,19 +472,24 @@ function Dashboard() {
       icon: DriveEtaIcon, 
       label: "Chaufeurs Actifs",
     },
-    reservations: { 
-      color: "#b6660abd", 
-      icon: ConfirmationNumberIcon, 
+    reservations: {
+      color: "#b6660abd",
+      icon: ConfirmationNumberIcon,
       label: "Réservations Totales",
     },
-    bus: { 
-      color: "#b6660abd", 
-      icon: DirectionsBusIcon, 
-      label: "Bus Disponibles",
+    colis: {
+      color: "#b6660abd",
+      icon: Inventory2Icon,
+      label: "Colis",
     },
-    voyages: { 
-      color: "#b6660abd", 
-      icon: MapIcon, 
+    bus: {
+      color: "#b6660abd",
+      icon: DirectionsBusIcon,
+      label: "Bus Actifs",
+    },
+    voyages: {
+      color: "#b6660abd",
+      icon: MapIcon,
       label: "Voyages Planifiés",
     },
   };
