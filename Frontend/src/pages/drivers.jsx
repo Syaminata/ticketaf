@@ -94,12 +94,33 @@ export default function Drivers() {
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalDrivers, setTotalDrivers] = useState(0);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     setPage(0);
   }, [searchTerm]);
 
-  const fetchDrivers = async () => {
+  // Debounce sur la recherche
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(0);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Changement de page ou de limite
+  useEffect(() => {
+    fetchDrivers(page, rowsPerPage, searchTerm);
+  }, [page, rowsPerPage, searchTerm, statusFilter]);
+
+  // Changement de filtre par statut
+  useEffect(() => {
+    setPage(0);
+  }, [statusFilter]);
+
+  const fetchDrivers = async (currentPage = page, currentLimit = rowsPerPage, search = searchTerm) => {
     const token = sessionStorage.getItem('token');
     if (!token) {
       console.error("Authentification manquante");
@@ -107,14 +128,35 @@ export default function Drivers() {
       return;
     }
     
+    setLoading(true);
     try {
-      console.log("Récupération des conducteurs...");
-      const res = await axios.get('/drivers', { 
+      const params = new URLSearchParams({
+        page: currentPage + 1,
+        limit: currentLimit,
+        ...(search && { search }),
+        ...(statusFilter !== 'all' && { status: statusFilter }), 
+      });
+
+      console.log('🌐 URL Drivers appelée:', `/drivers?${params}`);
+
+      const res = await axios.get(`/drivers?${params}`, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
-      console.log("Conducteurs récupérés:", res.data);
-      setDrivers(res.data);
+
+      console.log('📊 Réponse API Drivers:', res.data);
+      console.log('📊 Drivers:', res.data.drivers);
+      console.log('📊 Pagination:', res.data.pagination);
+
+      // Le backend renvoie un objet structuré avec pagination
+      const driversArray = res.data.drivers || [];
+      const totalCount = res.data.pagination?.total || 0;
+
+      setDrivers(driversArray);
+      setTotalDrivers(totalCount);
       setError(''); // Clear any previous errors
+      
+      console.log('📊 totalDrivers après set:', totalCount);
+      console.log('📊 drivers.length:', driversArray.length);
     } catch (err) {
       console.error("Erreur récupération des conducteurs :", err);
       if (err.response?.status === 401) {
@@ -125,13 +167,12 @@ export default function Drivers() {
       } else {
         setError("Erreur lors du chargement des conducteurs.");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchDrivers();
-  }, []);
-
+  
   const handleOpen = (driver = null) => {
     setError('');
     setEditDriver(driver);
@@ -484,44 +525,10 @@ export default function Drivers() {
       driver: null
     });
   };
-  // 1. Filtre par recherche
-  const filteredDrivers = drivers.filter(driver => {
-    const term = searchTerm.toLowerCase();
-    const name = (driver.name || '').toLowerCase();
-    const numero = (driver.numero || '').toLowerCase();
-    return name.includes(term) || numero.includes(term);
-  });
-
+  // Les drivers sont déjà filtrés et triés par le backend
+  const displayedDrivers = drivers;
+  
   const [anchorEl, setAnchorEl] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('all');
-
-  // 2. Filtre par status
-  const filteredDriversByStatus = filteredDrivers.filter(driver => {
-    if (statusFilter === 'all') return true;
-    return statusFilter === 'active' ? driver.isActive : !driver.isActive;
-  });
-
-  // 3. Tri : chauffeurs épinglés en premier, puis par nom
-  const sortedDrivers = [...filteredDriversByStatus].sort((a, b) => {
-    // Si les deux ont le même statut d'épinglage
-    if (a.isPinned === b.isPinned) {
-      // Si les deux sont épinglés, trier par pinnedOrder
-      if (a.isPinned) {
-        return (a.pinnedOrder || 0) - (b.pinnedOrder || 0);
-      }
-      // Sinon, trier par nom
-      return (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' });
-    }
-    // Les chauffeurs épinglés en premier
-    return b.isPinned - a.isPinned;
-  });
-
-
-  // 4. Pagination
-  const paginatedDriversByStatus = sortedDrivers.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
 
   const handleOpenFilter = (event) => {
     setAnchorEl(event.currentTarget);
@@ -726,7 +733,7 @@ export default function Drivers() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {paginatedDriversByStatus.map((driver, index) => (
+            {console.log('🎨 Rendu Drivers - displayedDrivers:', displayedDrivers, 'totalDrivers:', totalDrivers) || displayedDrivers.map((driver, index) => (
               <TableRow 
                 key={driver._id}
                 sx={{ 
@@ -938,7 +945,7 @@ export default function Drivers() {
 
         <TablePagination
           component="div"
-          count={filteredDriversByStatus.length}
+          count={totalDrivers}
           page={page}
           onPageChange={(event, newPage) => setPage(newPage)}
           rowsPerPage={rowsPerPage}

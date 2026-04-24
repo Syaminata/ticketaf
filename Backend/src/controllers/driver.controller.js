@@ -241,34 +241,106 @@ const createDriver = async (req, res) => {
 
 const getAllDrivers = async (req, res) => {
   try {
+    console.log('🔍 Backend getAllDrivers - req.query:', req.query);
+    
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
+    const skip   = (page - 1) * limit;
+    const search = req.query.search?.trim() || '';
+    const status = req.query.status || '';
+
+    console.log('📊 Pagination Drivers - page:', page, 'limit:', limit, 'skip:', skip);
+
     // Nettoyer les fichiers manquants avant de retourner les données
     await cleanMissingFiles();
     
-    // Récupérer tous les conducteurs
-    const drivers = await Driver.find()
-      .select('-password')
-      .lean();
+    // Construire la requête de base
+    let driverQuery = {};
     
-    // Pour chaque conducteur, compter le nombre de voyages
-    const driversWithTripCount = await Promise.all(drivers.map(async (driver) => {
-      const tripCount = await mongoose.model('Voyage').countDocuments({ 
-        driver: driver._id,
-        status: { $in: ['completed', 'in_progress'] } // Compter uniquement les voyages terminés ou en cours
-      });
-      
-      // Retourner le conducteur avec le nombre de voyages et le statut
-      return {
-        ...driver,
-        tripCount,
-        status: driver.isActive ? 'Actif' : 'Inactif',
-        isActive: driver.isActive || false
-      };
+    // Filtrer par statut si spécifié
+    if (status && status !== 'all') {
+      driverQuery.isActive = status === 'actif';
+    }
+    
+    // Ajouter la recherche si fournie
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      driverQuery.$or = [
+        { name: searchRegex },
+        { numero: searchRegex },
+        { email: searchRegex }
+      ];
+    }
+
+    console.log('🔎 Recherche Drivers avec filter:', driverQuery);
+    
+    // Compter le total des conducteurs pour la pagination
+    const total = await Driver.countDocuments(driverQuery);
+    
+    // Récupérer les conducteurs avec pagination
+    const drivers = await Driver.find(driverQuery)
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    console.log('📈 Résultats Drivers - drivers.length:', drivers.length, 'total:', total);
+    
+    // Optimisation : récupérer tous les tripCount en une seule requête avec aggregation
+    const Voyage = mongoose.model('Voyage');
+    const tripCounts = await Voyage.aggregate([
+      {
+        $match: {
+          driver: { $in: drivers.map(d => d._id) },
+          status: { $in: ['completed', 'in_progress'] }
+        }
+      },
+      {
+        $group: {
+          _id: '$driver',
+          tripCount: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Créer une map pour un lookup rapide des tripCount
+    const tripCountMap = tripCounts.reduce((acc, item) => {
+      acc[item._id.toString()] = item.tripCount;
+      return acc;
+    }, {});
+    
+    // Ajouter les tripCount aux conducteurs
+    const driversWithTripCount = drivers.map(driver => ({
+      ...driver,
+      tripCount: tripCountMap[driver._id.toString()] || 0,
+      status: driver.isActive ? 'Actif' : 'Inactif',
+      isActive: driver.isActive || false
     }));
     
     // Trier les conducteurs par nombre de voyages décroissant
     driversWithTripCount.sort((a, b) => b.tripCount - a.tripCount);
     
-    res.status(200).json(driversWithTripCount);
+    // Retourner les résultats avec pagination
+    const response = {
+      drivers: driversWithTripCount,
+      pagination: {
+        current: parseInt(page),
+        pageSize: parseInt(limit),
+        total: total,
+        pages: Math.ceil(total / limit)
+      }
+    };
+
+    console.log('📤 Réponse Drivers envoyée:', {
+      driversCount: driversWithTripCount.length,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
+
+    res.status(200).json(response);
   } catch (err) {
     console.error('Erreur getAllDrivers:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
