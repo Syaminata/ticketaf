@@ -96,7 +96,7 @@ function Buses() {
     const loadCities = async () => {
       try {
         const villes = await villeAPI.getAllVilles();
-        setCities(villes.map(v => v.nom).sort());
+        setCities(Array.isArray(villes) ? villes.map(v => v.nom).sort() : []);
       } catch (error) {
         console.error('Erreur lors du chargement des villes:', error);
         setError('Erreur lors du chargement des villes');
@@ -114,13 +114,13 @@ function Buses() {
       const cityName = newCityName.trim().charAt(0).toUpperCase() + newCityName.trim().slice(1).toLowerCase();
       
       // Vérifier si la ville existe déjà localement
-      if (!cities.includes(cityName)) {
+      if (!Array.isArray(cities) || !cities.includes(cityName)) {
         // Créer la ville via l'API
         await villeAPI.createVille({ nom: cityName });
         
         // Recharger la liste des villes depuis l'API
         const updatedVilles = await villeAPI.getAllVilles();
-        const updatedCities = updatedVilles.map(v => v.nom).sort();
+        const updatedCities = Array.isArray(updatedVilles) ? updatedVilles.map(v => v.nom).sort() : [];
         
         setCities(updatedCities);
         setFormData(prev => ({
@@ -162,7 +162,9 @@ function Buses() {
       const response = await axios.get("/buses", {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setBuses(response.data);
+      // Gérer la nouvelle réponse structurée avec pagination
+      const busesData = response.data.buses || response.data;
+      setBuses(Array.isArray(busesData) ? busesData : []);
       setError('');
     } catch (error) {
       console.error("Erreur lors de la récupération des bus:", error);
@@ -320,7 +322,7 @@ function Buses() {
   };
 
   const handleDelete = (busId) => {
-    const bus = buses.find(b => b._id === busId);
+    const bus = Array.isArray(buses) ? buses.find(b => b._id === busId) : null;
     const busInfo = bus 
       ? `"${bus.name}" (${bus.plateNumber}) avec ${bus.capacity} places`
       : 'ce bus';
@@ -348,7 +350,7 @@ function Buses() {
       await axios.delete(`/buses/${busId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setBuses(prev => prev.filter(bus => bus._id !== busId));
+      setBuses(prev => Array.isArray(prev) ? prev.filter(bus => bus._id !== busId) : []);
       setSuccess('Bus supprimé avec succès');
       setConfirmDialog(prev => ({ ...prev, open: false }));
       
@@ -390,7 +392,7 @@ function Buses() {
 
 
   // --- FILTRAGE DES BUS ---
-  const filteredBuses = buses.filter(bus => {
+  const filteredBuses = Array.isArray(buses) ? buses.filter(bus => {
     // Filtre par recherche
     if (searchTerm) {
       const search = searchTerm.toLowerCase().trim();
@@ -401,20 +403,16 @@ function Buses() {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric'
-          }).toLowerCase()
+          })
         : '';
-
-    return (
-      bus.plateNumber?.toLowerCase().includes(search) ||
-      bus.name?.toLowerCase().includes(search) ||
-      busFrom.includes(search) ||
-      busTo.includes(search) || 
-      (busFrom + ' ' + busTo).includes(search) || 
-      (busFrom + ' - ' + busTo).toLowerCase().includes(search) || 
-      busDate.includes(search)                          
-      );
       
-      if (!matchesSearch) return false;
+      return (
+        busFrom.includes(search) ||
+        busTo.includes(search) ||
+        busDate.includes(search) ||
+        (bus.name && bus.name.toLowerCase().includes(search)) ||
+        (bus.plateNumber && bus.plateNumber.toLowerCase().includes(search))
+      );
     }
     
     // Filtre par statut
@@ -422,7 +420,7 @@ function Buses() {
     if (statusFilter === 'inactive') return bus.isActive === false;
     
     return true; // Si 'all' ou autre valeur non gérée
-  });
+  }) : [];
   
   // Tri des bus
   const sortedBuses = [...filteredBuses].sort((a, b) =>
@@ -1028,7 +1026,7 @@ function Buses() {
                   renderOption={renderCityOption}
                 />
                 <Autocomplete
-                  options={cities.filter(city => city !== formData.from)}
+                  options={Array.isArray(cities) ? cities.filter(city => city !== formData.from) : []}
                   value={formData.to || null}
                   onChange={(event, newValue) => {
                     setFormData({ ...formData, to: newValue || '' });

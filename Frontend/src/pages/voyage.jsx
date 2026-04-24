@@ -111,9 +111,9 @@ export default function Voyage() {
         ...(driverFilter && { driverId: driverFilter }),
       });
 
-      console.log('🌐 URL Voyages appelée:', `/voyages?${params}`);
+      console.log('🌐 URL Voyages appelée:', `/voyages/all/including-expired?${params}`);
 
-      const res = await axios.get(`/voyages?${params}`, { 
+      const res = await axios.get(`/voyages/all/including-expired?${params}`, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
 
@@ -157,10 +157,13 @@ export default function Voyage() {
       const res = await axios.get('/drivers', { 
         headers: { Authorization: `Bearer ${token}` } 
       });
-      setDrivers(res.data);
+      // Gérer la nouvelle réponse structurée avec pagination
+      const driversData = res.data.drivers || res.data;
+      setDrivers(Array.isArray(driversData) ? driversData : []);
       setDriversLoading(false);
     } catch (err) {
       console.error("Erreur récupération des conducteurs :", err);
+      setDrivers([]);
       setDriversLoading(false);
     }
   };
@@ -276,9 +279,10 @@ export default function Voyage() {
       // Créer un tableau pour stocker les réservations formatées
       const formattedReservations = [];
       
-      const sortedReservations = [...reservationsResponse.data].sort((a, b) => 
+      const reservationsData = reservationsResponse.data.reservations || reservationsResponse.data || [];
+      const sortedReservations = Array.isArray(reservationsData) ? [...reservationsData].sort((a, b) => 
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
+      ) : [];
       
       // Créer une entrée pour chaque réservation
       sortedReservations.forEach((reservation, index) => {
@@ -581,18 +585,39 @@ export default function Voyage() {
     return 'Programmé';
   };
 
-  const selectableDrivers = editVoyage
-    ? drivers.filter(d => d.isActive || d._id === formData.driverId)
-    : drivers.filter(d => d.isActive);
+  const selectableDrivers = Array.isArray(drivers) && drivers.length > 0
+    ? editVoyage
+      ? drivers.filter(d => d.isActive || d._id === formData.driverId)
+      : drivers.filter(d => d.isActive)
+    : [];
 
 
   // Les voyages sont déjà filtrés et triés par le backend
-  const displayedVoyages = voyages;
+  const displayedVoyages = Array.isArray(voyages) ? voyages : [];
   
   // Mettre à jour activeDrivers avec les conducteurs actifs
   useEffect(() => {
-    setActiveDrivers(drivers.filter(driver => driver.isActive));
+    if (Array.isArray(drivers) && drivers.length > 0) {
+      setActiveDrivers(drivers.filter(driver => driver.isActive));
+    } else {
+      setActiveDrivers([]);
+    }
   }, [drivers]);
+
+  // Afficher un loader si les drivers ne sont pas encore chargés
+  if (driversLoading) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        backgroundColor: '#ffff'
+      }}>
+        <CircularProgress sx={{ color: '#ffcc33' }} />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ 
@@ -1051,9 +1076,9 @@ export default function Voyage() {
                 Sélection du conducteur
               </Typography>
               <Autocomplete
-                options={activeDrivers}
+                options={Array.isArray(activeDrivers) ? activeDrivers : []}
                 getOptionLabel={(option) => `${option.name} - ${option.numero}`}
-                value={drivers.find(driver => driver._id === formData.driverId) || null}
+                value={Array.isArray(drivers) ? drivers.find(driver => driver._id === formData.driverId) || null : null}
                 loading={driversLoading}
                 onChange={(_, newValue) => {
                   setFormData(prev => ({
@@ -1367,7 +1392,7 @@ export default function Voyage() {
                   <Box>
                     <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Conducteur</Typography>
                     <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                      {drivers.find(d => d._id === formData.driverId)?.name || 'Non sélectionné'}
+                      {Array.isArray(drivers) ? drivers.find(d => d._id === formData.driverId)?.name || 'Non sélectionné' : 'Non sélectionné'}
                     </Typography>
                   </Box>
                   <Box>
@@ -1659,7 +1684,7 @@ export default function Voyage() {
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                   <CircularProgress />
                 </Box>
-              ) : reservations.length > 0 ? (
+              ) : Array.isArray(reservations) && reservations.length > 0 ? (
                 <Paper sx={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
                   <Table>
                     <TableHead>
@@ -1684,27 +1709,23 @@ export default function Voyage() {
                           >
                             <TableCell>
                               <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {reservation.passengerName}
+                                {reservation.passengerName || 'Inconnu'}
                               </Typography>
                             </TableCell>
-                            <TableCell>{reservation.phoneNumber}</TableCell>
+                            <TableCell>
+                              {reservation.phoneNumber || 'Non renseigné'}
+                            </TableCell>
                             <TableCell>
                               {reservationDate}
                             </TableCell>
                             <TableCell>
-                              <Chip 
-                                label={`${reservation.quantity || 1} place${reservation.quantity > 1 ? 's' : ''}`}
-                                color="primary"
-                                size="small"
-                                variant="outlined"
-                              />
+                              {reservation.quantity || 1}
                             </TableCell>
                             <TableCell>
                               <Chip 
-                                label={reservation.status || 'Confirmée'}
-                                size="small"
-                                color={reservation.status === 'annulée' ? 'error' : 'success'}
-                                sx={{ minWidth: 80 }}
+                                label={reservation.status || 'Confirmé'} 
+                                size="small" 
+                                color={getStatusColor(reservation)}
                               />
                             </TableCell>
                           </TableRow>

@@ -153,10 +153,15 @@ function Dashboard() {
     })
     .then(res => {
       
+      // Gérer la nouvelle réponse structurée avec pagination
+      const reservationsData = res.data.reservations || res.data;
+      
       // Filtrer et prendre les réservations les plus récentes
-      const recentReservations = res.data
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 5);
+      const recentReservations = Array.isArray(reservationsData)
+        ? reservationsData
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+          .slice(0, 5)
+        : [];
       
       console.log("Réservations récentes sélectionnées:", recentReservations);
       
@@ -166,7 +171,7 @@ function Dashboard() {
       setRecentReservations(formattedReservations);
       
       // Calculer les routes populaires
-      const popularRoutes = calculatePopularRoutes(res.data);
+      const popularRoutes = Array.isArray(reservationsData) ? calculatePopularRoutes(reservationsData) : [];
       console.log("Routes populaires calculées:", popularRoutes);
       setRealPopularRoutes(popularRoutes);
       
@@ -191,22 +196,22 @@ function Dashboard() {
     .then(([usersRes, driversRes]) => {
       
       // Traiter les utilisateurs normaux
-      const users = usersRes.data || [];
-      const drivers = driversRes.data || [];
+      const users = usersRes.data.users || usersRes.data || [];
+      const drivers = driversRes.data.drivers || driversRes.data || [];
       
       // Créer une liste des IDs des utilisateurs normaux pour éviter les doublons
-      const userIds = new Set(users.map(user => user._id || user.id));
+      const userIds = new Set(Array.isArray(users) ? users.map(user => user._id || user.id) : []);
       
       // Ajouter seulement les chauffeurs qui ne sont pas déjà dans les utilisateurs
-      const uniqueDrivers = drivers.filter(driver => {
+      const uniqueDrivers = Array.isArray(drivers) ? drivers.filter(driver => {
         const driverId = driver._id || driver.id;
         return !userIds.has(driverId);
-      });
+      }) : [];
       
       console.log("Chauffeurs uniques (non doublons):", uniqueDrivers.length);
       
       // Combiner sans doublons
-      const allUsers = [...users];
+      const allUsers = Array.isArray(users) ? [...users] : [];
       uniqueDrivers.forEach(driver => {
         allUsers.push({ ...driver, role: 'driver' });
       });
@@ -324,6 +329,11 @@ function Dashboard() {
 
   // Fonction pour formater les réservations récentes
   const formatReservations = (reservations) => {
+    if (!Array.isArray(reservations)) {
+      console.log("Les réservations ne sont pas un tableau dans formatReservations:", reservations);
+      return [];
+    }
+    
     const now = new Date();
     // Normaliser la date actuelle à minuit pour comparer seulement les dates
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -398,6 +408,11 @@ function Dashboard() {
   // Fonction pour calculer les routes populaires
   const calculatePopularRoutes = (reservations) => {
     console.log("Calcul des routes populaires avec:", reservations);
+    
+    if (!Array.isArray(reservations)) {
+      console.log("Les réservations ne sont pas un tableau:", reservations);
+      return [];
+    }
     
     const routeStats = {};
     

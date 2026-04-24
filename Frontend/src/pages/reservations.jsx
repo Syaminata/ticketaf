@@ -275,9 +275,11 @@ export default function Reservations() {
       }
       
       const data = await response.json();
-      setBuses(data);
+      // Gérer la nouvelle réponse structurée avec pagination
+      const busesData = data.buses || data;
+      setBuses(Array.isArray(busesData) ? busesData : []);
       setError('');
-      console.log(`${data.length} bus chargés avec succès`);
+      console.log(`${Array.isArray(busesData) ? busesData.length : 0} bus chargés avec succès`);
     } catch (error) {
       console.error('Erreur lors du chargement des bus:', error);
       setError('Erreur lors du chargement des bus. Veuillez réessayer.');
@@ -452,7 +454,7 @@ export default function Reservations() {
     }
 
     if (formData.ticket === 'place' && formData.transportMode === 'bus' && formData.busId) {
-      const selectedBus = buses.find(b => b._id === formData.busId._id);
+      const selectedBus = Array.isArray(buses) ? buses.find(b => b._id === formData.busId._id) : null;
       if (selectedBus && selectedBus.availableSeats < formData.quantity) {
         setError(`Pas assez de places disponibles. Places restantes: ${selectedBus.availableSeats}`);
         return;
@@ -697,15 +699,15 @@ const confirmDelete = async (id) => {
   };
 
   // Filtrer les bus en fonction du type sélectionné
-  const filteredBuses = buses.filter(bus => {
+  const filteredBuses = Array.isArray(buses) ? buses.filter(bus => {
     if (!bus.isActive) return false;
     if (formData.transportMode === 'minibus') {
       return bus.capacity <= 30;
     } else if (formData.transportMode === 'bus') {
       return bus.capacity > 30;
     }
-    return false;
-  });
+    return true;
+  }) : [];
 
   return (
     <Box sx={{ p: 1, backgroundColor: '#ffff', minHeight: '100vh' }}>
@@ -1547,7 +1549,7 @@ const confirmDelete = async (id) => {
             )}
 
             {/* Pagination des buses */}
-            {buses.length > 0 && (
+            {Array.isArray(buses) && buses.length > 0 && (
               <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
                 <TablePagination
                   component="div"
@@ -1710,9 +1712,10 @@ const confirmDelete = async (id) => {
                     <Box>
                       <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Bus</Typography>
                       <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                        {buses.find(b => b._id === formData.busId?._id) ? 
+                        {Array.isArray(buses) ? (buses.find(b => b._id === formData.busId?._id) ? 
                           `${buses.find(b => b._id === formData.busId._id).name} (${buses.find(b => b._id === formData.busId._id).plateNumber})` : 
                           'Non sélectionné'
+                        ) : 'Non sélectionné'
                         }
                       </Typography>
                     </Box>
@@ -1721,9 +1724,10 @@ const confirmDelete = async (id) => {
                     <Box>
                       <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Trajet</Typography>
                       <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                        {buses.find(b => b._id === formData.busId?._id) ? 
+                        {Array.isArray(buses) ? (buses.find(b => b._id === formData.busId?._id) ? 
                           `${buses.find(b => b._id === formData.busId._id).from} → ${buses.find(b => b._id === formData.busId._id).to}` : 
                           'Non défini'
+                        ) : 'Non défini'
                         }
                       </Typography>
                     </Box>
@@ -1732,9 +1736,10 @@ const confirmDelete = async (id) => {
                     <Box>
                       <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Prix</Typography>
                       <Typography sx={{ fontWeight: 600, color: '#4caf50' }}>
-                        {buses.find(b => b._id === formData.busId?._id) ? 
+                        {Array.isArray(buses) ? (buses.find(b => b._id === formData.busId?._id) ? 
                           `${buses.find(b => b._id === formData.busId._id).price} FCFA` : 
                           'Non défini'
+                        ) : 'Non défini'
                         }
                       </Typography>
                     </Box>

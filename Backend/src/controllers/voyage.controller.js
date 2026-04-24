@@ -40,6 +40,8 @@ const getAllVoyage = async (req, res) => {
 const getAllVoyageIncludingExpired = async (req, res) => {
   try {
     console.log('🔍 Backend getAllVoyageIncludingExpired - req.query:', req.query);
+    console.log('🔍 Backend getAllVoyageIncludingExpired - req.url:', req.url);
+    console.log('🔍 Backend getAllVoyageIncludingExpired - req.method:', req.method);
     
     const page   = Math.max(1, parseInt(req.query.page)  || 1);
     const limit  = Math.min(50, parseInt(req.query.limit) || 10);
@@ -83,9 +85,12 @@ const getAllVoyageIncludingExpired = async (req, res) => {
     console.log('🔎 Recherche Voyages avec filter:', voyageQuery);
     
     // Compter le total des voyages pour la pagination
+    console.log('🔍 Comptage des voyages...');
     const total = await Voyage.countDocuments(voyageQuery);
+    console.log('🔍 Total voyages trouvés:', total);
     
     // Récupérer les voyages avec pagination
+    console.log('🔍 Récupération des voyages avec pagination...');
     const voyages = await Voyage.find(voyageQuery)
       .populate('driver', '-password')
       .sort({ date: -1 })
@@ -93,6 +98,7 @@ const getAllVoyageIncludingExpired = async (req, res) => {
       .limit(parseInt(limit));
 
     console.log('📈 Résultats Voyages - voyages.length:', voyages.length, 'total:', total);
+    console.log('📈 Premier voyage trouvé:', voyages[0]);
     
     // Retourner les résultats avec pagination
     const response = {
@@ -111,6 +117,13 @@ const getAllVoyageIncludingExpired = async (req, res) => {
       page,
       limit,
       totalPages: Math.ceil(total / limit)
+    });
+
+    console.log('📤 Structure de la réponse:', {
+      hasVoyages: Array.isArray(response.voyages),
+      voyagesLength: response.voyages.length,
+      hasPagination: !!response.pagination,
+      paginationKeys: Object.keys(response.pagination)
     });
 
     res.status(200).json(response);
