@@ -1,4 +1,5 @@
 const http = require('http');
+const socketIo = require('socket.io');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const app = require('./app');
@@ -23,6 +24,10 @@ initAccountDeletionCron();
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
+
+const io = socketIo(server, {
+  cors: { origin: "*" }
+});
 
 // Initialisation Socket.IO
 socketManager.init(server);

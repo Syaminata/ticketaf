@@ -54,104 +54,72 @@ export default function Users() {
 
   const [currentUserRole] = useState(storage.getUser()?.role || null);
   const [loading, setLoading] = useState(false);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [roleFilter, setRoleFilter] = useState('all');
   const [anchorEl, setAnchorEl] = useState(null);
 
-  useEffect(() => {
-    setPage(0);
-  }, [searchTerm, roleFilter]);
 
-  const fetchUserReservationsCount = async (userId) => {
-    try {
-      const token = sessionStorage.getItem('token');
-      if (!token) return 0;
-      
-      const response = await axios.get(`/stats/user-reservations/${userId}`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      return response.data.count || 0;
-      
-    } catch (error) {
-      return 0;
-    }
-  };
-
-  const fetchUsers = async () => {
+  const fetchUsers = async (currentPage = page, currentLimit = rowsPerPage, search = searchTerm) => {
     const token = sessionStorage.getItem('token');
     if (!token) return;
-      
+
+    setLoading(true);
     try {
-      const res = await axios.get('/users', { 
-        headers: { Authorization: `Bearer ${token}` } 
+      const params = new URLSearchParams({
+        page:  currentPage + 1,
+        limit: currentLimit,
+        ...(search && { search }),
+        ...(roleFilter !== 'all' && { role: roleFilter }), 
       });
+
+      console.log('🌐 URL appelée:', `/users?${params}`);
+
+      const res = await axios.get(`/users?${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      console.log('📊 Réponse API Users:', res.data);
+      console.log('📊 Type de réponse:', typeof res.data);
+      console.log('📊 Est un tableau?', Array.isArray(res.data));
+      console.log('📊 Keys de la réponse:', Object.keys(res.data || {}));
+      console.log('📊 Users:', res.data.users);
+      console.log('📊 Total:', res.data.total);
+
+      // Gérer les deux formats possibles de réponse
+      let usersArray, totalCount;
       
-      // Nettoyer les doublons en gardant la première occurrence de chaque ID
-      const uniqueUsers = res.data.reduce((acc, current) => {
-        const exists = acc.some(item => item._id === current._id);
-        return exists ? acc : [...acc, current];
-      }, []);
+      if (Array.isArray(res.data)) {
+        // Format: [users...] (ancien format)
+        usersArray = res.data;
+        totalCount = res.data.length;
+        console.log('🔄 Format tableau direct détecté');
+      } else if (res.data.users && Array.isArray(res.data.users)) {
+        // Format: { users: [...], total: N } (nouveau format)
+        usersArray = res.data.users;
+        totalCount = res.data.total || 0;
+        console.log('🔄 Format structuré détecté');
+      } else {
+        // Format inattendu
+        console.warn('⚠️ Format de réponse inattendu:', res.data);
+        usersArray = [];
+        totalCount = 0;
+      }
 
-      // Pour chaque utilisateur, récupérer le nombre de réservations ou de voyages
-      const usersWithReservations = await Promise.all(
-        uniqueUsers.map(async (user) => {
-          try {
-            // Pour les clients, on compte les réservations
-            const reservationCount = user.role === 'client' 
-              ? await fetchUserReservationsCount(user._id)
-              : 0;
-            
-            // Pour les chauffeurs, on prend le tripCount depuis les détails du chauffeur
-            let tripCount = 0;
-            if (user.role === 'conducteur') {
-              tripCount = user.tripCount !== undefined 
-                ? user.tripCount 
-                : (user.driverDetails?.tripCount || 0);
-            }
-            
-            return {
-              ...user,
-              reservationCount,
-              tripCount: user.role === 'conducteur' ? tripCount : 0,
-              ...(user.driverDetails && { driverDetails: user.driverDetails })
-            };
-          } catch (error) {
-            console.error(`❌ Erreur lors du traitement de l'utilisateur ${user._id}:`, error);
-            return {
-              ...user,
-              reservationCount: 0,
-              tripCount: 0,
-              error: error.message
-            };
-          }
-        })
-      );
-
-      console.log('📊 Données utilisateurs avec réservations:', usersWithReservations);
-      setUsers(usersWithReservations);
+      setUsers(usersArray);
+      setTotalUsers(totalCount);
+      
+      console.log('📊 totalUsers après set:', totalCount);
+      console.log('📊 users.length:', usersArray.length);
     } catch (err) {
-      console.error("Erreur lors de la récupération des utilisateurs:", err);
       setError('Erreur lors du chargement des utilisateurs');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    console.log('🚀 Initialisation du composant Users');
-    fetchUsers();
-    
-    // Nettoyage des logs au démontage
-    return () => {
-      console.log('🧹 Nettoyage du composant Users');
-    };
-  }, []);
+  
 
   const handleOpen = (user = null) => {
     setError('');
@@ -212,7 +180,7 @@ export default function Users() {
         
         // Mise à jour optimiste
         setUsers(prevUsers => 
-          prevUsers.map(user => 
+          (prevUsers || []).map(user => 
             user._id === editUser._id 
               ? { ...user, ...dataToSubmit } 
               : user
@@ -231,7 +199,7 @@ export default function Users() {
         });
         setSuccess('Utilisateur créé avec succès');
         // Ajouter le nouvel utilisateur à la liste
-        setUsers(prevUsers => [...prevUsers, response.data.user]);
+        setUsers(prevUsers => [...(prevUsers || []), response.data.user]);
       }
       
       // Fermer la boîte de dialogue
@@ -255,7 +223,7 @@ export default function Users() {
   };
 
   const handleDelete = (id) => {
-    const user = users.find(u => u._id === id);
+    const user = (users || []).find(u => u._id === id);
     const userInfo = user 
       ? `"${user.name}" (${user.email})`
       : 'cet utilisateur';
@@ -321,83 +289,36 @@ export default function Users() {
     }
   };
 
-  // Gestion des utilisateurs affichés avec useMemo pour optimiser les performances
-  const displayedUsers = React.useMemo(() => {
-    console.log('🔄 Calcul de displayedUsers', {
-      usersCount: users.length,
-      searchTerm,
-      currentUserRole
-    });
-    // 1. Filtrer par rôle si nécessaire
-    let result;
-    if (currentUserRole === 'admin') {
-      // L'admin ne voit que les clients
-      result = users.filter(u => u.role === 'client');
-    } else if (currentUserRole === 'gestionnaireColis') {
-      // Le gestionnaire de colis voit les clients et les conducteurs
-      result = users.filter(u => u.role === 'client' || u.role === 'conducteur');
-    } else {
-      // Les autres rôles voient tous les utilisateurs
-      result = [...users];
-    }
-
-    // 2. Filtrer par terme de recherche
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(user => {
-        const name = (user.name || '').toLowerCase();
-        const numero = (user.numero || '').toLowerCase();
-        return name.includes(term) || numero.includes(term);
-      });
-    }
-
-    // 3. Trier par nom
-    result.sort((a, b) => 
-      (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
-    );
-
-    return result;
-  }, [users, currentUserRole, searchTerm]);
-
-  // Pagination des résultats
-  const paginatedUsers = React.useMemo(() => {
-    const start = page * rowsPerPage;
-    const result = displayedUsers.slice(start, start + rowsPerPage);
-    
-    console.log('📄 Pagination appliquée', {
-      page,
-      rowsPerPage,
-      start,
-      end: start + rowsPerPage,
-      displayedUsersCount: displayedUsers.length,
-      paginatedUsersCount: result.length,
-      paginatedUsers: result.map(u => ({ id: u._id, name: u.name, role: u.role }))
-    });
-    
-    return result;
-  }, [displayedUsers, page, rowsPerPage]);
-
-  // Filtrage par rôle
-  const [filteredUsers, setFilteredUsers] = useState([]);
-
+  
+  // Chargement initial + event driver
   useEffect(() => {
-    let result;
-    if (roleFilter === 'all') {
-      result = paginatedUsers;
-    } else {
-      result = paginatedUsers.filter(user => user.role === roleFilter);
-    }
-    
-    console.log('🎯 Filtrage par rôle appliqué', {
-      roleFilter,
-      beforeFilterCount: paginatedUsers.length,
-      afterFilterCount: result.length,
-      filteredUsers: result.map(u => ({ id: u._id, name: u.name, role: u.role }))
-    });
-    
-    setFilteredUsers(result);
-  }, [paginatedUsers, roleFilter]);
+  const handleDriverUpdated = () => {
+    fetchUsers(page, rowsPerPage, searchTerm);
+  };
 
+  window.addEventListener('driverUpdated', handleDriverUpdated);
+
+  return () => window.removeEventListener('driverUpdated', handleDriverUpdated);
+}, [page, rowsPerPage, searchTerm]);
+
+  // Debounce sur la recherche
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(0);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Changement de page ou de limite
+  useEffect(() => {
+  fetchUsers(page, rowsPerPage, searchTerm);
+}, [page, rowsPerPage, searchTerm, roleFilter]);
+
+  // Changement de filtre par rôle
+  useEffect(() => {
+    setPage(0);
+  }, [roleFilter]);
 
   const handleOpenFilter = (event) => {
     setAnchorEl(event.currentTarget);
@@ -408,24 +329,7 @@ export default function Users() {
     if (role) setRoleFilter(role);
   };
 
-  useEffect(() => {
-    console.log('🚀 Initialisation du composant Users');
-    fetchUsers();
-    
-    // Ajouter un écouteur d'événement pour les mises à jour des conducteurs
-    const handleDriverUpdated = () => {
-      console.log('Événement driverUpdated reçu, rafraîchissement des données...');
-      fetchUsers();
-    };
-
-    window.addEventListener('driverUpdated', handleDriverUpdated);
-    
-    // Nettoyage des écouteurs d'événements au démontage
-    return () => {
-      console.log('🧹 Nettoyage du composant Users');
-      window.removeEventListener('driverUpdated', handleDriverUpdated);
-    };
-  }, []);
+  
 
   return (
     <Box sx={{ 
@@ -618,7 +522,7 @@ export default function Users() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredUsers.map((user) => (
+            {console.log('🎨 Rendu - users:', users, 'totalUsers:', totalUsers) || (users || []).map((user) => (
               <TableRow 
                 key={user._id}
                 sx={{ 
@@ -755,7 +659,7 @@ export default function Users() {
         </Table>
         <TablePagination
           component="div"
-          count={displayedUsers.length}
+          count={totalUsers}
           page={page}
           onPageChange={(event, newPage) => setPage(newPage)}
           rowsPerPage={rowsPerPage}

@@ -7,53 +7,74 @@ const { sendAndSaveNotification } = require('../services/notification.service');
 
 const getAllUsers = async (req, res) => {
   try {
-    const { search } = req.query;
+    console.log('🔍 Backend getAllUsers - req.query:', req.query);
+    
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
+    const skip   = (page - 1) * limit;
+    const search = req.query.search?.trim() || '';
+    const role   = req.query.role || '';
 
-    // Récupérer d'abord les IDs des chauffeurs
-    const driverIds = (await Driver.find({}, '_id')).map(d => d._id);
+    console.log('📊 Pagination - page:', page, 'limit:', limit, 'skip:', skip);
 
-    let userQuery = { _id: { $nin: driverIds } };
-    let driverQuery = {};
+    // Filtre de recherche textuelle
+    const searchFilter = search ? {
+      $or: [
+        { name:   { $regex: search, $options: 'i' } },
+        { numero: { $regex: search, $options: 'i' } },
+        { email:  { $regex: search, $options: 'i' } }
+      ]
+    } : {};
 
-    // Ajouter la recherche si fournie
-    if (search) {
-      const searchRegex = new RegExp(search, 'i');
-      userQuery.$or = [
-        { name: searchRegex },
-        { numero: searchRegex },
-        { email: searchRegex }
-      ];
-      driverQuery.$or = [
-        { name: searchRegex },
-        { numero: searchRegex },
-        { email: searchRegex }
-      ];
+    // Ajouter le filtre rôle si précisé
+    if (role && role !== 'all') {
+      searchFilter.role = role;
     }
 
-    // Récupérer les utilisateurs qui ne sont pas des chauffeurs
-    const users = await User.find(userQuery).select('-password');
+    // Une seule collection User suffit pour tous les rôles
+    console.log('🔎 Recherche avec filter:', searchFilter);
+    
+    const [users, total] = await Promise.all([
+      User.find(searchFilter).select('-password').sort({ name: 1 }).skip(skip).limit(limit).lean(),
+      User.countDocuments(searchFilter),
+    ]);
 
-    // Formater les chauffeurs
-    const drivers = await Driver.find(driverQuery).select('-password');
-    const formattedDrivers = drivers.map(driver => ({
-      _id: driver._id,
-      name: driver.name,
-      email: driver.email,
-      numero: driver.numero,
-      role: 'conducteur',
-      isDriver: true,
-      driverDetails: driver
-    }));
+    console.log('📈 Résultats - users.length:', users.length, 'total:', total);
 
-    // Combiner les utilisateurs normaux et les chauffeurs formatés
-    const allUsers = [...users, ...formattedDrivers];
+    // Pour les conducteurs, enrichir avec les données Driver
+    const enrichedUsers = await Promise.all(
+      users.map(async (user) => {
+        if (user.role === 'conducteur') {
+          const driver = await Driver.findById(user._id).select('-password').lean();
+          return {
+            ...user,
+            isDriver:      true,
+            tripCount:     driver?.tripCount || 0,
+            driverDetails: driver || null,
+          };
+        }
+        return user;
+      })
+    );
 
-    // Retourner les résultats
-    if (search) {
-      res.json({ users: allUsers });
-    } else {
-      res.json(allUsers);
-    }
+    const response = {
+      users: enrichedUsers,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    console.log('📤 Réponse envoyée:', {
+      usersCount: enrichedUsers.length,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
+
+    res.json(response);
+
   } catch (err) {
     console.error('Erreur getAllUsers:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });

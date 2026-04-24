@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, updateFcmToken, logout } = require('../controllers/auth.controller');
+const { register, login, updateFcmToken } = require('../controllers/auth.controller');
 const { loginDriver } = require('../controllers/driver.auth.controller');
 const { auth } = require('../middleware/auth');
 /**
@@ -208,29 +208,6 @@ router.post('/login/driver', loginDriver);
  *         description: Utilisateur non trouvé
  */
 router.put('/fcm-token', auth, updateFcmToken);
-
-/**
- * @swagger
- * /auth/logout:
- *   post:
- *     summary: Déconnexion (nettoyage token FCM côté serveur)
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               fcmToken:
- *                 type: string
- *                 description: Token FCM à supprimer
- *     responses:
- *       200:
- *         description: Déconnexion réussie
- */
-router.post('/logout', auth, logout);
 
 module.exports = router;
 
