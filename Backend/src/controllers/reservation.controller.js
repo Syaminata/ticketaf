@@ -168,18 +168,92 @@ const createReservation = async (req, res) => {
 
 const getAllReservations = async (req, res) => {
   try {
-    const reservations = await Reservation.find()
+    console.log('🔍 Backend getAllReservations - req.query:', req.query);
+    
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
+    const skip   = (page - 1) * limit;
+    const search = req.query.search?.trim() || '';
+    const status = req.query.status || '';
+    const voyageId = req.query.voyageId || '';
+    const busId = req.query.busId || '';
+
+    console.log('📊 Pagination Reservations - page:', page, 'limit:', limit, 'skip:', skip);
+
+    // Construire la requête de base
+    let reservationQuery = {};
+    
+    // Ajouter la recherche si fournie
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      reservationQuery.$or = [
+        { 'user.name': searchRegex },
+        { 'user.numero': searchRegex },
+        { 'user.email': searchRegex },
+        { 'voyage.from': searchRegex },
+        { 'voyage.to': searchRegex },
+        { 'voyage.driver.name': searchRegex },
+        { 'voyage.driver.numero': searchRegex }
+      ];
+    }
+    
+    // Filtrer par statut si spécifié
+    if (status && status !== 'all') {
+      reservationQuery.status = status;
+    }
+    
+    // Filtrer par voyage si spécifié
+    if (voyageId) {
+      reservationQuery.voyage = voyageId;
+    }
+    
+    // Filtrer par bus si spécifié
+    if (busId) {
+      reservationQuery.bus = busId;
+    }
+
+    console.log('🔎 Recherche Reservations avec filter:', reservationQuery);
+    
+    // Compter le total des réservations pour la pagination
+    const total = await Reservation.countDocuments(reservationQuery);
+    
+    // Récupérer les réservations avec pagination
+    const reservations = await Reservation.find(reservationQuery)
       .populate('user', '-password')
       .populate({
         path: 'voyage',
         populate: { path: 'driver', select: '-password' }
       })
       .populate('bus')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
 
-    res.status(200).json(reservations);
+    console.log('📈 Résultats Reservations - reservations.length:', reservations.length, 'total:', total);
+    
+    // Retourner les résultats avec pagination
+    const response = {
+      reservations: reservations,
+      pagination: {
+        current: parseInt(page),
+        pageSize: parseInt(limit),
+        total: total,
+        pages: Math.ceil(total / limit)
+      }
+    };
+
+    console.log('📤 Réponse Reservations envoyée:', {
+      reservationsCount: reservations.length,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
+
+    res.status(200).json(response);
   } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('Erreur getAllReservations:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
 

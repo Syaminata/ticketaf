@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { reservationsAPI } from '../api/reservations';
 import API_BASE_URL from '../config/api';
+import axios from '../api/axios';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import {
   Box,
@@ -75,6 +76,10 @@ export default function Reservations() {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [totalReservations, setTotalReservations] = useState(0);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [voyageFilter, setVoyageFilter] = useState('');
+  const [busFilter, setBusFilter] = useState('');
   const [dateRange, setDateRange] = useState({
     startDate: null,
     endDate: null
@@ -113,23 +118,53 @@ export default function Reservations() {
   const [newUserLoading, setNewUserLoading] = useState(false);
   const [newUserError, setNewUserError] = useState('');
   const [newUserData, setNewUserData] = useState({ name: '', email: '', numero: '', password: '', role: 'client' });
+  const [pageBuses, setPageBuses] = useState(0);
+  const [rowsPerPageBuses, setRowsPerPageBuses] = useState(10);
 
 
 
   // ----- Fetch data -----
-  const fetchReservations = async () => {
+  const fetchReservations = async (currentPage = page, currentLimit = rowsPerPage, search = searchTerm) => {
     setLoading(true);
     try {
-      const res = await reservationsAPI.getAllReservations();
-      console.log('Réservations récupérées:', res); // Debug
-      setReservations(res);
+      const params = new URLSearchParams({
+        page: currentPage + 1,
+        limit: currentLimit,
+        ...(search && { search }),
+        ...(statusFilter && statusFilter !== 'all' && { status: statusFilter }),
+        ...(voyageFilter && { voyageId: voyageFilter }),
+        ...(busFilter && { busId: busFilter }),
+      });
+
+      console.log('🌐 URL Reservations appelée:', `/reservations?${params}`);
+
+      const res = await axios.get(`/reservations?${params}`, { 
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('token')}` } 
+      });
+
+      console.log('📊 Réponse API Reservations:', res.data);
+      console.log('📊 Reservations:', res.data.reservations);
+      console.log('📊 Pagination:', res.data.pagination);
+
+      // Le backend renvoie un objet structuré avec pagination
+      const reservationsArray = res.data.reservations || [];
+      const totalCount = res.data.pagination?.total || 0;
+
+      setReservations(reservationsArray);
+      setTotalReservations(totalCount);
       setError('');
+      
+      console.log('📊 totalReservations après set:', totalCount);
+      console.log('📊 reservations.length:', reservationsArray.length);
     } catch (err) {
       console.error('Erreur lors du chargement des réservations:', err);
       if (err.response?.status === 401) {
         setError('Token d\'authentification expiré. Veuillez vous reconnecter.');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        window.location.href = '/login';
       } else {
-        setError("Erreur lors du chargement des réservations: " + (err.message || err));
+        setError("Erreur lors du chargement des réservations: " + (err.response?.data?.message || err.message));
       }
     } finally {
       setLoading(false);
@@ -213,7 +248,7 @@ export default function Reservations() {
     }
   };
 
-  const fetchBuses = async () => {
+  const fetchBuses = async (currentPage = 0, currentLimit = 10, search = '') => {
     try {
       setLoadingBuses(true);
       console.log('Récupération des bus...');
@@ -223,7 +258,15 @@ export default function Reservations() {
         throw new Error('Aucun token d\'authentification trouvé');
       }
       
-      const response = await fetch('https://ticket-taf.itea.africa/api/buses', {
+      const params = new URLSearchParams({
+        page: currentPage + 1,
+        limit: currentLimit,
+        ...(search && { search })
+      });
+
+      console.log('🌐 URL Buses appelée:', `/buses?${params}`);
+
+      const response = await fetch(`https://ticket-taf.itea.africa/api/buses?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -243,6 +286,25 @@ export default function Reservations() {
     }
   };
 
+  // Debounce sur la recherche
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(0);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Changement de page ou de limite
+  useEffect(() => {
+    fetchReservations(page, rowsPerPage, searchTerm);
+  }, [page, rowsPerPage, searchTerm, statusFilter, voyageFilter, busFilter]);
+
+  // Changement de filtres
+  useEffect(() => {
+    setPage(0);
+  }, [statusFilter, voyageFilter, busFilter]);
+
   useEffect(() => {
     fetchReservations();
     fetchVoyages();
@@ -251,8 +313,12 @@ export default function Reservations() {
   }, []);
 
   useEffect(() => {
-    setPage(0);
-  }, [searchTerm]);
+    fetchBuses(pageBuses, rowsPerPageBuses, '');
+  }, [pageBuses, rowsPerPageBuses]);
+
+  useEffect(() => {
+    fetchBuses(0, 10, '');
+  }, [statusFilter, voyageFilter, busFilter]);
 
   // ----- Dialog -----
   const handleOpen = (reservation = null) => {
@@ -312,7 +378,10 @@ export default function Reservations() {
     setNewUserError('');
   };
   const handleCreateUser = async () => {
-    setNewUserError('');
+    setError('');
+    setSuccess('');
+    
+    // Validation
     if (!newUserData.name || !newUserData.numero || !newUserData.password) {
       setNewUserError('Le nom, le numéro et le mot de passe sont requis');
       return;
@@ -337,6 +406,8 @@ export default function Reservations() {
       setFormData(prev => ({ ...prev, userId: created }));
       setSuccess('Utilisateur créé et sélectionné');
       setNewUserOpen(false);
+      // Rafraîchir la liste des buses après création
+      fetchBuses(pageBuses, rowsPerPageBuses, '');
     } catch (err) {
       setNewUserError(err.message || 'Erreur lors de la création');
     } finally {
@@ -594,68 +665,8 @@ const confirmDelete = async (id) => {
   
   console.log('Total reservations:', reservations?.length, 'Visible reservations:', visibleReservations.length);
 
-  // Filtrage des réservations
-  const filteredReservations = visibleReservations.filter(reservation => {
-    if (!reservation) return false;
-    
-    // Filtre par recherche textuelle
-    const searchTermLower = searchTerm ? searchTerm.toLowerCase() : '';
-    const userName = reservation.user?.name ? (reservation.user.name || '').toLowerCase() : '';
-    const voyageInfo = reservation.voyage ? `${reservation.voyage?.from || ''} ${reservation.voyage?.to || ''}`.toLowerCase() : '';
-    const busInfo = reservation.bus ? (reservation.bus?.marque || '').toLowerCase() : '';
-    const status = reservation.status ? (reservation.status || '').toLowerCase() : '';
-    
-    const matchesSearch = searchTerm === '' ||
-      userName.includes(searchTermLower) ||
-      voyageInfo.includes(searchTermLower) ||
-      busInfo.includes(searchTermLower) ||
-      status.includes(searchTermLower) ||
-      (reservation._id && reservation._id.toLowerCase().includes(searchTermLower));
-    
-    let matchesDateRange = true;
-    
-    // Vérifier si des dates de filtre sont définies
-    if (dateRange.startDate || dateRange.endDate) {
-      // Utiliser la date du voyage si disponible, sinon utiliser la date de création
-      const voyageDate = reservation.voyage?.date || reservation.bus?.departureDate || reservation.createdAt;
-      const reservationDate = voyageDate ? new Date(voyageDate) : null;
-      
-      if (!reservationDate) {
-        // Si la réservation n'a pas de date, on la filtre si un filtre de date est actif
-        matchesDateRange = false;
-      } else {
-        // Créer des copies des dates pour éviter de modifier les originaux
-        const startDate = dateRange.startDate ? new Date(dateRange.startDate) : null;
-        const endDate = dateRange.endDate ? new Date(dateRange.endDate) : null;
-        
-        // Convertir en timestamp pour une comparaison plus fiable
-        const reservationTimestamp = reservationDate.getTime();
-        
-        // Vérifier la date de début si elle est définie
-        if (startDate) {
-          startDate.setHours(0, 0, 0, 0);
-          if (reservationTimestamp < startDate.getTime()) {
-            matchesDateRange = false;
-          }
-        }
-        
-        // Vérifier la date de fin si elle est définie et que la date de début est valide
-        if (matchesDateRange && endDate) {
-          endDate.setHours(23, 59, 59, 999);
-          if (reservationTimestamp > endDate.getTime()) {
-            matchesDateRange = false;
-          }
-        }
-      }
-    }
-    
-    return matchesSearch && matchesDateRange;
-  });
-
-  const paginatedReservations = filteredReservations.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+  // Les reservations sont déjà filtrées et triées par le backend
+  const displayedReservations = reservations;
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -664,6 +675,15 @@ const confirmDelete = async (id) => {
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+  };
+
+  const handleChangePageBuses = (event, newPage) => {
+    setPageBuses(newPage);
+  };
+
+  const handleChangeRowsPerPageBuses = (event) => {
+    setRowsPerPageBuses(parseInt(event.target.value, 10));
+    setPageBuses(0);
   };
   
   // Gérer le changement de type de transport
@@ -744,7 +764,12 @@ const confirmDelete = async (id) => {
         justifyContent: 'space-between',
         flexWrap: 'wrap'
       }}>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Box sx={{
+          display: 'flex',
+          gap: 2,
+          alignItems: 'center',
+          flexWrap: 'wrap'
+        }}>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
             <TextField
               placeholder="Rechercher par client, trajet ou date..."
@@ -771,6 +796,94 @@ const confirmDelete = async (id) => {
                 },
               }}
             />
+            <TextField
+              select
+              label="Filtrer par statut"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              size="small"
+              sx={{
+                width: 200,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px',
+                  '&:hover fieldset': {
+                    borderColor: '#ffcc33',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#ffcc33',
+                    borderWidth: 2,
+                  },
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#ffcc33',
+                },
+              }}
+            >
+              <MenuItem value="all">Tous</MenuItem>
+              <MenuItem value="confirmé">Confirmé</MenuItem>
+              <MenuItem value="annulé">Annulé</MenuItem>
+              <MenuItem value="en attente">En attente</MenuItem>
+            </TextField>
+            <TextField
+              select
+              label="Filtrer par voyage"
+              value={voyageFilter}
+              onChange={(e) => setVoyageFilter(e.target.value)}
+              size="small"
+              sx={{
+                width: 200,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px',
+                  '&:hover fieldset': {
+                    borderColor: '#ffcc33',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#ffcc33',
+                    borderWidth: 2,
+                  },
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#ffcc33',
+                },
+              }}
+            >
+              <MenuItem value="">Tous</MenuItem>
+              {upcomingVoyages.map(voyage => (
+                <MenuItem key={voyage._id} value={voyage._id}>
+                  {voyage.from} → {voyage.to}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              label="Filtrer par bus"
+              value={busFilter}
+              onChange={(e) => setBusFilter(e.target.value)}
+              size="small"
+              sx={{
+                width: 200,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px',
+                  '&:hover fieldset': {
+                    borderColor: '#ffcc33',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#ffcc33',
+                    borderWidth: 2,
+                  },
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#ffcc33',
+                },
+              }}
+            >
+              <MenuItem value="">Tous</MenuItem>
+              {filteredBuses.map(bus => (
+                <MenuItem key={bus._id} value={bus._id}>
+                  {bus.name} ({bus.from} → {bus.to})
+                </MenuItem>
+              ))}
+            </TextField>
             <Button
               variant="outlined"
               onClick={() => setShowDateFilter(!showDateFilter)}
@@ -903,12 +1016,12 @@ const confirmDelete = async (id) => {
       )}
 
       {/* Tableau des réservations */}
-      {console.log('Loading:', loading, 'Visible reservations:', visibleReservations, 'Length:', visibleReservations?.length)}
+      {console.log('Loading:', loading, 'Visible reservations:', displayedReservations, 'Length:', displayedReservations?.length)}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
           <CircularProgress sx={{ color: '#ffcc33' }} />
         </Box>
-      ) : visibleReservations.length > 0 ? (
+      ) : displayedReservations.length > 0 ? (
         <Paper sx={{ 
           borderRadius: '12px',
           overflow: 'hidden',
@@ -935,7 +1048,7 @@ const confirmDelete = async (id) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginatedReservations.map((reservation) => (
+              {displayedReservations.map((reservation) => (
                 <TableRow 
                   key={reservation._id}
                   sx={{ 
@@ -1043,7 +1156,7 @@ const confirmDelete = async (id) => {
           {/* Pagination */}
           <TablePagination
             component="div"
-            count={visibleReservations.length}
+            count={totalReservations}
             page={page}
             onPageChange={handleChangePage}
             rowsPerPage={rowsPerPage}
@@ -1430,6 +1543,56 @@ const confirmDelete = async (id) => {
                     </MenuItem>
                   )}
                 </TextField>
+              </Box>
+            )}
+
+            {/* Pagination des buses */}
+            {buses.length > 0 && (
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                <TablePagination
+                  component="div"
+                  count={buses.length || 0}
+                  page={pageBuses}
+                  onPageChange={handleChangePageBuses}
+                  rowsPerPage={rowsPerPageBuses}
+                  onRowsPerPageChange={handleChangeRowsPerPageBuses}
+                  rowsPerPageOptions={[5, 10, 25]}
+                  labelRowsPerPage="Lignes par page :"
+                  sx={{
+                    '& .MuiTablePagination-toolbar': {
+                      padding: '16px',
+                      backgroundColor: '#f8f9fa',
+                      borderTop: '1px solid #e0e0e0',
+                      borderRadius: '12px'
+                    },
+                    '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                      margin: 0,
+                      fontSize: '0.875rem',
+                      color: '#555'
+                    },
+                    '& .MuiSelect-select': {
+                      padding: '4px 24px 4px 4px',
+                      borderRadius: '4px',
+                      border: '1px solid #e0e0e0',
+                      '&:focus': {
+                        borderRadius: '4px',
+                        borderColor: '#ffcc33'
+                      }
+                    },
+                    '& .MuiTablePagination-actions': {
+                      marginLeft: '8px',
+                      '& .MuiIconButton-root': {
+                        padding: '4px',
+                        '&:hover': {
+                          backgroundColor: 'rgba(255, 204, 51, 0.1)'
+                        },
+                        '&.Mui-disabled': {
+                          color: '#bdbdbd'
+                        }
+                      }
+                    }
+                  }}
+                />
               </Box>
             )}
 

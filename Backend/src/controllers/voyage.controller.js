@@ -39,11 +39,83 @@ const getAllVoyage = async (req, res) => {
 
 const getAllVoyageIncludingExpired = async (req, res) => {
   try {
-    const voyage = await Voyage.find()
+    console.log('🔍 Backend getAllVoyageIncludingExpired - req.query:', req.query);
+    
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
+    const skip   = (page - 1) * limit;
+    const search = req.query.search?.trim() || '';
+    const from   = req.query.from || '';
+    const to     = req.query.to || '';
+    const driverId = req.query.driverId || '';
+
+    console.log('📊 Pagination Voyages - page:', page, 'limit:', limit, 'skip:', skip);
+
+    // Construire la requête de base
+    let voyageQuery = {};
+    
+    // Ajouter la recherche si fournie
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      voyageQuery.$or = [
+        { from: searchRegex },
+        { to: searchRegex },
+        { 'driver.name': searchRegex },
+        { 'driver.numero': searchRegex }
+      ];
+    }
+    
+    // Filtrer par ville de départ
+    if (from) {
+      voyageQuery.from = from;
+    }
+    
+    // Filtrer par ville d'arrivée
+    if (to) {
+      voyageQuery.to = to;
+    }
+    
+    // Filtrer par chauffeur
+    if (driverId) {
+      voyageQuery.driver = driverId;
+    }
+
+    console.log('🔎 Recherche Voyages avec filter:', voyageQuery);
+    
+    // Compter le total des voyages pour la pagination
+    const total = await Voyage.countDocuments(voyageQuery);
+    
+    // Récupérer les voyages avec pagination
+    const voyages = await Voyage.find(voyageQuery)
       .populate('driver', '-password')
-      .sort({ date: -1 });
-    res.status(200).json(voyage);
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    console.log('📈 Résultats Voyages - voyages.length:', voyages.length, 'total:', total);
+    
+    // Retourner les résultats avec pagination
+    const response = {
+      voyages: voyages,
+      pagination: {
+        current: parseInt(page),
+        pageSize: parseInt(limit),
+        total: total,
+        pages: Math.ceil(total / limit)
+      }
+    };
+
+    console.log('📤 Réponse Voyages envoyée:', {
+      voyagesCount: voyages.length,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
+
+    res.status(200).json(response);
   } catch (err) {
+    console.error('Erreur getAllVoyageIncludingExpired:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };

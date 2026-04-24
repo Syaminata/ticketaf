@@ -80,6 +80,10 @@ export default function Voyage() {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalVoyages, setTotalVoyages] = useState(0);
+  const [fromFilter, setFromFilter] = useState('');
+  const [toFilter, setToFilter] = useState('');
+  const [driverFilter, setDriverFilter] = useState('');
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     title: '',
@@ -88,7 +92,7 @@ export default function Voyage() {
     loading: false
   });
 
-  const fetchVoyages = async () => {
+  const fetchVoyages = async (currentPage = page, currentLimit = rowsPerPage, search = searchTerm) => {
     const token = sessionStorage.getItem('token');
     if (!token) {
       console.error("Authentification manquante");
@@ -96,11 +100,37 @@ export default function Voyage() {
       return;
     }
     
+    setLoading(true);
     try {
-      const res = await voyageAPI.getAllVoyagesIncludingExpired();
-      
-      setVoyages(res);
+      const params = new URLSearchParams({
+        page: currentPage + 1,
+        limit: currentLimit,
+        ...(search && { search }),
+        ...(fromFilter && { from: fromFilter }),
+        ...(toFilter && { to: toFilter }),
+        ...(driverFilter && { driverId: driverFilter }),
+      });
+
+      console.log('🌐 URL Voyages appelée:', `/voyages?${params}`);
+
+      const res = await axios.get(`/voyages?${params}`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+
+      console.log('📊 Réponse API Voyages:', res.data);
+      console.log('📊 Voyages:', res.data.voyages);
+      console.log('📊 Pagination:', res.data.pagination);
+
+      // Le backend renvoie un objet structuré avec pagination
+      const voyagesArray = res.data.voyages || [];
+      const totalCount = res.data.pagination?.total || 0;
+
+      setVoyages(voyagesArray);
+      setTotalVoyages(totalCount);
       setError('');
+      
+      console.log('📊 totalVoyages après set:', totalCount);
+      console.log('📊 voyages.length:', voyagesArray.length);
     } catch (err) {
       console.error("Erreur récupération des voyages :", err);
       if (err.response?.status === 401) {
@@ -113,6 +143,8 @@ export default function Voyage() {
       } else {
         setError("Erreur lors du chargement des voyages: " + (err.response?.data?.message || err.message));
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -133,14 +165,29 @@ export default function Voyage() {
     }
   };
 
+  // Debounce sur la recherche
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(0);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Changement de page ou de limite
+  useEffect(() => {
+    fetchVoyages(page, rowsPerPage, searchTerm);
+  }, [page, rowsPerPage, searchTerm, fromFilter, toFilter, driverFilter]);
+
+  // Changement de filtres
+  useEffect(() => {
+    setPage(0);
+  }, [fromFilter, toFilter, driverFilter]);
+
   useEffect(() => {
     fetchVoyages();
     fetchDrivers();
   }, []);
-
-  useEffect(() => {
-    setPage(0);
-  }, [searchTerm]);
 
   const handleOpen = async (voyage = null) => {
     setError('');
@@ -539,36 +586,8 @@ export default function Voyage() {
     : drivers.filter(d => d.isActive);
 
 
-  const filteredVoyages = voyages.filter(voyage => {
-    if (!voyage) return false;
-    
-    const searchTermLower = searchTerm ? searchTerm.toLowerCase() : '';
-    const driverName = typeof voyage.driverName === 'string' ? voyage.driverName : '';
-    const from = typeof voyage.from === 'string' ? voyage.from : '';
-    const to = typeof voyage.to === 'string' ? voyage.to : '';
-    
-    const matchesSearch = searchTerm === '' || 
-      driverName.toLowerCase().includes(searchTermLower) ||
-      from.toLowerCase().includes(searchTermLower) ||
-      to.toLowerCase().includes(searchTermLower);
-      
-    const voyageDate = voyage.date ? new Date(voyage.date) : null;
-    const now = new Date();
-    const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'upcoming' && voyageDate && voyageDate > now) ||
-      (statusFilter === 'past' && voyageDate && voyageDate <= now);
-
-    const matchesDateRange = !dateRange.startDate || !dateRange.endDate || !voyageDate || 
-      (voyageDate >= new Date(dateRange.startDate) && 
-       voyageDate <= new Date(new Date(dateRange.endDate).setHours(23, 59, 59, 999)));
-      
-    return matchesSearch && matchesStatus && matchesDateRange;
-  });
-
-  const paginatedVoyages = filteredVoyages.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+  // Les voyages sont déjà filtrés et triés par le backend
+  const displayedVoyages = voyages;
   
   // Mettre à jour activeDrivers avec les conducteurs actifs
   useEffect(() => {
@@ -852,7 +871,7 @@ export default function Voyage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginatedVoyages.length === 0 ? (
+              {displayedVoyages.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                     <Box sx={{ 
@@ -869,7 +888,7 @@ export default function Voyage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedVoyages.map((voyage, index) => (
+                displayedVoyages.map((voyage, index) => (
                 <TableRow 
                   key={voyage._id}
                   sx={{ 
@@ -971,7 +990,7 @@ export default function Voyage() {
           </Table>
           <TablePagination
             component="div"
-            count={filteredVoyages.length}
+            count={totalVoyages}
             page={page}
             onPageChange={(event, newPage) => setPage(newPage)}
             rowsPerPage={rowsPerPage}
