@@ -30,21 +30,12 @@ const createBus = async (req, res) => {
 
 const getAllBuses = async (req, res) => {
   try {
-    console.log('🔍 Backend getAllBuses - req.query:', req.query);
-    
-    const page   = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
-    const skip   = (page - 1) * limit;
     const search = req.query.search?.trim() || '';
-    const from   = req.query.from || '';
-    const to     = req.query.to || '';
+    const from = req.query.from || '';
+    const to = req.query.to || '';
 
-    console.log('📊 Pagination Buses - page:', page, 'limit:', limit, 'skip:', skip);
-
-    // Construire la requête de base
     let busQuery = {};
-    
-    // Ajouter la recherche si fournie
+
     if (search) {
       const searchRegex = new RegExp(search, 'i');
       busQuery.$or = [
@@ -54,50 +45,50 @@ const getAllBuses = async (req, res) => {
         { to: searchRegex }
       ];
     }
-    
-    // Filtrer par ville de départ
-    if (from) {
-      busQuery.from = from;
-    }
-    
-    // Filtrer par ville d'arrivée
-    if (to) {
-      busQuery.to = to;
+
+    if (from) busQuery.from = from;
+    if (to) busQuery.to = to;
+
+    const hasPagination =
+      req.query.page !== undefined &&
+      req.query.limit !== undefined;
+
+    // =========================
+    // 📱 MODE MOBILE (liste simple)
+    // =========================
+    if (!hasPagination) {
+      console.log('📱 Mode MOBILE BUS (liste simple)');
+
+      const buses = await Bus.find(busQuery)
+        .sort({ departureDate: 1 });
+
+      return res.status(200).json(buses);
     }
 
-    console.log('🔎 Recherche Buses avec filter:', busQuery);
-    
-    // Compter le total des buses pour la pagination
+    // =========================
+    // 💻 MODE WEB (pagination)
+    // =========================
+    const page = Math.max(1, parseInt(req.query.page));
+    const limit = Math.min(50, parseInt(req.query.limit));
+    const skip = (page - 1) * limit;
+
     const total = await Bus.countDocuments(busQuery);
-    
-    // Récupérer les buses avec pagination
+
     const buses = await Bus.find(busQuery)
       .sort({ departureDate: 1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limit);
 
-    console.log('📈 Résultats Buses - buses.length:', buses.length, 'total:', total);
-    
-    // Retourner les résultats avec pagination
-    const response = {
-      buses: buses,
+    return res.status(200).json({
+      buses,
       pagination: {
-        current: parseInt(page),
-        pageSize: parseInt(limit),
-        total: total,
+        current: page,
+        pageSize: limit,
+        total,
         pages: Math.ceil(total / limit)
       }
-    };
-
-    console.log('📤 Réponse Buses envoyée:', {
-      busesCount: buses.length,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit)
     });
 
-    res.status(200).json(response);
   } catch (err) {
     console.error('Erreur getAllBuses:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
