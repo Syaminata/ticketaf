@@ -40,23 +40,19 @@ const getAllVoyage = async (req, res) => {
 const getAllVoyageIncludingExpired = async (req, res) => {
   try {
     console.log('🔍 Backend getAllVoyageIncludingExpired - req.query:', req.query);
-    console.log('🔍 Backend getAllVoyageIncludingExpired - req.url:', req.url);
-    console.log('🔍 Backend getAllVoyageIncludingExpired - req.method:', req.method);
-    
-    const page   = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
-    const skip   = (page - 1) * limit;
+
+    // ⚠️ IMPORTANT : ne plus forcer les valeurs par défaut ici
+    const page   = parseInt(req.query.page);
+    const limit  = parseInt(req.query.limit);
+
     const search = req.query.search?.trim() || '';
     const from   = req.query.from || '';
     const to     = req.query.to || '';
     const driverId = req.query.driverId || '';
 
-    console.log('📊 Pagination Voyages - page:', page, 'limit:', limit, 'skip:', skip);
-
-    // Construire la requête de base
+    // Construire la requête
     let voyageQuery = {};
-    
-    // Ajouter la recherche si fournie
+
     if (search) {
       const searchRegex = new RegExp(search, 'i');
       voyageQuery.$or = [
@@ -66,67 +62,55 @@ const getAllVoyageIncludingExpired = async (req, res) => {
         { 'driver.numero': searchRegex }
       ];
     }
-    
-    // Filtrer par ville de départ
-    if (from) {
-      voyageQuery.from = from;
-    }
-    
-    // Filtrer par ville d'arrivée
-    if (to) {
-      voyageQuery.to = to;
-    }
-    
-    // Filtrer par chauffeur
-    if (driverId) {
-      voyageQuery.driver = driverId;
-    }
+
+    if (from) voyageQuery.from = from;
+    if (to) voyageQuery.to = to;
+    if (driverId) voyageQuery.driver = driverId;
 
     console.log('🔎 Recherche Voyages avec filter:', voyageQuery);
-    
-    // Compter le total des voyages pour la pagination
-    console.log('🔍 Comptage des voyages...');
+
+    // ============================
+    //  CAS MOBILE (pas de pagination)
+    // ============================
+    if (!page && !limit) {
+      console.log('📱 Mode MOBILE détecté (pas de pagination)');
+
+      const voyages = await Voyage.find(voyageQuery)
+        .populate('driver', '-password')
+        .sort({ date: -1 });
+
+      return res.status(200).json(voyages);
+    }
+
+    // ============================
+    //  CAS WEB (pagination)
+    // ============================
+    const safePage  = Math.max(1, page || 1);
+    const safeLimit = Math.min(50, limit || 10);
+    const skip      = (safePage - 1) * safeLimit;
+
+    console.log('📊 Pagination Voyages - page:', safePage, 'limit:', safeLimit, 'skip:', skip);
+
     const total = await Voyage.countDocuments(voyageQuery);
-    console.log('🔍 Total voyages trouvés:', total);
-    
-    // Récupérer les voyages avec pagination
-    console.log('🔍 Récupération des voyages avec pagination...');
+
     const voyages = await Voyage.find(voyageQuery)
       .populate('driver', '-password')
       .sort({ date: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(safeLimit);
 
     console.log('📈 Résultats Voyages - voyages.length:', voyages.length, 'total:', total);
-    console.log('📈 Premier voyage trouvé:', voyages[0]);
-    
-    // Retourner les résultats avec pagination
-    const response = {
-      voyages: voyages,
+
+    return res.status(200).json({
+      voyages,
       pagination: {
-        current: parseInt(page),
-        pageSize: parseInt(limit),
-        total: total,
-        pages: Math.ceil(total / limit)
+        current: safePage,
+        pageSize: safeLimit,
+        total,
+        pages: Math.ceil(total / safeLimit)
       }
-    };
-
-    console.log('📤 Réponse Voyages envoyée:', {
-      voyagesCount: voyages.length,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit)
     });
 
-    console.log('📤 Structure de la réponse:', {
-      hasVoyages: Array.isArray(response.voyages),
-      voyagesLength: response.voyages.length,
-      hasPagination: !!response.pagination,
-      paginationKeys: Object.keys(response.pagination)
-    });
-
-    res.status(200).json(response);
   } catch (err) {
     console.error('Erreur getAllVoyageIncludingExpired:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });

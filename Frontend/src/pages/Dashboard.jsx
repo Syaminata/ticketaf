@@ -190,14 +190,20 @@ function Dashboard() {
 
     // Récupérer tous les utilisateurs et les grouper par rôle
     Promise.all([
-      axios.get("/users", { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get("/drivers", { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] }))
+      axios.get("/users?page=1&limit=10000", { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get("/drivers?page=1&limit=10000", { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] }))
     ])
     .then(([usersRes, driversRes]) => {
+      
+      console.log("📊 Réponse API users:", usersRes.data);
+      console.log("📊 Réponse API drivers:", driversRes.data);
       
       // Traiter les utilisateurs normaux
       const users = usersRes.data.users || usersRes.data || [];
       const drivers = driversRes.data.drivers || driversRes.data || [];
+      
+      console.log("📊 Users extraits:", users);
+      console.log("📊 Drivers extraits:", drivers);
       
       // Créer une liste des IDs des utilisateurs normaux pour éviter les doublons
       const userIds = new Set(Array.isArray(users) ? users.map(user => user._id || user.id) : []);
@@ -222,6 +228,11 @@ function Dashboard() {
       const roleCounts = allUsers.reduce((acc, user) => {
         let role = user.role || 'client';
         
+        // Log pour déboguer les rôles bruts
+        if (role !== 'client' && role !== 'driver') {
+          console.log("🔍 Rôle détecté:", role, "pour utilisateur:", user.name || user.email);
+        }
+        
         // Normaliser les noms de rôles
         if (role === 'chauffeur' || role === 'conducteur' || role === 'driver') {
           role = 'driver';
@@ -237,7 +248,7 @@ function Dashboard() {
         return acc;
       }, {});
       
-      console.log("Comptage final par rôle:", roleCounts);
+      console.log("Comptage final par rôle:", JSON.stringify(roleCounts, null, 2));
       
       // Formater les données pour le graphique
       const formattedData = [
@@ -265,6 +276,9 @@ function Dashboard() {
       
       // Filtrer les rôles qui ont des utilisateurs
       const filteredData = formattedData.filter(item => item.value > 0);
+      
+      console.log("📊 Données finales pour le graphique:", filteredData);
+      console.log("📊 Comptage par rôle:", roleCounts);
       
       setUserRoleData(filteredData.length > 0 ? filteredData : formattedData);
     })
