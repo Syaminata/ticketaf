@@ -39,18 +39,11 @@ const getAllVoyage = async (req, res) => {
 
 const getAllVoyageIncludingExpired = async (req, res) => {
   try {
-    console.log('🔍 Backend getAllVoyageIncludingExpired - req.query:', req.query);
-
-    // ⚠️ IMPORTANT : ne plus forcer les valeurs par défaut ici
-    const page   = parseInt(req.query.page);
-    const limit  = parseInt(req.query.limit);
-
     const search = req.query.search?.trim() || '';
-    const from   = req.query.from || '';
-    const to     = req.query.to || '';
+    const from = req.query.from || '';
+    const to = req.query.to || '';
     const driverId = req.query.driverId || '';
 
-    // Construire la requête
     let voyageQuery = {};
 
     if (search) {
@@ -67,17 +60,15 @@ const getAllVoyageIncludingExpired = async (req, res) => {
     if (to) voyageQuery.to = to;
     if (driverId) voyageQuery.driver = driverId;
 
-    console.log('🔎 Recherche Voyages avec filter:', voyageQuery);
+    const hasPagination =
+      req.query.page !== undefined &&
+      req.query.limit !== undefined;
 
-    // ============================
-    //  CAS MOBILE (pas de pagination)
-    // ============================
-    const isMobile =
-      !page && !limit ||
-      req.headers['user-agent']?.toLowerCase().includes('dart');
-
-    if (isMobile) {
-      console.log('📱 Mode MOBILE détecté');
+    // =========================
+    // 📱 MODE SIMPLE (mobile + défaut)
+    // =========================
+    if (!hasPagination) {
+      console.log('📱 Mode LISTE SIMPLE');
 
       const voyages = await Voyage.find(voyageQuery)
         .populate('driver', '-password')
@@ -85,14 +76,13 @@ const getAllVoyageIncludingExpired = async (req, res) => {
 
       return res.status(200).json(voyages);
     }
-    // ============================
-    //  CAS WEB (pagination)
-    // ============================
-    const safePage  = Math.max(1, page || 1);
-    const safeLimit = Math.min(50, limit || 10);
-    const skip      = (safePage - 1) * safeLimit;
 
-    console.log('📊 Pagination Voyages - page:', safePage, 'limit:', safeLimit, 'skip:', skip);
+    // =========================
+    // 💻 MODE PAGINATION (web)
+    // =========================
+    const page = Math.max(1, parseInt(req.query.page));
+    const limit = Math.min(50, parseInt(req.query.limit));
+    const skip = (page - 1) * limit;
 
     const total = await Voyage.countDocuments(voyageQuery);
 
@@ -100,22 +90,20 @@ const getAllVoyageIncludingExpired = async (req, res) => {
       .populate('driver', '-password')
       .sort({ date: -1 })
       .skip(skip)
-      .limit(safeLimit);
-
-    console.log('📈 Résultats Voyages - voyages.length:', voyages.length, 'total:', total);
+      .limit(limit);
 
     return res.status(200).json({
       voyages,
       pagination: {
-        current: safePage,
-        pageSize: safeLimit,
+        current: page,
+        pageSize: limit,
         total,
-        pages: Math.ceil(total / safeLimit)
+        pages: Math.ceil(total / limit)
       }
     });
 
   } catch (err) {
-    console.error('Erreur getAllVoyageIncludingExpired:', err);
+    console.error(err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
