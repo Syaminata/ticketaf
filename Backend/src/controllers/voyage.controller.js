@@ -72,8 +72,12 @@ const getAllVoyageIncludingExpired = async (req, res) => {
     // ============================
     //  CAS MOBILE (pas de pagination)
     // ============================
-    if (!page && !limit) {
-      console.log('📱 Mode MOBILE détecté (pas de pagination)');
+    const isMobile =
+      !page && !limit ||
+      req.headers['user-agent']?.toLowerCase().includes('dart');
+
+    if (isMobile) {
+      console.log('📱 Mode MOBILE détecté');
 
       const voyages = await Voyage.find(voyageQuery)
         .populate('driver', '-password')
@@ -81,7 +85,6 @@ const getAllVoyageIncludingExpired = async (req, res) => {
 
       return res.status(200).json(voyages);
     }
-
     // ============================
     //  CAS WEB (pagination)
     // ============================
