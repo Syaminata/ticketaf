@@ -65,10 +65,9 @@ const getAllVoyageIncludingExpired = async (req, res) => {
       req.query.limit !== undefined;
 
     // =========================
-    // 📱 MODE SIMPLE (mobile + défaut)
+    // MODE SIMPLE (mobile + défaut)
     // =========================
     if (!hasPagination) {
-      console.log('📱 Mode LISTE SIMPLE');
 
       const voyages = await Voyage.find(voyageQuery)
         .populate('driver', '-password')
@@ -78,7 +77,7 @@ const getAllVoyageIncludingExpired = async (req, res) => {
     }
 
     // =========================
-    // 💻 MODE PAGINATION (web)
+    // MODE PAGINATION (web)
     // =========================
     const page = Math.max(1, parseInt(req.query.page));
     const limit = Math.min(50, parseInt(req.query.limit));

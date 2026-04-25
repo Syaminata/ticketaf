@@ -188,10 +188,10 @@ function Dashboard() {
       setLoading(false);
     });
 
-    // Récupérer tous les utilisateurs et les grouper par rôle
+    // Récupérer tous les utilisateurs et les grouper par rôle (routes existantes avec all=true pour désactiver la pagination)
     Promise.all([
-      axios.get("/users?page=1&limit=10000", { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get("/drivers?page=1&limit=10000", { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] }))
+      axios.get("/users?all=true", { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get("/drivers?all=true", { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] }))
     ])
     .then(([usersRes, driversRes]) => {
       

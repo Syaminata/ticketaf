@@ -9,13 +9,16 @@ const getAllUsers = async (req, res) => {
   try {
     console.log('🔍 Backend getAllUsers - req.query:', req.query);
     
+    // Si all=true, pas de pagination ni limite (pour le Dashboard)
+    const getAll = req.query.all === 'true';
+    
     const page   = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
-    const skip   = (page - 1) * limit;
+    const limit  = getAll ? undefined : Math.min(50, parseInt(req.query.limit) || 10);
+    const skip   = getAll ? 0 : (page - 1) * limit;
     const search = req.query.search?.trim() || '';
     const role   = req.query.role || '';
 
-    console.log('📊 Pagination - page:', page, 'limit:', limit, 'skip:', skip);
+    console.log('📊 Mode - all:', getAll, 'page:', page, 'limit:', limit, 'skip:', skip);
 
     // Filtre de recherche textuelle
     const searchFilter = search ? {
@@ -34,8 +37,16 @@ const getAllUsers = async (req, res) => {
     // Une seule collection User suffit pour tous les rôles
     console.log('🔎 Recherche avec filter:', searchFilter);
     
+    // Construire la requête de base
+    let userQuery = User.find(searchFilter).select('-password').sort({ name: 1 });
+    
+    // Ajouter pagination seulement si ce n'est pas pour le Dashboard
+    if (!getAll) {
+      userQuery = userQuery.skip(skip).limit(limit);
+    }
+    
     const [users, total] = await Promise.all([
-      User.find(searchFilter).select('-password').sort({ name: 1 }).skip(skip).limit(limit).lean(),
+      userQuery.lean(),
       User.countDocuments(searchFilter),
     ]);
 

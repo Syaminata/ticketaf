@@ -243,13 +243,16 @@ const getAllDrivers = async (req, res) => {
   try {
     console.log('🔍 Backend getAllDrivers - req.query:', req.query);
     
+    // Si all=true, pas de pagination ni limite (pour le Dashboard)
+    const getAll = req.query.all === 'true';
+    
     const page   = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
-    const skip   = (page - 1) * limit;
+    const limit  = getAll ? undefined : Math.min(50, parseInt(req.query.limit) || 10);
+    const skip   = getAll ? 0 : (page - 1) * limit;
     const search = req.query.search?.trim() || '';
     const status = req.query.status || '';
 
-    console.log('📊 Pagination Drivers - page:', page, 'limit:', limit, 'skip:', skip);
+    console.log('📊 Mode Drivers - all:', getAll, 'page:', page, 'limit:', limit, 'skip:', skip);
 
     // Nettoyer les fichiers manquants avant de retourner les données
     await cleanMissingFiles();
@@ -277,13 +280,18 @@ const getAllDrivers = async (req, res) => {
     // Compter le total des conducteurs pour la pagination
     const total = await Driver.countDocuments(driverQuery);
     
-    // Récupérer les conducteurs avec pagination
-    const drivers = await Driver.find(driverQuery)
+    // Construire la requête de base
+    let driverQueryResult = Driver.find(driverQuery)
       .select('-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .lean();
+      .sort({ createdAt: -1 });
+    
+    // Ajouter pagination seulement si ce n'est pas pour le Dashboard
+    if (!getAll) {
+      driverQueryResult = driverQueryResult.skip(skip).limit(parseInt(limit));
+    }
+    
+    // Récupérer les conducteurs
+    const drivers = await driverQueryResult.lean();
 
     console.log('📈 Résultats Drivers - drivers.length:', drivers.length, 'total:', total);
     
@@ -874,4 +882,18 @@ const changePassword = async (req, res) => {
   }
 };
 
-module.exports = { createDriver, getAllDrivers, updateDriver, deleteDriver, cleanFiles, activateDriver, deactivateDriver, unpinDriver, pinDriver, getPinnedDrivers, getMyProfile, updateMyProfile, changePassword };
+module.exports = {
+  createDriver,
+  getAllDrivers,
+  updateDriver,
+  deleteDriver,
+  cleanFiles,
+  activateDriver,
+  deactivateDriver,
+  unpinDriver,
+  pinDriver,
+  getPinnedDrivers,
+  getMyProfile,
+  updateMyProfile,
+  changePassword
+};

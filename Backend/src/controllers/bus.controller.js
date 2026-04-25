@@ -54,10 +54,9 @@ const getAllBuses = async (req, res) => {
       req.query.limit !== undefined;
 
     // =========================
-    // 📱 MODE MOBILE (liste simple)
+    //  MODE MOBILE (liste simple)
     // =========================
     if (!hasPagination) {
-      console.log('📱 Mode MOBILE BUS (liste simple)');
 
       const buses = await Bus.find(busQuery)
         .sort({ departureDate: 1 });
@@ -66,7 +65,7 @@ const getAllBuses = async (req, res) => {
     }
 
     // =========================
-    // 💻 MODE WEB (pagination)
+    // MODE WEB (pagination)
     // =========================
     const page = Math.max(1, parseInt(req.query.page));
     const limit = Math.min(50, parseInt(req.query.limit));
