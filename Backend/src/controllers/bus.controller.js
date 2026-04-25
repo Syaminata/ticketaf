@@ -49,6 +49,9 @@ const getAllBuses = async (req, res) => {
     if (from) busQuery.from = from;
     if (to) busQuery.to = to;
 
+    // Filtrer les bus dont la date de départ n'est pas encore passée
+    busQuery.departureDate = { $gte: new Date() };
+
     const hasPagination =
       req.query.page !== undefined &&
       req.query.limit !== undefined;

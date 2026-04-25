@@ -32,6 +32,7 @@ import {
 } from '@mui/material';
 import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge, Search as SearchIcon, FilterList as FilterIcon, Star, StarBorder, Assessment, LocationOn } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Composant pour afficher une ligne d'information
 const InfoRow = ({ label, children }) => (
@@ -476,9 +477,11 @@ export default function Drivers() {
     });
   };
 
+  
+
   const handleDownloadFile = (file, type) => {
     const link = document.createElement('a');
-    link.href = `/uploads/drivers/${file.filename}`;
+    link.href = `${API_URL}/uploads/drivers/${file.filename}`;
     link.download = file.originalName;
     link.target = '_blank';
     document.body.appendChild(link);
@@ -1475,7 +1478,7 @@ export default function Drivers() {
                 }}>
                   {fileViewer.type === 'photo' ? (
                     <img
-                      src={`/uploads/drivers/${fileViewer.file.filename}`}
+                      src={`${API_URL}/uploads/drivers/${fileViewer.file.filename}`}
                       alt={fileViewer.file.originalName}
                       style={{
                         width: '100%',
@@ -1490,7 +1493,7 @@ export default function Drivers() {
                     />
                   ) : (
                     <iframe
-                      src={`/uploads/drivers/${fileViewer.file.filename}`}
+                      src={`${API_URL}/uploads/drivers/${fileViewer.file.filename}`}
                       style={{
                         width: '100%',
                         height: '60vh',
