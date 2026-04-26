@@ -11,6 +11,17 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      '/remote-api': {
+        target: 'https://ticket-taf.itea.africa',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/remote-api/, '/api'),
+        secure: false,
+      },
+      '/uploads': {
+        target: 'https://ticket-taf.itea.africa',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 })

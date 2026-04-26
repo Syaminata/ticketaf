@@ -32,7 +32,7 @@ import {
 } from '@mui/material';
 import { Edit, Delete, Add, CloudUpload, AttachFile, Visibility, Download, Person, Email, Phone, Lock, DirectionsCar, EventSeat, Luggage, Badge, Search as SearchIcon, FilterList as FilterIcon, Star, StarBorder, Assessment, LocationOn } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = ''; // Utiliser le proxy Vite pour les fichiers (évite CORS)
 
 // Composant pour afficher une ligne d'information
 const InfoRow = ({ label, children }) => (

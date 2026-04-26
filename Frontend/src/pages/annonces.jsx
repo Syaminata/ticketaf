@@ -105,7 +105,10 @@ export default function Annonce() {
       formData.append('datePublication', new Date(editData.datePublication).toISOString());
       formData.append('dateFin', new Date(editData.dateFin).toISOString());
       if (editImageFile) formData.append('image', editImageFile);
-      const resp = await fetch(`${API_BASE_URL}/annonces/${editData.id}`, {
+      const url = `${API_BASE_URL}/annonces/${editData.id}`;
+      console.log('🌐 URL complète appelée:', url);
+      console.log('🌐 API_BASE_URL utilisé:', API_BASE_URL);
+      const resp = await fetch(url, {
         method: 'PUT',
         headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
         body: formData,
@@ -222,7 +225,10 @@ export default function Annonce() {
       const currentToken = getToken();
       console.log('🔐 Token utilisé pour fetch annonces:', currentToken ? '✅ Présent' : '❌ Absent');
 
-      const resp = await fetch(`${API_BASE_URL}/annonces`, {
+      const url = `${API_BASE_URL}/annonces`;
+      console.log('🌐 URL complète appelée:', url);
+      console.log('🌐 API_BASE_URL utilisé:', API_BASE_URL);
+      const resp = await fetch(url, {
         headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
       });
       const data = await resp.json();
