@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { reservationsAPI } from '../api/reservations';
 import API_BASE_URL from '../config/api';
 import axios from '../api/axios';
@@ -79,7 +79,7 @@ export default function Reservations() {
   const [totalReservations, setTotalReservations] = useState(0);
   const [statusFilter, setStatusFilter] = useState('all');
   const [routeFilter, setRouteFilter] = useState('');
-  const [busFilter, setBusFilter] = useState('');
+  const [routeBusFilter, setRouteBusFilter] = useState('');
   const [dateRange, setDateRange] = useState({
     startDate: null,
     endDate: null
@@ -127,15 +127,16 @@ export default function Reservations() {
   const fetchReservations = async (currentPage = page, currentLimit = rowsPerPage, search = searchTerm) => {
     setLoading(true);
     try {
-      console.log('🔍 Filtres frontend - statusFilter:', statusFilter, 'voyageFilter:', voyageFilter, 'busFilter:', busFilter);
+      console.log('🔍 Filtres frontend - statusFilter:', statusFilter, 'routeFilter:', routeFilter, 'routeBusFilter:', routeBusFilter);
       const [routeFrom, routeTo] = routeFilter ? routeFilter.split('|') : [null, null];
+      const [busRouteFrom, busRouteTo] = routeBusFilter ? routeBusFilter.split('|') : [null, null];
       const params = new URLSearchParams({
         page: currentPage + 1,
         limit: currentLimit,
         ...(search && { search }),
         ...(statusFilter && statusFilter !== 'all' && { status: statusFilter }),
         ...(routeFrom && routeTo && { routeFrom, routeTo }),
-        ...(busFilter && { busId: busFilter }),
+        ...(busRouteFrom && busRouteTo && { busRouteFrom, busRouteTo }),
       });
 
       console.log('🌐 URL Reservations appelée:', `/reservations?${params}`);
@@ -300,6 +301,16 @@ export default function Reservations() {
     });
   }, [voyages]);
 
+  const uniqueBusRoutes = useMemo(() => {
+    const seen = new Set();
+    return (buses || []).filter(b => {
+      const key = `${b.from}|${b.to}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [buses]);
+
   // Debounce sur la recherche
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -312,12 +323,12 @@ export default function Reservations() {
   // Changement de page ou de limite
   useEffect(() => {
     fetchReservations(page, rowsPerPage, searchTerm);
-  }, [page, rowsPerPage, searchTerm, statusFilter, routeFilter, busFilter]);
+  }, [page, rowsPerPage, searchTerm, statusFilter, routeFilter, routeBusFilter]);
 
   // Changement de filtres
   useEffect(() => {
     setPage(0);
-  }, [statusFilter, routeFilter, busFilter]);
+  }, [statusFilter, routeFilter, routeBusFilter]);
 
   useEffect(() => {
     fetchReservations();
@@ -332,7 +343,7 @@ export default function Reservations() {
 
   useEffect(() => {
     fetchBuses(0, 10, '');
-  }, [statusFilter, voyageFilter, busFilter]);
+  }, [statusFilter, routeFilter, routeBusFilter]);
 
   // ----- Dialog -----
   const handleOpen = (reservation = null) => {
@@ -870,9 +881,9 @@ const confirmDelete = async (id) => {
             </TextField>
             <TextField
               select
-              label="Filtrer par bus"
-              value={busFilter}
-              onChange={(e) => setBusFilter(e.target.value)}
+              label="Filtrer par itinéraire bus"
+              value={routeBusFilter}
+              onChange={(e) => setRouteBusFilter(e.target.value)}
               size="small"
               sx={{
                 width: 200,
@@ -892,9 +903,9 @@ const confirmDelete = async (id) => {
               }}
             >
               <MenuItem value="">Tous</MenuItem>
-              {filteredBuses.map(bus => (
-                <MenuItem key={bus._id} value={bus._id}>
-                  {bus.name} ({bus.from} → {bus.to})
+              {uniqueBusRoutes.map(bus => (
+                <MenuItem key={`${bus.from}|${bus.to}`} value={`${bus.from}|${bus.to}`}>
+                  {bus.from} → {bus.to}
                 </MenuItem>
               ))}
             </TextField>

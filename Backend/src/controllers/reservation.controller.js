@@ -173,9 +173,10 @@ const getAllReservations = async (req, res) => {
     const skip     = (page - 1) * limit;
     const search   = req.query.search?.trim() || '';
     const status   = req.query.status || '';
-    const routeFrom = req.query.routeFrom || '';
-    const routeTo   = req.query.routeTo   || '';
-    const busId     = req.query.busId     || '';
+    const routeFrom   = req.query.routeFrom || '';
+    const routeTo     = req.query.routeTo   || '';
+    const busRouteFrom = req.query.busRouteFrom || '';
+    const busRouteTo   = req.query.busRouteTo   || '';
 
     let reservationQuery = {};
 
@@ -194,9 +195,14 @@ const getAllReservations = async (req, res) => {
       reservationQuery.voyage = { $in: voyageIds };
     }
 
-    // Filtre bus
-    if (busId) {
-      reservationQuery.bus = busId;
+    // Filtre itinéraire bus : cherche tous les bus avec ce from→to
+    if (busRouteFrom && busRouteTo) {
+      const matchingBuses = await Bus.find({
+        from: new RegExp(`^${busRouteFrom}$`, 'i'),
+        to:   new RegExp(`^${busRouteTo}$`,   'i'),
+      }).select('_id');
+      const busIds = matchingBuses.map(b => b._id);
+      reservationQuery.bus = { $in: busIds };
     }
 
     // Recherche textuelle : sur les champs directs de Reservation,
