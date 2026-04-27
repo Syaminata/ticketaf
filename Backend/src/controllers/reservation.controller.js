@@ -177,6 +177,8 @@ const getAllReservations = async (req, res) => {
     const routeTo     = req.query.routeTo   || '';
     const busRouteFrom = req.query.busRouteFrom || '';
     const busRouteTo   = req.query.busRouteTo   || '';
+    const startDate   = req.query.startDate || '';
+    const endDate     = req.query.endDate   || '';
 
     let reservationQuery = {};
 
@@ -203,6 +205,31 @@ const getAllReservations = async (req, res) => {
       }).select('_id');
       const busIds = matchingBuses.map(b => b._id);
       reservationQuery.bus = { $in: busIds };
+    }
+
+    // Filtre par plage de dates
+    if (startDate || endDate) {
+      const dateFilter = {};
+      if (startDate) {
+        dateFilter.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        // Ajouter 1 jour pour inclure toute la journée de fin
+        const endDateTime = new Date(endDate);
+        endDateTime.setDate(endDateTime.getDate() + 1);
+        dateFilter.$lt = endDateTime;
+      }
+      
+      // Créer un filtre composite pour les dates de voyage ET de bus
+      const dateConditions = [];
+      if (Object.keys(dateFilter).length > 0) {
+        dateConditions.push({ 'voyage.date': dateFilter });
+        dateConditions.push({ 'bus.departureDate': dateFilter });
+      }
+      
+      if (dateConditions.length > 0) {
+        reservationQuery.$or = dateConditions;
+      }
     }
 
     // Recherche textuelle : sur les champs directs de Reservation,

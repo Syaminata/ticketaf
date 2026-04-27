@@ -127,7 +127,7 @@ export default function Reservations() {
   const fetchReservations = async (currentPage = page, currentLimit = rowsPerPage, search = searchTerm) => {
     setLoading(true);
     try {
-      console.log('🔍 Filtres frontend - statusFilter:', statusFilter, 'routeFilter:', routeFilter, 'routeBusFilter:', routeBusFilter);
+      console.log('🔍 Filtres frontend - statusFilter:', statusFilter, 'routeFilter:', routeFilter, 'routeBusFilter:', routeBusFilter, 'dateRange:', dateRange);
       const [routeFrom, routeTo] = routeFilter ? routeFilter.split('|') : [null, null];
       const [busRouteFrom, busRouteTo] = routeBusFilter ? routeBusFilter.split('|') : [null, null];
       const params = new URLSearchParams({
@@ -137,6 +137,8 @@ export default function Reservations() {
         ...(statusFilter && statusFilter !== 'all' && { status: statusFilter }),
         ...(routeFrom && routeTo && { routeFrom, routeTo }),
         ...(busRouteFrom && busRouteTo && { busRouteFrom, busRouteTo }),
+        ...(dateRange.startDate && { startDate: dateRange.startDate }),
+        ...(dateRange.endDate && { endDate: dateRange.endDate }),
       });
 
       console.log('🌐 URL Reservations appelée:', `/reservations?${params}`);
@@ -323,12 +325,12 @@ export default function Reservations() {
   // Changement de page ou de limite
   useEffect(() => {
     fetchReservations(page, rowsPerPage, searchTerm);
-  }, [page, rowsPerPage, searchTerm, statusFilter, routeFilter, routeBusFilter]);
+  }, [page, rowsPerPage, searchTerm, statusFilter, routeFilter, routeBusFilter, dateRange]);
 
   // Changement de filtres
   useEffect(() => {
     setPage(0);
-  }, [statusFilter, routeFilter, routeBusFilter]);
+  }, [statusFilter, routeFilter, routeBusFilter, dateRange]);
 
   useEffect(() => {
     fetchReservations();
