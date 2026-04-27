@@ -253,6 +253,7 @@ const getAllDrivers = async (req, res) => {
     const status = req.query.status || '';
 
     console.log('📊 Mode Drivers - all:', getAll, 'page:', page, 'limit:', limit, 'skip:', skip);
+    console.log('🔍 Status reçu:', status, 'type:', typeof status);
 
     // Nettoyer les fichiers manquants avant de retourner les données
     await cleanMissingFiles();
@@ -262,7 +263,9 @@ const getAllDrivers = async (req, res) => {
     
     // Filtrer par statut si spécifié
     if (status && status !== 'all') {
-      driverQuery.isActive = status === 'actif';
+      // Gérer à la fois 'active'/'actif' et 'inactive'
+      driverQuery.isActive = (status === 'active' );
+      console.log('🎯 Filtre status appliqué:', status, '→ isActive:', driverQuery.isActive);
     }
     
     // Ajouter la recherche si fournie

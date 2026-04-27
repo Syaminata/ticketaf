@@ -15,7 +15,7 @@ if (VITE_API_URL) {
   // En développement, backend local
   API_BASE_URL = 'http://localhost:3000/api';
 } else {
-  // En production sur ticket-taf.itea.africa, utiliser l'API du même domaine
+  // En production sur ticket-taf.itea.africa, 'API du même domaine
   API_BASE_URL = '/api';
 }
 
