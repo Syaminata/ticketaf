@@ -127,6 +127,8 @@ export default function Reservations() {
   const fetchReservations = async (currentPage = page, currentLimit = rowsPerPage, search = searchTerm) => {
     setLoading(true);
     try {
+      console.log('🔍 Filtres frontend - statusFilter:', statusFilter, 'voyageFilter:', voyageFilter, 'busFilter:', busFilter);
+      
       const params = new URLSearchParams({
         page: currentPage + 1,
         limit: currentLimit,

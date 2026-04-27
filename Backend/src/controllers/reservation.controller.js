@@ -179,6 +179,7 @@ const getAllReservations = async (req, res) => {
     const busId = req.query.busId || '';
 
     console.log('📊 Pagination Reservations - page:', page, 'limit:', limit, 'skip:', skip);
+    console.log('🔍 Filtres reçus - status:', status, 'voyageId:', voyageId, 'busId:', busId);
 
     // Construire la requête de base
     let reservationQuery = {};
@@ -200,16 +201,19 @@ const getAllReservations = async (req, res) => {
     // Filtrer par statut si spécifié
     if (status && status !== 'all') {
       reservationQuery.status = status;
+      console.log('🎯 Filtre status appliqué:', status);
     }
     
     // Filtrer par voyage si spécifié
     if (voyageId) {
       reservationQuery.voyage = voyageId;
+      console.log('🎯 Filtre voyageId appliqué:', voyageId);
     }
     
     // Filtrer par bus si spécifié
     if (busId) {
       reservationQuery.bus = busId;
+      console.log('🎯 Filtre busId appliqué:', busId);
     }
 
     console.log('🔎 Recherche Reservations avec filter:', reservationQuery);
