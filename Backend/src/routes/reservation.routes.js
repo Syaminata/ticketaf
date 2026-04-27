@@ -28,14 +28,18 @@ const reservationController = require('../controllers/reservation.controller');
  */
 router.get('/me', auth, async (req, res) => {
   try {
-    const reservations = await Reservation.find({ user: req.user.id })
+    const userId = req.user._id || req.user.id; // ← cohérent avec le reste
+
+    const reservations = await Reservation.find({ user: userId })
       .populate({
         path: 'voyage',
         populate: { path: 'driver', select: '-password -permis -photo', model: 'Driver' }
       })
       .populate('bus')
-      .populate('user', '-password');
-    res.json(reservations);
+      .populate('user', '-password')
+      .sort({ createdAt: -1 });
+
+    res.json(reservations); // tableau brut — Flutter ne change pas
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
