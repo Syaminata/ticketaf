@@ -78,7 +78,7 @@ export default function Reservations() {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalReservations, setTotalReservations] = useState(0);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [voyageFilter, setVoyageFilter] = useState('');
+  const [routeFilter, setRouteFilter] = useState('');
   const [busFilter, setBusFilter] = useState('');
   const [dateRange, setDateRange] = useState({
     startDate: null,
@@ -128,13 +128,13 @@ export default function Reservations() {
     setLoading(true);
     try {
       console.log('🔍 Filtres frontend - statusFilter:', statusFilter, 'voyageFilter:', voyageFilter, 'busFilter:', busFilter);
-      
+      const [routeFrom, routeTo] = routeFilter ? routeFilter.split('|') : [null, null];
       const params = new URLSearchParams({
         page: currentPage + 1,
         limit: currentLimit,
         ...(search && { search }),
         ...(statusFilter && statusFilter !== 'all' && { status: statusFilter }),
-        ...(voyageFilter && { voyageId: voyageFilter }),
+        ...(routeFrom && routeTo && { routeFrom, routeTo }),
         ...(busFilter && { busId: busFilter }),
       });
 
@@ -290,6 +290,16 @@ export default function Reservations() {
     }
   };
 
+  const uniqueRoutes = useMemo(() => {
+    const seen = new Set();
+    return (voyages || []).filter(v => {
+      const key = `${v.from}|${v.to}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [voyages]);
+
   // Debounce sur la recherche
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -302,12 +312,12 @@ export default function Reservations() {
   // Changement de page ou de limite
   useEffect(() => {
     fetchReservations(page, rowsPerPage, searchTerm);
-  }, [page, rowsPerPage, searchTerm, statusFilter, voyageFilter, busFilter]);
+  }, [page, rowsPerPage, searchTerm, statusFilter, routeFilter, busFilter]);
 
   // Changement de filtres
   useEffect(() => {
     setPage(0);
-  }, [statusFilter, voyageFilter, busFilter]);
+  }, [statusFilter, routeFilter, busFilter]);
 
   useEffect(() => {
     fetchReservations();
@@ -830,9 +840,9 @@ const confirmDelete = async (id) => {
             </TextField>
             <TextField
               select
-              label="Filtrer par voyage"
-              value={voyageFilter}
-              onChange={(e) => setVoyageFilter(e.target.value)}
+              label="Filtrer par itinéraire"
+              value={routeFilter}
+              onChange={(e) => setRouteFilter(e.target.value)}
               size="small"
               sx={{
                 width: 200,
@@ -852,8 +862,8 @@ const confirmDelete = async (id) => {
               }}
             >
               <MenuItem value="">Tous</MenuItem>
-              {upcomingVoyages.map(voyage => (
-                <MenuItem key={voyage._id} value={voyage._id}>
+              {uniqueRoutes.map(voyage => (
+                <MenuItem key={`${voyage.from}|${voyage.to}`} value={`${voyage.from}|${voyage.to}`}>
                   {voyage.from} → {voyage.to}
                 </MenuItem>
               ))}

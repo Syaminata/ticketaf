@@ -168,93 +168,101 @@ const createReservation = async (req, res) => {
 
 const getAllReservations = async (req, res) => {
   try {
-    console.log('🔍 Backend getAllReservations - req.query:', req.query);
-    
-    const page   = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
-    const skip   = (page - 1) * limit;
-    const search = req.query.search?.trim() || '';
-    const status = req.query.status || '';
-    const voyageId = req.query.voyageId || '';
-    const busId = req.query.busId || '';
+    const page     = Math.max(1, parseInt(req.query.page) || 1);
+    const limit    = Math.min(50, parseInt(req.query.limit) || 10);
+    const skip     = (page - 1) * limit;
+    const search   = req.query.search?.trim() || '';
+    const status   = req.query.status || '';
+    const routeFrom = req.query.routeFrom || '';
+    const routeTo   = req.query.routeTo   || '';
+    const busId     = req.query.busId     || '';
 
-    console.log('📊 Pagination Reservations - page:', page, 'limit:', limit, 'skip:', skip);
-    console.log('🔍 Filtres reçus - status:', status, 'voyageId:', voyageId, 'busId:', busId);
-
-    // Construire la requête de base
     let reservationQuery = {};
-    
-    // Ajouter la recherche si fournie
-    if (search) {
-      const searchRegex = new RegExp(search, 'i');
-      reservationQuery.$or = [
-        { 'user.name': searchRegex },
-        { 'user.numero': searchRegex },
-        { 'user.email': searchRegex },
-        { 'voyage.from': searchRegex },
-        { 'voyage.to': searchRegex },
-        { 'voyage.driver.name': searchRegex },
-        { 'voyage.driver.numero': searchRegex }
-      ];
-    }
-    
-    // Filtrer par statut si spécifié
+
+    // Filtre statut
     if (status && status !== 'all') {
       reservationQuery.status = status;
-      console.log('🎯 Filtre status appliqué:', status);
-    }
-    
-    // Filtrer par voyage si spécifié
-    if (voyageId) {
-      reservationQuery.voyage = voyageId;
-      console.log('🎯 Filtre voyageId appliqué:', voyageId);
-    }
-    
-    // Filtrer par bus si spécifié
-    if (busId) {
-      reservationQuery.bus = busId;
-      console.log('🎯 Filtre busId appliqué:', busId);
     }
 
-    console.log('🔎 Recherche Reservations avec filter:', reservationQuery);
-    
-    // Compter le total des réservations pour la pagination
+    // Filtre itinéraire : cherche tous les voyages avec ce from→to
+    if (routeFrom && routeTo) {
+      const matchingVoyages = await Voyage.find({
+        from: new RegExp(`^${routeFrom}$`, 'i'),
+        to:   new RegExp(`^${routeTo}$`,   'i'),
+      }).select('_id');
+      const voyageIds = matchingVoyages.map(v => v._id);
+      reservationQuery.voyage = { $in: voyageIds };
+    }
+
+    // Filtre bus
+    if (busId) {
+      reservationQuery.bus = busId;
+    }
+
+    // Recherche textuelle : sur les champs directs de Reservation,
+    // et sur User séparément (populate ne filtre pas)
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+
+      // Cherche les users correspondants
+      const matchingUsers = await User.find({
+        $or: [
+          { name:   searchRegex },
+          { numero: searchRegex },
+          { email:  searchRegex },
+        ]
+      }).select('_id');
+      const userIds = matchingUsers.map(u => u._id);
+
+      // Cherche les voyages correspondants (from/to)
+      const matchingVoyagesSearch = await Voyage.find({
+        $or: [
+          { from: searchRegex },
+          { to:   searchRegex },
+        ]
+      }).select('_id');
+      const voyageIdsSearch = matchingVoyagesSearch.map(v => v._id);
+
+      // Combine : la réservation doit correspondre à l'un OU l'autre
+      const searchConditions = [];
+      if (userIds.length)        searchConditions.push({ user:   { $in: userIds } });
+      if (voyageIdsSearch.length) searchConditions.push({ voyage: { $in: voyageIdsSearch } });
+
+      if (searchConditions.length > 0) {
+        // Si déjà un filtre voyage, on intersecte (AND)
+        if (reservationQuery.voyage) {
+          const existingVoyageIds = reservationQuery.voyage.$in;
+          const voyageSearchSet = new Set(voyageIdsSearch.map(id => id.toString()));
+          reservationQuery.voyage.$in = existingVoyageIds.filter(id =>
+            voyageSearchSet.has(id.toString())
+          );
+        }
+        reservationQuery.$or = searchConditions;
+      } else {
+        // Aucun match → résultat vide garanti
+        reservationQuery._id = null;
+      }
+    }
+
     const total = await Reservation.countDocuments(reservationQuery);
-    
-    // Récupérer les réservations avec pagination
+
     const reservations = await Reservation.find(reservationQuery)
       .populate('user', '-password')
-      .populate({
-        path: 'voyage',
-        populate: { path: 'driver', select: '-password' }
-      })
+      .populate({ path: 'voyage', populate: { path: 'driver', select: '-password' } })
       .populate('bus')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limit);
 
-    console.log('📈 Résultats Reservations - reservations.length:', reservations.length, 'total:', total);
-    
-    // Retourner les résultats avec pagination
-    const response = {
-      reservations: reservations,
+    res.status(200).json({
+      reservations,
       pagination: {
-        current: parseInt(page),
-        pageSize: parseInt(limit),
-        total: total,
-        pages: Math.ceil(total / limit)
-      }
-    };
-
-    console.log('📤 Réponse Reservations envoyée:', {
-      reservationsCount: reservations.length,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit)
+        current: page,
+        pageSize: limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
     });
-
-    res.status(200).json(response);
   } catch (err) {
     console.error('Erreur getAllReservations:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
