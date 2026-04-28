@@ -222,7 +222,8 @@ const createVoyageByDriver = async (req, res) => {
     const { from, to, date, price, totalSeats } = req.body;
     const driver = await Driver.findById(req.user._id);
     if (!driver || !driver.isActive) return res.status(403).json({ message: 'Inactif' });
-    const voyage = await Voyage.create({ driver: req.user._id, from, to, date, price, totalSeats: totalSeats || driver.capacity });
+    const seats = totalSeats || driver.capacity;
+    const voyage = await Voyage.create({ driver: req.user._id, from, to, date, price, totalSeats: seats, availableSeats: seats });
     res.status(201).json({ message: 'Succès', voyage });
   } catch (err) {
     res.status(500).json({ message: 'Erreur' });

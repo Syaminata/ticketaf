@@ -33,6 +33,7 @@ const getAllBuses = async (req, res) => {
     const search = req.query.search?.trim() || '';
     const from = req.query.from || '';
     const to = req.query.to || '';
+    const date  = req.query;
 
     let busQuery = {};
 
@@ -48,7 +49,12 @@ const getAllBuses = async (req, res) => {
 
     if (from) busQuery.from = from;
     if (to) busQuery.to = to;
-
+    if (date) {
+      const d = new Date(date);
+      if (!isNaN(d)) {
+        query.departureDate = { $gte: d, $lt: new Date(d.getTime() + 86400000) };
+      }
+    }
     // Filtrer les bus dont la date de départ n'est pas encore passée
     busQuery.departureDate = { $gte: new Date() };
 

@@ -66,7 +66,8 @@ export default function Drivers() {
     marque: '',
     capacity: '',
     capacity_coffre: '',
-    climatisation: false
+    climatisation: false,
+    wifi: false
   });
   const [files, setFiles] = useState({
     permis: null,
@@ -189,7 +190,8 @@ export default function Drivers() {
         marque: driver.marque,
         capacity: driver.capacity,
         capacity_coffre: driver.capacity_coffre,
-        climatisation: driver.climatisation || false
+        climatisation: driver.climatisation || false,
+        wifi: driver.wifi || false
       });
     } else {
       setFormData({
@@ -202,7 +204,8 @@ export default function Drivers() {
         marque: '',
         capacity: '',
         capacity_coffre: '',
-        climatisation: false
+        climatisation: false,
+        wifi: false
       });
     }
     setOpen(true);
@@ -288,7 +291,7 @@ export default function Drivers() {
       // Ajouter tous les champs du formulaire
       console.log('Données du formulaire avant envoi:', formData);
       Object.keys(formData).forEach(key => {
-        if (key === 'climatisation') {
+        if (key === 'climatisation' || key === 'wifi') {
           formDataToSubmit.append(key, formData[key]);
         } else if (formData[key] !== '' && formData[key] !== null) {
           formDataToSubmit.append(key, formData[key]);
@@ -1269,31 +1272,39 @@ export default function Drivers() {
                 },
               }}
             />
-
-            {/* Ligne 5: Climatisation  */}
-            <FormControlLabel
-              control={
-                <Checkbox
-                  name="climatisation"
-                  checked={formData.climatisation || false}
-                  onChange={handleChange}
-                  sx={{
-                    color: '#ffcc33',
-                    '&.Mui-checked': {
-                      color: '#ffcc33',
-                    },
-                  }}
-                />
-              }
-              label="Véhicule équipé de climatisation"
-              sx={{
-                gridColumn: 'span 2',
-                '& .MuiFormControlLabel-label': {
-                  fontSize: '0.9rem',
-                  fontWeight: 500
+            {/* Ligne 5: Climatisation + WiFi */}
+            <Box sx={{ gridColumn: 'span 2', display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      name="climatisation"
+                      checked={formData.climatisation || false}
+                      onChange={handleChange}
+                      sx={{ color: '#ffcc33', '&.Mui-checked': { color: '#ffcc33' } }}
+                    />
                 }
-              }}
-            />
+                label="Véhicule équipé de climatisation"
+                sx={{
+                  gridColumn: 'span 2',
+                  '& .MuiFormControlLabel-label': {
+                    fontSize: '0.9rem',
+                    fontWeight: 500
+                  }
+                }}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    name="wifi"
+                    checked={formData.wifi || false}
+                    onChange={handleChange}
+                      sx={{ color: '#ffcc33', '&.Mui-checked': { color: '#ffcc33' } }}
+                    />
+                  }
+                  label="Véhicule équipé de WiFi"
+                  sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.9rem', fontWeight: 500 } }}
+              />
+            </Box>
 
             {/* Upload du permis (pleine largeur) */}
             <FormControl fullWidth sx={{ gridColumn: 'span 2' }}>
@@ -1678,6 +1689,14 @@ export default function Drivers() {
                     <Chip
                       label={detailsDialog.driver.climatisation ? 'Oui' : 'Non'}
                       color={detailsDialog.driver.climatisation ? 'success' : 'default'}
+                      size="small"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </InfoRow>
+                  <InfoRow label="WiFi">
+                    <Chip
+                      label={detailsDialog.driver.wifi ? 'Oui' : 'Non'}
+                      color={detailsDialog.driver.wifi ? 'success' : 'default'}
                       size="small"
                       sx={{ fontWeight: 600 }}
                     />

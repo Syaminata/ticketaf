@@ -138,7 +138,7 @@ const getUserById = async (req, res) => {
 const createUser = async (req, res) => {
 
   try {
-    const { name, email, password, numero, role, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
+    const { name, email, password, numero, role, matricule, marque, capacity, capacity_coffre, climatisation, wifi } = req.body;
 
     if (!name || !numero || !password) {
       return res.status(400).json({ message: 'Le nom, le numéro et le mot de passe sont requis' });
@@ -198,6 +198,7 @@ const createUser = async (req, res) => {
         capacity_coffre,
         address: req.body.address,
         climatisation: climatisation === 'true' || climatisation === true,
+        wifi: wifi === 'true' || wifi === true,
         isActive: false,
         role: 'conducteur'
       });

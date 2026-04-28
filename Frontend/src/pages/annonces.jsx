@@ -106,11 +106,10 @@ export default function Annonce() {
       formData.append('dateFin', new Date(editData.dateFin).toISOString());
       if (editImageFile) formData.append('image', editImageFile);
       const url = `${API_BASE_URL}/annonces/${editData.id}`;
-      console.log('🌐 URL complète appelée:', url);
-      console.log('🌐 API_BASE_URL utilisé:', API_BASE_URL);
+
       const resp = await fetch(url, {
         method: 'PUT',
-        headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
+        headers: { 'ngrok-skip-browser-warning': 'true', ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}) },
         body: formData,
       });
       const data = await resp.json().catch(() => ({}));
@@ -132,7 +131,7 @@ export default function Annonce() {
       const currentToken = getToken();
       const resp = await fetch(`${API_BASE_URL}/annonces/${id}`, {
         method: 'DELETE',
-        headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
+        headers: { 'ngrok-skip-browser-warning': 'true', ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}) },
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data?.message || 'Erreur lors de la suppression');
@@ -189,7 +188,7 @@ export default function Annonce() {
 
       const resp = await fetch(`${API_BASE_URL}/annonces`, {
         method: 'POST',
-        headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
+        headers: { 'ngrok-skip-browser-warning': 'true', ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}) },
         body: formData,
       });
 
@@ -229,7 +228,7 @@ export default function Annonce() {
       console.log('🌐 URL complète appelée:', url);
       console.log('🌐 API_BASE_URL utilisé:', API_BASE_URL);
       const resp = await fetch(url, {
-        headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
+        headers: { 'ngrok-skip-browser-warning': 'true', ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}) },
       });
       const data = await resp.json();
       console.log('📢 Annonces API réponse:', data);

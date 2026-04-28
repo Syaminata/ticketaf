@@ -270,6 +270,18 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+router.patch('/my/read-all', auth, async (req, res) => {
+  try {
+    await UserNotification.updateMany(
+      { user: req.user._id, read: false },
+      { $set: { read: true, readAt: new Date() } }
+    );
+    res.json({ message: 'Toutes les notifications marquées comme lues' });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+});
+
 router.put('/:id/read', auth, async (req, res) => {
   try {
     if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {

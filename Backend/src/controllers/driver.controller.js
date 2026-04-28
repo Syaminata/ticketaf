@@ -1,225 +1,105 @@
-const mongoose = require('mongoose');
-const Driver = require('../models/driver.model');
 const User = require('../models/user.model');
-const fs = require('fs');
-const path = require('path');
+const Driver = require('../models/driver.model');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const admin = require('../config/firebase');
+const { sendWelcomeNotification } = require('../services/notification.service');
 
-// Fonction pour nettoyer les fichiers manquants
-const cleanMissingFiles = async () => {
+
+// ====================== REGISTER ======================
+const register = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const drivers = await Driver.find({});
-    const uploadsDir = path.join(__dirname, '../../uploads/drivers');
-    
-    // Créer le dossier s'il n'existe pas
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    const {
+      name, email, numero, password, address, role,
+      matricule, marque, capacity, capacity_coffre,
+      climatisation, wifi
+    } = req.body;
+
+    // 🔹 Validation
+    if (!name || !numero || !password) {
+      return res.status(400).json({ message: 'Nom, numéro et mot de passe requis' });
     }
-    
-    for (const driver of drivers) {
-      if (driver.permis && driver.permis.length > 0) {
-        const permisFile = driver.permis[0];
-        if (permisFile && permisFile.filename) {
-          const permisPath = path.join(uploadsDir, permisFile.filename);
-          if (!fs.existsSync(permisPath)) {
-            console.log(`Fichier permis manquant pour ${driver.name}: ${permisFile.filename}`);
-            await Driver.findByIdAndUpdate(driver._id, { $unset: { permis: 1 } });
-          }
-        }
-      }
-      
-      if (driver.photo && driver.photo.length > 0) {
-        const photoFile = driver.photo[0];
-        if (photoFile && photoFile.filename) {
-          const photoPath = path.join(uploadsDir, photoFile.filename);
-          if (!fs.existsSync(photoPath)) {
-            console.log(`Fichier photo manquant pour ${driver.name}: ${photoFile.filename}`);
-            await Driver.findByIdAndUpdate(driver._id, { $unset: { photo: 1 } });
-          }
-        }
+
+    if (email) {
+      const existingEmail = await User.findOne({ email });
+      if (existingEmail) {
+        return res.status(400).json({ message: 'Email déjà utilisé' });
       }
     }
-  } catch (error) {
-    console.error('Erreur lors du nettoyage des fichiers manquants:', error);
-  }
-};
 
-
-const createDriver = async (req, res) => {
-  
-  try {
-    const { name, email, numero, password, matricule, marque, capacity, capacity_coffre, climatisation, wifi, address } = req.body;
-
-    // 1. Validation des entrées
-    if (!name || !numero || !password || !matricule || !marque || !capacity || !capacity_coffre) {
-      return res.status(400).json({ 
-        message: 'Tous les champs sont obligatoires',
-        required: {
-          name: !name,
-          numero: !numero,
-          password: !password,
-          matricule: !matricule,
-          marque: !marque,
-          capacity: !capacity,
-          capacity_coffre: !capacity_coffre,
-          address: !address
-        }
-      });
+    const existingNumero = await User.findOne({ numero });
+    if (existingNumero) {
+      return res.status(400).json({ message: 'Numéro déjà utilisé' });
     }
 
-    // Vérifier les fichiers uploadés
-    if (!req.files?.permis?.[0] || !req.files?.photo?.[0]) {
-      return res.status(400).json({ 
-        message: 'Les fichiers permis et photo sont requis',
-        missing: {
-          permis: !req.files?.permis?.[0],
-          photo: !req.files?.photo?.[0]
-        }
+    let user, driver;
+
+    // ================= CONDUCTEUR =================
+    if (role === 'conducteur') {
+
+      if (!matricule || !marque || !capacity || !capacity_coffre) {
+        return res.status(400).json({ message: 'Champs conducteur manquants' });
+      }
+
+      const existingDriver = await Driver.findOne({ matricule });
+      if (existingDriver) {
+        return res.status(400).json({ message: 'Matricule déjà utilisé' });
+      }
+
+      user = new User({
+        name,
+        email: email || undefined,
+        password,
+        numero,
+        address,
+        role: 'conducteur'
       });
+
+      await user.save({ session });
+
+      driver = new Driver({
+        _id: user._id,
+        name,
+        email: email || undefined,
+        password,
+        numero,
+        matricule,
+        marque,
+        capacity: parseInt(capacity),
+        capacity_coffre,
+        address,
+        climatisation: climatisation === 'true' || climatisation === true,
+        wifi: wifi === 'true' || wifi === true,
+        isActive: false,
+        role: 'conducteur'
+      });
+
+      await driver.save({ session });
     }
 
-    // 2. Vérifier les doublons
-    console.log('Recherche de doublons pour:', { email, numero });
-    
-    // Construire la requête de manière dynamique
-    const query = { $or: [{ numero: numero }] };
-    if (email) {
-      query.$or.push({ email: email });
-    }
-    
-    console.log('Requête de recherche:', JSON.stringify(query));
-    const existingUser = await User.findOne(query);
-    
-    if (existingUser) {
-      const numeroExists = existingUser.numero === numero;
-      const emailExists = email && existingUser.email === email;
-      
-      console.log('Utilisateur existant trouvé:', {
-        _id: existingUser._id,
-        email: existingUser.email,
-        numero: existingUser.numero,
-        role: existingUser.role,
-        numeroExists,
-        emailExists
-      });
-      
-      return res.status(400).json({ 
-        message: numeroExists ? 'Numéro déjà utilisé' : 'Email déjà utilisé',
-        exists: true,
-        details: {
-          emailExists,
-          numeroExists,
-          userId: existingUser._id,
-          existingNumero: existingUser.numero,
-          existingEmail: existingUser.email
-        }
-      });
+    // ================= CLIENT =================
+    else {
+      user = await User.create([{
+        name,
+        email: email || undefined,
+        password,
+        numero,
+        address,
+        role: role || 'client'
+      }], { session });
+
+      user = user[0];
     }
 
-    // Vérifier les doublons dans la collection Driver
-    const driverQuery = { 
-      $or: [
-        { numero: numero },
-        { matricule: matricule }
-      ]
-    };
-    if (email) {
-      driverQuery.$or.push({ email: email });
-    }
-    
-    console.log('Recherche de conducteur existant:', JSON.stringify(driverQuery));
-    const existingDriver = await Driver.findOne(driverQuery);
-    
-    if (existingDriver) {
-      const numeroExists = existingDriver.numero === numero;
-      const emailExists = email && existingDriver.email === email;
-      const matriculeExists = existingDriver.matricule === matricule;
-      
-      console.log('Conducteur existant trouvé:', {
-        _id: existingDriver._id,
-        email: existingDriver.email,
-        numero: existingDriver.numero,
-        matricule: existingDriver.matricule,
-        numeroExists,
-        emailExists,
-        matriculeExists
-      });
-      
-      return res.status(400).json({ 
-        message: numeroExists ? 'Numéro déjà utilisé' : 
-                emailExists ? 'Email déjà utilisé' :
-                'Matricule déjà utilisé',
-        exists: true,
-        details: {
-          emailExists,
-          numeroExists,
-          matriculeExists,
-          existingNumero: existingDriver.numero,
-          existingMatricule: existingDriver.matricule,
-          existingEmail: existingDriver.email
-        }
-      });
-    }
+    await session.commitTransaction();
+    session.endSession();
 
-    // 4. Créer l'utilisateur
-    if (!req.body.address) {
-      return res.status(400).json({ 
-        message: 'Le champ adresse est obligatoire',
-        required: {
-          address: true
-        }
-      });
-    }
-    
-    const user = new User({
-      name,
-      email: email || undefined, // Soit un email valide, soit undefined
-      password: password,
-      numero,
-      address: req.body.address.trim(),
-      role: 'conducteur'
-    });
-    
-    await user.save();
-
-    // 5. Créer le conducteur avec le mot de passe déjà haché
-    const driver = new Driver({
-      _id: user._id,
-      name,
-      email: email || undefined, // Même logique que pour l'utilisateur
-      numero,
-      password: password,
-      matricule,
-      marque,
-      capacity: parseInt(capacity),
-      capacity_coffre,
-      address: req.body.address.trim(), // Utiliser la même adresse que l'utilisateur
-      climatisation: climatisation === 'true' || climatisation === true,
-      wifi: wifi === 'true' || wifi === true,
-      // Admin-created drivers are active by default; public /register always inactive
-      isActive: req.user
-        ? (req.body.isActive !== undefined ? (req.body.isActive === 'true' || req.body.isActive === true) : true)
-        : false,
-      role: 'conducteur',
-      permis: [{
-        filename: req.files.permis[0].filename,
-        originalName: req.files.permis[0].originalname,
-        path: req.files.permis[0].path,
-        uploadedAt: new Date()
-      }],
-      photo: [{
-        filename: req.files.photo[0].filename,
-        originalName: req.files.photo[0].originalname,
-        path: req.files.photo[0].path,
-        uploadedAt: new Date()
-      }]
-    });
-
-    await driver.save();
-
-    // 6. Réponse
-    res.status(201).json({
-      message: 'Inscription réussie',
+    return res.status(201).json({
+      message: 'Utilisateur créé avec succès',
       user: {
         id: user._id,
         name: user.name,
@@ -229,674 +109,176 @@ const createDriver = async (req, res) => {
       }
     });
 
-  } catch (error) {
-    console.error('Erreur lors de l\'inscription du conducteur:', error);
-    res.status(500).json({ 
-      message: 'Erreur lors de l\'inscription',
-      error: error.message 
-    });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error('❌ Register error:', err);
+
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern)[0];
+      return res.status(400).json({ message: `${field} déjà utilisé` });
+    }
+
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
 
 
-const getAllDrivers = async (req, res) => {
+// ====================== LOGIN ======================
+const login = async (req, res) => {
   try {
-    console.log('🔍 Backend getAllDrivers - req.query:', req.query);
-    
-    // Si all=true, pas de pagination ni limite (pour le Dashboard)
-    const getAll = req.query.all === 'true';
-    
-    const page   = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit  = getAll ? undefined : Math.min(50, parseInt(req.query.limit) || 10);
-    const skip   = getAll ? 0 : (page - 1) * limit;
-    const search = req.query.search?.trim() || '';
-    const status = req.query.status || '';
+    const { email, numero, password, role } = req.body;
 
-    console.log('📊 Mode Drivers - all:', getAll, 'page:', page, 'limit:', limit, 'skip:', skip);
-    console.log('🔍 Status reçu:', status, 'type:', typeof status);
-
-    // Nettoyer les fichiers manquants avant de retourner les données
-    await cleanMissingFiles();
-    
-    // Construire la requête de base
-    let driverQuery = {};
-    
-    // Filtrer par statut si spécifié
-    if (status && status !== 'all') {
-      // Gérer à la fois 'active'/'actif' et 'inactive'
-      driverQuery.isActive = (status === 'active' );
-      console.log('🎯 Filtre status appliqué:', status, '→ isActive:', driverQuery.isActive);
-    }
-    
-    // Ajouter la recherche si fournie
-    if (search) {
-      const searchRegex = new RegExp(search, 'i');
-      driverQuery.$or = [
-        { name: searchRegex },
-        { numero: searchRegex },
-        { email: searchRegex }
-      ];
+    if ((!email && !numero) || !password || !role) {
+      return res.status(400).json({ message: 'Identifiants incomplets' });
     }
 
-    console.log('🔎 Recherche Drivers avec filter:', driverQuery);
-    
-    // Compter le total des conducteurs pour la pagination
-    const total = await Driver.countDocuments(driverQuery);
-    
-    // Construire la requête de base
-    let driverQueryResult = Driver.find(driverQuery)
-      .select('-password')
-      .sort({ createdAt: -1 });
-    
-    // Ajouter pagination seulement si ce n'est pas pour le Dashboard
-    if (!getAll) {
-      driverQueryResult = driverQueryResult.skip(skip).limit(parseInt(limit));
-    }
-    
-    // Récupérer les conducteurs
-    const drivers = await driverQueryResult.lean();
+    const user = await User.findOne({
+      $or: [{ email: email || '' }, { numero: numero || '' }],
+      role
+    });
 
-    console.log('📈 Résultats Drivers - drivers.length:', drivers.length, 'total:', total);
-    
-    // Optimisation : récupérer tous les tripCount en une seule requête avec aggregation
-    const Voyage = mongoose.model('Voyage');
-    const tripCounts = await Voyage.aggregate([
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ message: 'Mot de passe incorrect' });
+
+    // 🔹 JWT
+    const token = jwt.sign(
+      { id: user._id, role: user.role, name: user.name },
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: '7d' }
+    );
+
+    // 🔹 Firebase
+    let firebaseToken = null;
+    const uid = user._id.toString();
+
+    try {
+      await admin.auth().getUser(uid);
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        await admin.auth().createUser({
+          uid,
+          email: user.email,
+          displayName: user.name
+        });
+      }
+    }
+
+    firebaseToken = await admin.auth().createCustomToken(uid);
+
+    res.json({
+      message: 'Connexion réussie',
+      token,
+      firebaseToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        numero: user.numero,
+        role: user.role
+      }
+    });
+
+  } catch (err) {
+    console.error('❌ Login error:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+
+// ====================== UPDATE FCM ======================
+const updateFcmToken = async (req, res) => {
+  try {
+    const { fcmToken, platform } = req.body;
+    const userId = req.user._id;
+
+    if (!fcmToken) {
+      return res.status(400).json({ message: 'FCM token requis' });
+    }
+
+    //  Nettoyer partout
+    await User.updateMany(
+      { 'fcmTokens.token': fcmToken },
+      { $pull: { fcmTokens: { token: fcmToken } } }
+    );
+
+    await Driver.updateMany(
+      { 'fcmTokens.token': fcmToken },
+      { $pull: { fcmTokens: { token: fcmToken } } }
+    );
+
+    //  Ajouter
+    const user = await User.findByIdAndUpdate(
+      userId,
       {
-        $match: {
-          driver: { $in: drivers.map(d => d._id) },
-          status: { $in: ['completed', 'in_progress'] }
+        $addToSet: {
+          fcmTokens: {
+            token: fcmToken,
+            platform: platform || 'android',
+            lastActive: new Date()
+          }
         }
       },
-      {
-        $group: {
-          _id: '$driver',
-          tripCount: { $sum: 1 }
-        }
-      }
-    ]);
-    
-    // Créer une map pour un lookup rapide des tripCount
-    const tripCountMap = tripCounts.reduce((acc, item) => {
-      acc[item._id.toString()] = item.tripCount;
-      return acc;
-    }, {});
-    
-    // Ajouter les tripCount aux conducteurs
-    const driversWithTripCount = drivers.map(driver => ({
-      ...driver,
-      tripCount: tripCountMap[driver._id.toString()] || 0,
-      status: driver.isActive ? 'Actif' : 'Inactif',
-      isActive: driver.isActive || false
-    }));
-    
-    // Trier les conducteurs par nombre de voyages décroissant
-    driversWithTripCount.sort((a, b) => b.tripCount - a.tripCount);
-    
-    // Retourner les résultats avec pagination
-    const response = {
-      drivers: driversWithTripCount,
-      pagination: {
-        current: parseInt(page),
-        pageSize: parseInt(limit),
-        total: total,
-        pages: Math.ceil(total / limit)
-      }
-    };
-
-    console.log('📤 Réponse Drivers envoyée:', {
-      driversCount: driversWithTripCount.length,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit)
-    });
-
-    res.status(200).json(response);
-  } catch (err) {
-    console.error('Erreur getAllDrivers:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
-  }
-};
-
-
-const updateDriver = async (req, res) => {
-  try {
-    console.log('Données reçues pour mise à jour:', req.body);
-    console.log('Fichiers reçus pour mise à jour:', req.files);
-    
-    const { name, email, password, numero, matricule, marque, capacity, capacity_coffre, climatisation, address } = req.body;
-
-    // Vérifier que l'adresse est fournie
-    if (address !== undefined && (!address || address.trim() === '')) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Le champ adresse est obligatoire' 
-      });
-    }
-
-    const updateData = { 
-      name, 
-      numero, 
-      matricule, 
-      marque, 
-      capacity, 
-      capacity_coffre, 
-      climatisation: climatisation === 'true' || climatisation === true
-    };
-    
-    // Ajouter l'adresse si elle est fournie
-    if (address !== undefined) {
-      updateData.address = address.trim();
-    }
-    
-    // Gérer l'email optionnel
-    if (email !== undefined) {
-      const trimmedEmail = email ? email.trim() : '';
-      if (trimmedEmail !== '' && trimmedEmail.toLowerCase() !== 'undefined') {
-        updateData.email = trimmedEmail;
-      } else {
-        // Supprimer le champ email s'il est vide, null, undefined ou 'undefined'
-        delete updateData.email;
-      }
-    }
-    
-    if (password && password.trim() !== '') {
-      updateData.password = password; 
-    }
-
-    // Traiter les fichiers uploadés s'ils sont présents
-    if (req.files) {
-      if (req.files.permis && req.files.permis.length > 0) {
-        const permisData = {
-          filename: req.files.permis[0].filename,
-          originalName: req.files.permis[0].originalname,
-          path: req.files.permis[0].path,
-          uploadedAt: new Date()
-        };
-        updateData.permis = [permisData];
-      }
-
-      if (req.files.photo && req.files.photo.length > 0) {
-        const photoData = {
-          filename: req.files.photo[0].filename,
-          originalName: req.files.photo[0].originalname,
-          path: req.files.photo[0].path,
-          uploadedAt: new Date()
-        };
-        updateData.photo = [photoData];
-      }
-    }
-
-    const driver = await Driver.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
-
-
-    if (email !== undefined) {
-    const trimmedEmail = email && email !== 'undefined' ? email.trim() : undefined;
-    if (trimmedEmail) {
-      updateData.email = trimmedEmail;
-    } else {
-      // Si l'email est vide ou 'undefined', on le supprime complètement
-      delete updateData.email;
-    }
-  }
-    // Mettre à jour l'utilisateur associé avec les mêmes informations
-    const userUpdate = {};
-    
-    if (name !== undefined) userUpdate.name = name;
-    if (numero !== undefined) userUpdate.numero = numero;
-    if (address !== undefined) userUpdate.address = address.trim();
-    if (email !== undefined) {
-      const trimmedEmail = email ? email.trim() : undefined;
-      if (trimmedEmail === '' || trimmedEmail === 'undefined') {
-        // Pour supprimer un champ dans MongoDB, on utilise $unset
-        userUpdate.$unset = { email: 1 };
-      } else {
-        userUpdate.email = trimmedEmail;
-      }
-    }
-    // Ne procéder à la mise à jour que si on a des champs à mettre à jour
-    if (Object.keys(userUpdate).length > 0) {
-      try {
-        const updateOperation = { ...userUpdate };
-        
-        // Si on doit supprimer l'email
-        if (userUpdate.$unset) {
-          updateOperation.$unset = { email: 1 };
-        }
-        
-        await User.findByIdAndUpdate(
-          req.params.id,
-          updateOperation,
-          { new: true, runValidators: true }
-        );
-      } catch (userErr) {
-        console.error('Erreur lors de la mise à jour de l\'utilisateur:', userErr);
-      }
-    }
-    res.status(200).json({ message: 'Conducteur et utilisateur associé mis à jour', driver });
-  } catch (err) {
-    console.error('Erreur updateDriver:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
-  }
-};
-
-
-const deleteDriver = async (req, res) => {
-  try {
-    const driver = await Driver.findByIdAndDelete(req.params.id);
-    if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
-
-
-    res.status(200).json({ message: 'Conducteur supprimé' });
-  } catch (err) {
-    console.error('Erreur deleteDriver:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
-  }
-};
-
-// Route pour nettoyer les fichiers manquants
-const cleanFiles = async (req, res) => {
-  try {
-    await cleanMissingFiles();
-    res.status(200).json({ message: 'Nettoyage des fichiers manquants terminé' });
-  } catch (err) {
-    console.error('Erreur cleanFiles:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
-  }
-};
-
-const activateDriver = async (req, res) => {
-  try {
-    const driver = await Driver.findByIdAndUpdate(
-      req.params.id,
-      { isActive: true },
       { new: true }
-    ).select('-password');
-    if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
+    );
 
-    // Envoyer une notification au chauffeur
-    const { sendNotification } = require('../services/notification.service');
-    const User = require('../models/user.model');
-    const UserNotification = require('../models/userNotification.model');
-
-    // Récupérer l'utilisateur associé au chauffeur
-    const user = await User.findById(driver._id);
-    if (user && user.fcmTokens && user.fcmTokens.length > 0) {
-      // Créer la notification utilisateur
-      await UserNotification.create({
-        user: user._id,
-        title: 'Compte activé',
-        body: 'Félicitations ! Votre compte chauffeur a été activé. Vous pouvez maintenant commencer à créer des voyages.',
-        type: 'info'
-      });
-
-      // Envoyer la notification push
-      const tokens = user.fcmTokens.map(t => t.token);
-      await sendNotification(tokens, 'Compte activé', 'Votre compte chauffeur a été activé. Vous pouvez maintenant créer des voyages.', {
-        type: 'info',
-        screen: 'voyages'
+    //  Sync Driver
+    if (user?.role === 'conducteur') {
+      await Driver.findByIdAndUpdate(userId, {
+        $addToSet: {
+          fcmTokens: {
+            token: fcmToken,
+            platform: platform || 'android',
+            lastActive: new Date()
+          }
+        }
       });
     }
 
-    res.status(200).json({ message: 'Conducteur activé', driver });
+    // 🔹 Notification bienvenue
+    if (user && !user.welcomeNotificationSent) {
+      sendWelcomeNotification(userId, user.name)
+        .catch(e => console.warn('Notif erreur:', e.message));
+    }
+
+    res.json({ message: 'Token mis à jour' });
+
   } catch (err) {
-    console.error('Erreur activateDriver:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
 
-const deactivateDriver = async (req, res) => {
-  try {
-    const driver = await Driver.findByIdAndUpdate(
-      req.params.id,
-      { isActive: false },
-      { new: true }
-    ).select('-password');
-    if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
-    res.status(200).json({ message: 'Conducteur désactivé', driver });
-  } catch (err) {
-    console.error('Erreur deactivateDriver:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
-  }
-};
-// Épingler un chauffeur
-const pinDriver = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { pinnedOrder } = req.body; // Optionnel : définir l'ordre
 
-    const driver = await Driver.findById(id);
-    if (!driver) {
-      return res.status(404).json({ message: 'Chauffeur non trouvé' });
+// ====================== LOGOUT ======================
+const logout = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { fcmToken } = req.body;
+
+    if (fcmToken) {
+      await User.findByIdAndUpdate(userId, {
+        $pull: { fcmTokens: { token: fcmToken } }
+      });
+
+      await Driver.findByIdAndUpdate(userId, {
+        $pull: { fcmTokens: { token: fcmToken } }
+      });
     }
 
-    driver.isPinned = true;
-    driver.pinnedAt = new Date();
-    if (pinnedOrder !== undefined) {
-      driver.pinnedOrder = pinnedOrder;
-    }
+    res.json({ message: 'Déconnexion réussie' });
 
-    await driver.save();
-
-    res.status(200).json({ 
-      message: 'Chauffeur épinglé avec succès', 
-      driver: { 
-        _id: driver._id, 
-        name: driver.name, 
-        isPinned: driver.isPinned,
-        pinnedOrder: driver.pinnedOrder 
-      } 
-    });
   } catch (err) {
-    console.error('Erreur pinDriver:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
 
-// Désépingler un chauffeur
-const unpinDriver = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const driver = await Driver.findById(id);
-    if (!driver) {
-      return res.status(404).json({ message: 'Chauffeur non trouvé' });
-    }
-
-    driver.isPinned = false;
-    driver.pinnedAt = null;
-    driver.pinnedOrder = 0;
-
-    await driver.save();
-
-    res.status(200).json({ 
-      message: 'Chauffeur désépinglé avec succès', 
-      driver: { 
-        _id: driver._id, 
-        name: driver.name, 
-        isPinned: driver.isPinned 
-      } 
-    });
-  } catch (err) {
-    console.error('Erreur unpinDriver:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
-  }
-};
-
-// Obtenir tous les chauffeurs épinglés
-const getPinnedDrivers = async (req, res) => {
-  try {
-    const drivers = await Driver.find({ isPinned: true })
-      .select('-password')
-      .sort({ pinnedOrder: 1 })
-      .lean();
-    
-    // Pour chaque conducteur, compter le nombre de voyages
-    const driversWithTripCount = await Promise.all(drivers.map(async (driver) => {
-      const tripCount = await mongoose.model('Voyage').countDocuments({ driver: driver._id });
-      // Mettre à jour le compteur dans la base de données
-      await Driver.findByIdAndUpdate(driver._id, { tripCount });
-      
-      // Retourner le conducteur avec le nombre de voyages
-      return {
-        ...driver,
-        tripCount
-      };
-    }));
-    
-    res.status(200).json(driversWithTripCount);
-  } catch (err) {
-    console.error('Erreur getPinnedDrivers:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
-  }
-};
-// 1. Récupérer le profil du conducteur connecté
-const getMyProfile = async (req, res) => {
-  try {
-    const driver = await Driver.findById(req.user.id).select('-password');
-    if (!driver) {
-      return res.status(404).json({ message: 'Profil non trouvé' });
-    }
-    res.status(200).json(driver);
-  } catch (err) {
-    console.error('Erreur getMyProfile:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
-  }
-};
-
-// 2. Mettre à jour son propre profil (sans fichiers)
-const updateMyProfile = async (req, res) => {
-  try {
-    const { name, email, numero, matricule, marque, capacity, capacity_coffre, climatisation, wifi, address } = req.body;
-    
-    // Vérifier que l'adresse est fournie
-    if (address !== undefined && (!address || address.trim() === '')) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Le champ adresse est obligatoire' 
-      });
-    }
-    
-    console.log('Données reçues pour mise à jour profil:', req.body);
-    console.log('Fichiers reçus:', req.files);
-
-    // Vérifier si le numéro existe déjà pour un autre utilisateur
-    if (numero) {
-      const existingDriver = await Driver.findOne({ 
-        numero, 
-        _id: { $ne: req.user.id } 
-      });
-      if (existingDriver) {
-        return res.status(400).json({ 
-          success: false,
-          message: 'Ce numéro est déjà utilisé par un autre conducteur' 
-        });
-      }
-    }
-    
-    // Vérifier si l'email existe déjà pour un autre utilisateur
-    if (email && email.trim() !== '') {
-      const existingDriver = await Driver.findOne({ 
-        email, 
-        _id: { $ne: req.user.id } 
-      });
-      if (existingDriver) {
-        return res.status(400).json({ 
-          success: false,
-          message: 'Cet email est déjà utilisé par un autre conducteur' 
-        });
-      }
-    }
-
-    // Vérifier si la matricule existe déjà pour un autre conducteur
-    if (matricule && matricule.trim() !== '') {
-      const existingDriver = await Driver.findOne({ 
-        matricule, 
-        _id: { $ne: req.user.id } 
-      });
-      if (existingDriver) {
-        return res.status(400).json({ 
-          success: false,
-          message: 'Cette matricule est déjà utilisée par un autre conducteur' 
-        });
-      }
-    }
-
-    // Construire l'objet de mise à jour
-    const updateData = {};
-    
-    if (name) updateData.name = name.trim();
-    if (numero) updateData.numero = numero.trim();
-    if (matricule) updateData.matricule = matricule.trim();
-    if (marque) updateData.marque = marque.trim();
-    if (capacity) updateData.capacity = parseInt(capacity);
-    if (capacity_coffre) updateData.capacity_coffre = capacity_coffre;
-    if (climatisation !== undefined) {
-      updateData.climatisation = climatisation === 'true' || climatisation === true;
-    }
-    if (wifi !== undefined) {
-      updateData.wifi = wifi === 'true' || wifi === true;
-    }
-
-    // Gérer l'email (peut être vide)
-    if (email !== undefined) {
-      updateData.email = email.trim() || undefined;
-    }
-
-    // Traiter les fichiers uploadés
-    if (req.files) {
-      if (req.files.permis && req.files.permis.length > 0) {
-        const permisData = {
-          filename: req.files.permis[0].filename,
-          originalName: req.files.permis[0].originalname,
-          path: req.files.permis[0].path,
-          uploadedAt: new Date()
-        };
-        updateData.permis = [permisData];
-      }
-
-      if (req.files.photo && req.files.photo.length > 0) {
-        const photoData = {
-          filename: req.files.photo[0].filename,
-          originalName: req.files.photo[0].originalname,
-          path: req.files.photo[0].path,
-          uploadedAt: new Date()
-        };
-        updateData.photo = [photoData];
-      }
-    }
-
-    console.log('Données à mettre à jour:', updateData);
-
-    // Mettre à jour le conducteur
-    const driver = await Driver.findByIdAndUpdate(
-      req.user.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    if (!driver) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Profil non trouvé' 
-      });
-    }
-
-    // Mettre à jour aussi dans la collection User
-    const userUpdateData = { name: updateData.name, numero: updateData.numero };
-    if (updateData.email !== undefined) {
-      userUpdateData.email = updateData.email;
-    }
-    await User.findByIdAndUpdate(req.user.id, userUpdateData);
-
-    res.status(200).json({ 
-      success: true,
-      message: 'Profil mis à jour avec succès', 
-      driver 
-    });
-  } catch (err) {
-    console.error('Erreur updateMyProfile:', err);
-    res.status(500).json({ 
-      success: false,
-      message: 'Erreur serveur', 
-      error: err.message 
-    });
-  }
-};
-
-// 3. Changer son mot de passe
-const changePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword, confirmPassword } = req.body;
-
-    // Vérifier que tous les champs sont présents
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Tous les champs sont requis'
-      });
-    }
-
-    // Vérifier que les nouveaux mots de passe correspondent
-    if (newPassword !== confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Les nouveaux mots de passe ne correspondent pas'
-      });
-    }
-
-    // Vérifier la longueur du nouveau mot de passe
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Le nouveau mot de passe doit contenir au moins 6 caractères'
-      });
-    }
-
-    // Obtenir l'ID utilisateur de req.user._id ou req.user.id
-    const userId = req.user._id || req.user.id;
-    console.log('[changePassword] Changement de mot de passe pour utilisateur:', userId);
-
-    // Vérifier via User (toujours hachage simple, fiable pour tous les conducteurs)
-    const user = await User.findById(userId);
-    if (!user || !user.password) {
-      console.log('[changePassword] Utilisateur non trouvé:', userId);
-      return res.status(404).json({
-        success: false,
-        message: 'Conducteur non trouvé'
-      });
-    }
-
-    // Vérifier le mot de passe actuel
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
-      console.log('[changePassword] Mot de passe actuel incorrect pour:', userId);
-      return res.status(400).json({
-        success: false,
-        message: 'Mot de passe actuel incorrect'
-      });
-    }
-
-    // Hasher le nouveau mot de passe
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Mettre à jour les deux collections
-    await User.findByIdAndUpdate(userId, { password: hashedPassword });
-    await Driver.findByIdAndUpdate(userId, { password: hashedPassword });
-
-    console.log('[changePassword] Mot de passe modifié avec succès pour:', userId);
-    res.status(200).json({
-      success: true,
-      message: 'Mot de passe modifié avec succès'
-    });
-  } catch (err) {
-    console.error('[changePassword] Erreur:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur',
-      error: err.message
-    });
-  }
-};
 
 module.exports = {
-  createDriver,
-  getAllDrivers,
-  updateDriver,
-  deleteDriver,
-  cleanFiles,
-  activateDriver,
-  deactivateDriver,
-  unpinDriver,
-  pinDriver,
-  getPinnedDrivers,
-  getMyProfile,
-  updateMyProfile,
-  changePassword
+  register,
+  login,
+  updateFcmToken,
+  logout
 };

@@ -61,6 +61,11 @@ const createReservation = async (req, res) => {
 
     const reservation = await Reservation.create(reservationData);
 
+    // Mise à jour des places AVANT les notifications (évite une race condition)
+    if (ticket === 'place') {
+      if (voyageId) await Voyage.findByIdAndUpdate(voyageId, { $inc: { availableSeats: -quantity } });
+      if (busId) await Bus.findByIdAndUpdate(busId, { $inc: { availableSeats: -quantity } });
+    }
     // NOTIFICATIONS POUR VOYAGE (COVOITURAGE)
     if (ticket === 'place' && voyageId) {
       const voyage = await Voyage.findById(voyageId).populate('driver');
@@ -138,12 +143,6 @@ const createReservation = async (req, res) => {
         'Votre demande d\'envoi de colis est en attente de validation',
         { type: 'info' }
       );
-    }
-
-    // Mise à jour des places
-    if (ticket === 'place') {
-      if (voyageId) await Voyage.findByIdAndUpdate(voyageId, { $inc: { availableSeats: -quantity } });
-      if (busId) await Bus.findByIdAndUpdate(busId, { $inc: { availableSeats: -quantity } });
     }
 
     const populatedReservation = await Reservation.findById(reservation._id)
@@ -410,7 +409,8 @@ const cancelReservation = async (req, res) => {
   try {
     const reservation = await Reservation.findById(req.params.id)
       .populate({ path: 'voyage', populate: { path: 'driver' } })
-      .populate('bus');
+      .populate('bus')
+      .populate({ path: 'bus', populate: { path: 'owner' } });
 
     if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
 
@@ -457,6 +457,16 @@ const cancelReservation = async (req, res) => {
         'Annulation de réservation',
         `${user?.name || 'Un passager'} a annulé ${reservation.quantity} place(s) sur ${trajet}.`,
         { type: 'alert', reservationId: reservation._id.toString(), voyageId: reservation.voyage._id.toString() }
+      );
+    }
+    // Notification entreprise (bus) (in-app + push)
+    if (reservation.bus?.owner) {
+      const ownerId = reservation.bus.owner._id || reservation.bus.owner;
+      await sendAndSaveNotification(
+        ownerId,
+        'Annulation de réservation',
+        `${user?.name || 'Un passager'} a annulé ${reservation.quantity} place(s) sur ${trajet}.`,
+        { type: 'alert', reservationId: reservation._id.toString(), busId: reservation.bus._id.toString() }
       );
     }
 
