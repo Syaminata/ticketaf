@@ -1,47 +1,30 @@
 const User = require('../models/user.model');
-
 const Driver = require('../models/driver.model');
-
 const bcrypt = require('bcryptjs');
-
 const jwt = require('jsonwebtoken');
-
 const mongoose = require('mongoose');
-
 const admin = require('../config/firebase');
+const { sendWelcomeNotification } = require('../services/notification.service');
 
 
 
 // === Inscription ===
 
 const register = async (req, res) => {
-
   const session = await mongoose.startSession();
-
   session.startTransaction();
-
-  
 
   try {
 
-    const { name, email, numero, password, address, role, matricule, marque, capacity, capacity_coffre, climatisation } = req.body;
-
-
+    const { name, email, numero, password, address, role, matricule, marque, capacity, capacity_coffre, climatisation, wifi } = req.body;
 
     if (!name || !numero || !password) {
-
       return res.status(400).json({ message: 'Le nom, numéro et mot de passe sont requis' });
-
     }
-
-
-
     // Vérifie si l'email existe déjà (seulement si email fourni)
 
     if (email) {
-
       const existingUser = await User.findOne({ email });
-
       if (existingUser) {
 
         return res.status(400).json({ message: 'Email déjà utilisé' });
@@ -50,10 +33,7 @@ const register = async (req, res) => {
 
     }
 
-
-
     // Vérifier si le numéro est déjà utilisé
-
     const existingUserByNumber = await User.findOne({ numero });
 
     if (existingUserByNumber) {
@@ -62,13 +42,9 @@ const register = async (req, res) => {
 
     }
 
-
-
     let user;
 
     let driver = null;
-
-
 
     if (role === 'conducteur') {
 
@@ -107,9 +83,6 @@ const register = async (req, res) => {
         return res.status(400).json({ message: 'Matricule déjà utilisé' });
 
       }
-
-
-
       // Créer d'abord l'utilisateur
 
       user = new User({
