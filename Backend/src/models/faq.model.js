@@ -19,6 +19,11 @@ const faqSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  targetAudience: {
+    type: String,
+    enum: ['all', 'client', 'conducteur'],
+    default: 'all',
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Faq', faqSchema);
