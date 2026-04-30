@@ -39,70 +39,11 @@ const getAllVoyage = async (req, res) => {
 
 const getAllVoyageIncludingExpired = async (req, res) => {
   try {
-    const search = req.query.search?.trim() || '';
-    const from = req.query.from || '';
-    const to = req.query.to || '';
-    const driverId = req.query.driverId || '';
-
-    let voyageQuery = {};
-
-    if (search) {
-      const searchRegex = new RegExp(search, 'i');
-      voyageQuery.$or = [
-        { from: searchRegex },
-        { to: searchRegex },
-        { 'driver.name': searchRegex },
-        { 'driver.numero': searchRegex }
-      ];
-    }
-
-    if (from) voyageQuery.from = from;
-    if (to) voyageQuery.to = to;
-    if (driverId) voyageQuery.driver = driverId;
-
-    const hasPagination =
-      req.query.page !== undefined &&
-      req.query.limit !== undefined;
-
-    // =========================
-    // MODE SIMPLE (mobile + défaut)
-    // =========================
-    if (!hasPagination) {
-
-      const voyages = await Voyage.find(voyageQuery)
-        .populate('driver', '-password')
-        .sort({ date: -1 });
-
-      return res.status(200).json(voyages);
-    }
-
-    // =========================
-    // MODE PAGINATION (web)
-    // =========================
-    const page = Math.max(1, parseInt(req.query.page));
-    const limit = Math.min(50, parseInt(req.query.limit));
-    const skip = (page - 1) * limit;
-
-    const total = await Voyage.countDocuments(voyageQuery);
-
-    const voyages = await Voyage.find(voyageQuery)
+    const voyage = await Voyage.find()
       .populate('driver', '-password')
-      .sort({ date: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    return res.status(200).json({
-      voyages,
-      pagination: {
-        current: page,
-        pageSize: limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    });
-
+      .sort({ date: -1 });
+    res.status(200).json(voyage);
   } catch (err) {
-    console.error(err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
@@ -114,38 +55,76 @@ const updateVoyage = async (req, res) => {
     const voyage = await Voyage.findById(voyageId);
     if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
 
-    if (updates.status === 'STARTED' && voyage.status !== 'STARTED') {
+    // Récupérer une seule fois les réservations confirmées (utilisé par plusieurs blocs)
+    const getConfirmedUserIds = async () => {
       const reservations = await Reservation.find({ voyage: voyageId, status: 'confirmé' });
-      const userIds = reservations.map(r => r.user);
+      return reservations.map(r => r.user);
+    };
+
+    // Voyage démarré
+    if (updates.status === 'STARTED' && voyage.status !== 'STARTED') {
+      const userIds = await getConfirmedUserIds();
       if (userIds.length > 0) {
         await sendAndSaveNotification(
           userIds,
           'Voyage démarré',
           `Le chauffeur a démarré le voyage ${voyage.from} → ${voyage.to}`,
-          { type: 'TRIP_STARTED', voyageId }
+          { type: 'TRIP_STARTED', voyageId: voyageId.toString() }
         );
       }
     }
 
+    // Chauffeur en route vers un client
     if (updates.currentClient && String(updates.currentClient) !== String(voyage.currentClient)) {
       await sendAndSaveNotification(
         updates.currentClient,
         'Le chauffeur arrive',
         'Le chauffeur se dirige vers votre position',
-        { type: 'DRIVER_ON_THE_WAY', voyageId }
+        { type: 'DRIVER_ON_THE_WAY', voyageId: voyageId.toString() }
       );
     }
 
+    // Date modifiée
     const dateChanged = updates.date && new Date(updates.date).getTime() !== new Date(voyage.date).getTime();
     if (dateChanged) {
-      const reservations = await Reservation.find({ voyage: voyageId, status: 'confirmé' });
-      const userIds = reservations.map(r => r.user);
+      const userIds = await getConfirmedUserIds();
       if (userIds.length > 0) {
         await sendAndSaveNotification(
           userIds,
-          'Modification de votre voyage',
-          `La date de votre voyage ${voyage.from} → ${voyage.to} a été modifiée au ${new Date(updates.date).toLocaleDateString('fr-FR')}`,
-          { type: 'TRIP_MODIFIED', voyageId }
+          'Date de voyage modifiée',
+          `La date de votre voyage ${voyage.from} → ${voyage.to} a changé : ${new Date(updates.date).toLocaleDateString('fr-FR')}`,
+          { type: 'TRIP_MODIFIED', voyageId: voyageId.toString() }
+        );
+      }
+    }
+
+    // Prix modifié — le prix verrouillé (lockedPrice) des réservations existantes n'est PAS modifié
+    const priceChanged = updates.price !== undefined && Number(updates.price) !== Number(voyage.price);
+    if (priceChanged) {
+      const userIds = await getConfirmedUserIds();
+      if (userIds.length > 0) {
+        await sendAndSaveNotification(
+          userIds,
+          'Prix du voyage modifié',
+          `Le prix du trajet ${voyage.from} → ${voyage.to} est maintenant de ${updates.price} FCFA. Votre réservation conserve le prix initial de ${voyage.price} FCFA.`,
+          { type: 'info', voyageId: voyageId.toString() }
+        );
+      }
+    }
+
+    // Trajet modifié (départ ou destination)
+    const fromChanged = updates.from && updates.from !== voyage.from;
+    const toChanged = updates.to && updates.to !== voyage.to;
+    if ((fromChanged || toChanged) && !dateChanged) {
+      const userIds = await getConfirmedUserIds();
+      if (userIds.length > 0) {
+        const newFrom = updates.from || voyage.from;
+        const newTo = updates.to || voyage.to;
+        await sendAndSaveNotification(
+          userIds,
+          'Trajet modifié',
+          `Votre voyage a été modifié : ${newFrom} → ${newTo}`,
+          { type: 'TRIP_MODIFIED', voyageId: voyageId.toString() }
         );
       }
     }
