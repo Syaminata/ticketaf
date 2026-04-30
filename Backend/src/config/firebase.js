@@ -22,7 +22,7 @@ try {
   // Priority 2: file path from env var or default location
   if (!serviceAccount) {
     const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH
-      || path.join(__dirname, '../../firebase-service-account.json');
+      || path.join(__dirname, '../../firebase-backend/firebase-service-account.json');
 
     console.log('🔍 Recherche Firebase à:', serviceAccountPath);
     console.log('📂 Fichier existe:', fs.existsSync(serviceAccountPath));
