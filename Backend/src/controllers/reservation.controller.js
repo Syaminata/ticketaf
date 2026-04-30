@@ -66,6 +66,7 @@ const createReservation = async (req, res) => {
       if (voyageId) await Voyage.findByIdAndUpdate(voyageId, { $inc: { availableSeats: -quantity } });
       if (busId) await Bus.findByIdAndUpdate(busId, { $inc: { availableSeats: -quantity } });
     }
+
     // NOTIFICATIONS POUR VOYAGE (COVOITURAGE)
     if (ticket === 'place' && voyageId) {
       const voyage = await Voyage.findById(voyageId).populate('driver');
@@ -109,6 +110,7 @@ const createReservation = async (req, res) => {
     if (ticket === 'place' && busId) {
       const bus = await Bus.findById(busId);
       if (bus) {
+        // Notify client
         await sendAndSaveNotification(
           user._id,
           'Réservation Bus confirmée',
@@ -122,6 +124,15 @@ const createReservation = async (req, res) => {
             agencyName: bus.name || ''
           }
         );
+        // Notify bus owner so their seat count refreshes automatically
+        if (bus.owner) {
+          await sendAndSaveNotification(
+            bus.owner,
+            'Nouvelle réservation',
+            `${user.name} a réservé ${quantity} place(s) dans ${bus.name} (${bus.from} → ${bus.to})`,
+            { type: 'alert', tripType: 'bus', busId: bus._id.toString(), reservationId: reservation._id.toString() }
+          );
+        }
       }
     }
 
@@ -167,190 +178,18 @@ const createReservation = async (req, res) => {
 
 const getAllReservations = async (req, res) => {
   try {
-    const page       = Math.max(1, parseInt(req.query.page) || 1);
-    const limit      = Math.min(50, parseInt(req.query.limit) || 10);
-    const skip       = (page - 1) * limit;
-    const search     = req.query.search?.trim() || '';
-    const status     = req.query.status || '';
-    const routeFrom      = req.query.routeFrom     || '';
-    const routeTo        = req.query.routeTo       || '';
-    const busRouteFrom   = req.query.busRouteFrom  || '';
-    const busRouteTo     = req.query.busRouteTo    || '';
-    const startDate  = req.query.startDate || '';
-    const endDate    = req.query.endDate   || '';
-
-    let reservationQuery = {};
-
-    // Filtre statut
-    if (status && status !== 'all') {
-      reservationQuery.status = status;
-    }
-
-    // Filtre itinéraire voyage
-    if (routeFrom && routeTo) {
-      const matchingVoyages = await Voyage.find({
-        from: new RegExp(`^${routeFrom}$`, 'i'),
-        to:   new RegExp(`^${routeTo}$`,   'i'),
-      }).select('_id');
-      reservationQuery.voyage = { $in: matchingVoyages.map(v => v._id) };
-    }
-
-    // Filtre itinéraire bus
-    if (busRouteFrom && busRouteTo) {
-      const matchingBuses = await Bus.find({
-        from: new RegExp(`^${busRouteFrom}$`, 'i'),
-        to:   new RegExp(`^${busRouteTo}$`,   'i'),
-      }).select('_id');
-      reservationQuery.bus = { $in: matchingBuses.map(b => b._id) };
-    }
-
-    //  Filtre par date — s'adapte selon les filtres actifs
-if (startDate || endDate) {
-  const dateFilter = {};
-  if (startDate) dateFilter.$gte = new Date(startDate);
-  if (endDate) {
-    const endDateTime = new Date(endDate);
-    endDateTime.setDate(endDateTime.getDate() + 1);
-    dateFilter.$lt = endDateTime;
-  }
-
-  const voyageFilterActive = !!(routeFrom && routeTo);
-  const busFilterActive    = !!(busRouteFrom && busRouteTo);
-
-  const dateConditions = [];
-
-  // Cas 1 : filtre itinéraire voyage actif → date sur voyages uniquement
-  if (voyageFilterActive && !busFilterActive) {
-    const voyageIdsByDate = await Voyage.find({
-      _id: { $in: reservationQuery.voyage?.$in || [] },
-      date: dateFilter,
-    }).select('_id').then(r => r.map(v => v._id));
-
-    if (voyageIdsByDate.length > 0) {
-      reservationQuery.voyage = { $in: voyageIdsByDate }; // affine le filtre voyage existant
-    } else {
-      reservationQuery._id = null; // aucun voyage dans cette plage → vide
-    }
-
-  // Cas 2 : filtre itinéraire bus actif → date sur bus uniquement
-  } else if (busFilterActive && !voyageFilterActive) {
-    const busIdsByDate = await Bus.find({
-      _id: { $in: reservationQuery.bus?.$in || [] },
-      departureDate: dateFilter,
-    }).select('_id').then(r => r.map(b => b._id));
-
-    if (busIdsByDate.length > 0) {
-      reservationQuery.bus = { $in: busIdsByDate }; // affine le filtre bus existant
-    } else {
-      reservationQuery._id = null;
-    }
-
-  // Cas 3 : les deux filtres actifs → date sur voyages ET bus (intersection)
-  } else if (voyageFilterActive && busFilterActive) {
-    const voyageIdsByDate = await Voyage.find({
-      _id: { $in: reservationQuery.voyage?.$in || [] },
-      date: dateFilter,
-    }).select('_id').then(r => r.map(v => v._id));
-
-    const busIdsByDate = await Bus.find({
-      _id: { $in: reservationQuery.bus?.$in || [] },
-      departureDate: dateFilter,
-    }).select('_id').then(r => r.map(b => b._id));
-
-    if (voyageIdsByDate.length > 0) reservationQuery.voyage = { $in: voyageIdsByDate };
-    else delete reservationQuery.voyage;
-
-    if (busIdsByDate.length > 0) reservationQuery.bus = { $in: busIdsByDate };
-    else delete reservationQuery.bus;
-
-    if (!reservationQuery.voyage && !reservationQuery.bus) {
-      reservationQuery._id = null;
-    }
-
-  // Cas 4 : aucun filtre itinéraire → date sur tous voyages + tous bus
-  } else {
-    const matchingVoyagesByDate = await Voyage.find({ date: dateFilter }).select('_id');
-    const voyageIdsByDate = matchingVoyagesByDate.map(v => v._id);
-
-    const matchingBusesByDate = await Bus.find({ departureDate: dateFilter }).select('_id');
-    const busIdsByDate = matchingBusesByDate.map(b => b._id);
-
-    if (voyageIdsByDate.length > 0) dateConditions.push({ voyage: { $in: voyageIdsByDate } });
-    if (busIdsByDate.length > 0)    dateConditions.push({ bus:    { $in: busIdsByDate } });
-
-    if (dateConditions.length > 0) {
-      if (reservationQuery.$or || reservationQuery.$and) {
-        const existing = reservationQuery.$and || [{ $or: reservationQuery.$or }];
-        if (!reservationQuery.$and) delete reservationQuery.$or;
-        reservationQuery.$and = [...existing, { $or: dateConditions }];
-      } else {
-        reservationQuery.$or = dateConditions;
-      }
-    } else {
-      reservationQuery._id = null;
-    }
-  }
-}
-
-    // Recherche textuelle
-    if (search) {
-      const searchRegex = new RegExp(search, 'i');
-
-      const matchingUsers = await User.find({
-        $or: [{ name: searchRegex }, { numero: searchRegex }, { email: searchRegex }]
-      }).select('_id');
-      const userIds = matchingUsers.map(u => u._id);
-
-      const matchingVoyagesSearch = await Voyage.find({
-        $or: [{ from: searchRegex }, { to: searchRegex }]
-      }).select('_id');
-      const voyageIdsSearch = matchingVoyagesSearch.map(v => v._id);
-
-      const searchConditions = [];
-      if (userIds.length)         searchConditions.push({ user:   { $in: userIds } });
-      if (voyageIdsSearch.length) searchConditions.push({ voyage: { $in: voyageIdsSearch } });
-
-      if (searchConditions.length > 0) {
-        if (reservationQuery.voyage) {
-          const existingIds = reservationQuery.voyage.$in;
-          const searchSet = new Set(voyageIdsSearch.map(id => id.toString()));
-          reservationQuery.voyage.$in = existingIds.filter(id => searchSet.has(id.toString()));
-        }
-        // Combine avec $and si un $or date existe déjà
-        if (reservationQuery.$or || reservationQuery.$and) {
-          const existing = reservationQuery.$and || [{ $or: reservationQuery.$or }];
-          if (!reservationQuery.$and) delete reservationQuery.$or;
-          reservationQuery.$and = [...existing, { $or: searchConditions }];
-        } else {
-          reservationQuery.$or = searchConditions;
-        }
-      } else {
-        reservationQuery._id = null;
-      }
-    }
-
-    const total = await Reservation.countDocuments(reservationQuery);
-
-    const reservations = await Reservation.find(reservationQuery)
+    const reservations = await Reservation.find()
       .populate('user', '-password')
-      .populate({ path: 'voyage', populate: { path: 'driver', select: '-password' } })
+      .populate({
+        path: 'voyage',
+        populate: { path: 'driver', select: '-password' }
+      })
       .populate('bus')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+      .sort({ createdAt: -1 });
 
-    res.status(200).json({
-      reservations,
-      pagination: {
-        current: page,
-        pageSize: limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
+    res.status(200).json(reservations);
   } catch (err) {
-    console.error('Erreur getAllReservations:', err);
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
@@ -409,7 +248,6 @@ const cancelReservation = async (req, res) => {
   try {
     const reservation = await Reservation.findById(req.params.id)
       .populate({ path: 'voyage', populate: { path: 'driver' } })
-      .populate('bus')
       .populate({ path: 'bus', populate: { path: 'owner' } });
 
     if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
@@ -459,6 +297,7 @@ const cancelReservation = async (req, res) => {
         { type: 'alert', reservationId: reservation._id.toString(), voyageId: reservation.voyage._id.toString() }
       );
     }
+
     // Notification entreprise (bus) (in-app + push)
     if (reservation.bus?.owner) {
       const ownerId = reservation.bus.owner._id || reservation.bus.owner;
@@ -477,4 +316,45 @@ const cancelReservation = async (req, res) => {
   }
 };
 
-module.exports = { createReservation, getAllReservations, getReservationById, updateReservation, deleteReservation, cancelReservation };
+// PATCH /reservations/:id/scan — chauffeur scanne le billet d'un client
+const scanTicket = async (req, res) => {
+  try {
+    const reservation = await Reservation.findById(req.params.id)
+      .populate('user', '-password')
+      .populate({ path: 'voyage', populate: { path: 'driver', select: '-password' } })
+      .populate('bus');
+
+    if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
+    if (reservation.status === 'annulé') return res.status(400).json({ message: 'Réservation annulée' });
+
+    const clientId = reservation.user?._id || reservation.user;
+    const driverId = req.user._id || req.user.id;
+    const from = reservation.voyage?.from || reservation.bus?.from || '';
+    const to = reservation.voyage?.to || reservation.bus?.to || '';
+    const trajet = from && to ? `${from} → ${to}` : 'votre trajet';
+    const passengerName = reservation.user?.name || 'Passager';
+
+    // Notification client
+    await sendAndSaveNotification(
+      clientId,
+      'Billet vérifié ✓',
+      `Votre billet ${trajet} a été scanné par le chauffeur. Bon voyage !`,
+      { type: 'success', reservationId: reservation._id.toString(), screen: 'tickets' }
+    );
+
+    // Notification chauffeur
+    await sendAndSaveNotification(
+      driverId,
+      'Billet scanné ✓',
+      `Billet de ${passengerName} — ${trajet} validé avec succès.`,
+      { type: 'success', reservationId: reservation._id.toString(), screen: 'voyages' }
+    );
+
+    res.status(200).json({ message: 'Billet scanné, client et chauffeur notifiés' });
+  } catch (err) {
+    console.error('Erreur scanTicket:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+module.exports = { createReservation, getAllReservations, getReservationById, updateReservation, deleteReservation, cancelReservation, scanTicket };

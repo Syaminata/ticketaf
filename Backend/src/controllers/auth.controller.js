@@ -162,8 +162,15 @@ const updateFcmToken = async (req, res) => {
         sendWelcomeNotification(userId, user.name)
           .catch(e => console.warn('⚠️ Notif bienvenue:', e.message));
       }
+      // Les conducteurs existent aussi dans Driver (même _id) → sync le token dans les deux
+      if (user.role === 'conducteur' || user.role === 'entreprise') {
+        await Driver.findByIdAndUpdate(
+          userId,
+          { $addToSet: { fcmTokens: tokenDoc } }
+        );
+      }
     } else {
-      // L'utilisateur n'est pas dans la collection User → c'est un chauffeur (Driver collection)
+      // Pas dans User → entrée uniquement dans Driver
       const driver = await Driver.findByIdAndUpdate(
         userId,
         { $addToSet: { fcmTokens: tokenDoc } },

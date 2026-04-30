@@ -28,8 +28,7 @@ const reservationController = require('../controllers/reservation.controller');
  */
 router.get('/me', auth, async (req, res) => {
   try {
-    const userId = req.user._id || req.user.id; // ← cohérent avec le reste
-
+    const userId = req.user._id || req.user.id;
     const reservations = await Reservation.find({ user: userId })
       .populate({
         path: 'voyage',
@@ -38,8 +37,7 @@ router.get('/me', auth, async (req, res) => {
       .populate('bus')
       .populate('user', '-password')
       .sort({ createdAt: -1 });
-
-    res.json(reservations); // tableau brut — Flutter ne change pas
+    res.json(reservations);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
@@ -345,5 +343,8 @@ router.delete('/:id', auth, adminAuth, reservationController.deleteReservation);
 
 // Annulation par l'utilisateur (change status → 'annulé' + notifications)
 router.patch('/:id/cancel', auth, reservationController.cancelReservation);
+
+// Scan du billet par le chauffeur → notifie le client
+router.patch('/:id/scan', auth, reservationController.scanTicket);
 
 module.exports = router;

@@ -87,8 +87,25 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
       Driver.find({ _id: { $in: ids } })
     ]);
 
-    // Deduplicate by _id: chauffeurs exist in both users + drivers collections
-    const uniqueRecipients = [...new Map([...users, ...drivers].map(u => [u._id.toString(), u])).values()];
+    // Fusionner les tokens des deux collections pour le même _id
+    // (les chauffeurs ont une entrée dans User ET Driver avec le même _id)
+    const tokenMap = new Map();
+    [...users, ...drivers].forEach(u => {
+      const id = u._id.toString();
+      if (!tokenMap.has(id)) {
+        tokenMap.set(id, { _id: u._id, fcmTokens: [...(u.fcmTokens || [])] });
+      } else {
+        const existing = tokenMap.get(id);
+        const knownTokens = new Set(existing.fcmTokens.map(t => t.token));
+        for (const t of (u.fcmTokens || [])) {
+          if (!knownTokens.has(t.token)) {
+            existing.fcmTokens.push(t);
+            knownTokens.add(t.token);
+          }
+        }
+      }
+    });
+    const uniqueRecipients = [...tokenMap.values()];
 
     const messages = [];
     uniqueRecipients.forEach(u => {

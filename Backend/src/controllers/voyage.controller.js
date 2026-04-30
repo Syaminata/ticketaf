@@ -223,18 +223,33 @@ const updateMyVoyage = async (req, res) => {
 
     // Notifier les passagers confirmés des changements
     const reservations = await Reservation.find({ voyage: voyage._id, status: 'confirmé' });
-    const userIds = reservations.map(r => r.user).filter(Boolean);
-    if (userIds.length > 0) {
+    const priceChanged = updateData.price !== undefined && Number(updateData.price) !== Number(oldVoyage.price);
+
+    if (reservations.length > 0) {
       const changes = [];
       if (updateData.date && new Date(updateData.date).getTime() !== new Date(oldVoyage.date).getTime()) {
         changes.push(`date: ${new Date(updateData.date).toLocaleDateString('fr-FR')}`);
       }
-      if (updateData.price !== undefined && updateData.price !== oldVoyage.price) {
-        changes.push(`prix: ${updateData.price} FCFA`);
-      }
       if (updateData.from && updateData.from !== oldVoyage.from) changes.push(`départ: ${updateData.from}`);
       if (updateData.to && updateData.to !== oldVoyage.to) changes.push(`destination: ${updateData.to}`);
+
+      // Prix changé → chaque client est notifié avec son prix verrouillé personnel
+      if (priceChanged) {
+        for (const reservation of reservations) {
+          if (!reservation.user) continue;
+          const locked = reservation.lockedPrice || oldVoyage.price;
+          await sendAndSaveNotification(
+            reservation.user,
+            'Prix du voyage modifié',
+            `Le nouveau prix du trajet ${oldVoyage.from} → ${oldVoyage.to} est ${updateData.price} FCFA. Votre réservation garde le prix que vous avez payé : ${locked} FCFA.`,
+            { type: 'info', voyageId: voyage._id.toString(), screen: 'voyages' }
+          );
+        }
+      }
+
+      // Autres changements (date, trajet) → notification groupée
       if (changes.length > 0) {
+        const userIds = reservations.map(r => r.user).filter(Boolean);
         await sendAndSaveNotification(
           userIds,
           'Voyage modifié',
