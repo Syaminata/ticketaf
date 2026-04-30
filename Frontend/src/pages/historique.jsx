@@ -62,8 +62,8 @@ export default function Historique() {
   const [voyagePassengers, setVoyagePassengers] = useState([]);
   const [isPassengerDialogOpen, setIsPassengerDialogOpen] = useState(false);
 
-  // Filtres avancés - Par défaut afficher uniquement les expirés
-  const [statusFilter, setStatusFilter] = useState('expired');
+  // Filtres avancés - Par défaut afficher tous les éléments (l'API retourne déjà les passés)
+  const [statusFilter, setStatusFilter] = useState('all');
   const [userFilter, setUserFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('');
 
@@ -73,30 +73,48 @@ export default function Historique() {
     setLoading(true);
     setError('');
     try {
-      const [vRes, rRes, cRes, uRes] = await Promise.all([
-        fetch('https://ticket-taf.itea.africa/api/voyages/all/including-expired', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('https://ticket-taf.itea.africa/api/reservations', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('https://ticket-taf.itea.africa/api/colis', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('https://ticket-taf.itea.africa/api/users', { headers: { Authorization: `Bearer ${token}` } }),
+      // Utiliser le nouvel endpoint d'historique unifié
+      const params = new URLSearchParams({
+        page: page + 1,
+        limit: rowsPerPage,
+        ...(query && { search: query })
+      });
+
+      console.log('🌐 URL Historique appelée:', `/reservations/historique?${params}`);
+
+      const [hRes, uRes] = await Promise.all([
+        fetch(`https://ticket-taf.itea.africa/api/reservations/historique?${params}`, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        }),
+        fetch('https://ticket-taf.itea.africa/api/users', { 
+          headers: { Authorization: `Bearer ${token}` } 
+        }),
       ]);
 
-      if (!vRes.ok) throw new Error('Erreur chargement voyages');
-      if (!rRes.ok) throw new Error('Erreur chargement réservations');
-      if (!cRes.ok) throw new Error('Erreur chargement colis');
+      if (!hRes.ok) throw new Error('Erreur chargement historique');
       if (!uRes.ok) throw new Error('Erreur chargement utilisateurs');
 
-      const [vData, rData, cData, uData] = await Promise.all([vRes.json(), rRes.json(), cRes.json(), uRes.json()]);
+      const [hData, uData] = await Promise.all([hRes.json(), uRes.json()]);
 
-      console.log(' Données chargées:');
-      console.log('  - Voyages:', vData?.length || 0);
-      console.log('  - Réservations:', rData?.length || 0);
-      console.log('  - Colis:', cData?.length || 0);
+      console.log('📊 Données historique chargées:');
+      console.log('  - Voyages passés:', hData?.voyages?.length || 0);
+      console.log('  - Réservations passées:', hData?.reservations?.length || 0);
+      console.log('  - Colis passés:', hData?.colis?.length || 0);
       console.log('  - Utilisateurs:', uData?.length || 0);
+      console.log('  - Pagination:', hData?.pagination);
+      console.log('  - Compteurs:', hData?.counts);
 
-      setVoyages(Array.isArray(vData) ? vData : []);
-      setReservations(Array.isArray(rData) ? rData : []);
-      setColis(Array.isArray(cData) ? cData : []);
+      // Mettre à jour les états avec les données de l'historique
+      setVoyages(Array.isArray(hData?.voyages) ? hData.voyages : []);
+      setReservations(Array.isArray(hData?.reservations) ? hData.reservations : []);
+      setColis(Array.isArray(hData?.colis) ? hData.colis : []);
       setUsers(Array.isArray(uData) ? uData : []);
+
+      // Mettre à jour la pagination si disponible
+      if (hData?.pagination) {
+        // La pagination est gérée par l'API, nous n'avons pas besoin de la modifier localement
+        console.log('📊 Pagination gérée par l\'API');
+      }
     } catch (err) {
       setError(err.message || 'Erreur lors du chargement');
     } finally {
@@ -108,6 +126,11 @@ export default function Historique() {
     fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    fetchAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, rowsPerPage, query]);
 
   const formatDateTime = (d) => new Date(d).toLocaleString('fr-FR');
 
@@ -221,7 +244,7 @@ export default function Historique() {
   const filteredVoyages = (voyages || [])
     .filter(v => {
       if (!filterByQuery(`${v.from} ${v.to}`)) return false;
-      if (!matchesStatusFilter(v.date)) return false;
+      // L'API retourne déjà uniquement les voyages passés, donc on accepte tout
       if (!matchesDateFilter(v.date)) return false;
       return true;
     })
@@ -234,7 +257,7 @@ export default function Historique() {
         if (!filterByQuery(searchText)) return false;
         if (userFilter !== 'all' && r.user?._id !== userFilter) return false;
         const reservationDate = r.voyage?.date || r.bus?.departureDate;
-        if (!matchesStatusFilter(reservationDate)) return false;
+        // L'API retourne déjà uniquement les réservations passées, donc on accepte tout
         if (!matchesDateFilter(reservationDate)) return false;
         return true;
       })
@@ -245,7 +268,7 @@ export default function Historique() {
       });
     
     return filtered;
-  }, [reservations, query, userFilter, statusFilter, dateFilter]);
+  }, [reservations, query, userFilter, dateFilter]);
 
   const filteredColis = useMemo(() => {
     const filtered = (colis || [])
@@ -254,7 +277,7 @@ export default function Historique() {
         if (!filterByQuery(searchText)) return false;
         if (userFilter !== 'all' && c.expediteur?._id !== userFilter) return false;
         const colisDate = c.voyage?.date;
-        if (!matchesStatusFilter(colisDate)) return false;
+        // L'API retourne déjà uniquement les colis passés, donc on accepte tout
         if (!matchesDateFilter(colisDate)) return false;
         return true;
       })
@@ -595,18 +618,15 @@ export default function Historique() {
   };
 
   const stats = useMemo(() => {
-    const allItems = [...voyages, ...reservations, ...colis.map(c => ({ ...c, date: c.voyage?.date }))];
-    let expired = 0, today = 0, upcoming = 0;
+    // Comme l'API retourne uniquement les éléments passés, tous sont considérés comme "expired"
+    const total = voyages.length + reservations.length + colis.length;
     
-    allItems.forEach(item => {
-      const date = item.date || item.voyage?.date || item.bus?.departureDate;
-      const status = getTemporalStatus(date).status;
-      if (status === 'expired') expired++;
-      else if (status === 'today') today++;
-      else if (status === 'upcoming') upcoming++;
-    });
-    
-    return { expired, today, upcoming, total: allItems.length };
+    return { 
+      expired: total,  // Tous les éléments sont passés
+      today: 0,       // Pas d'éléments du jour dans l'historique
+      upcoming: 0,    // Pas d'éléments à venir dans l'historique
+      total: total 
+    };
   }, [voyages, reservations, colis]);
 
   return (

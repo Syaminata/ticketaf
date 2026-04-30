@@ -169,7 +169,6 @@ const createReservation = async (req, res) => {
       reservation: populatedReservation,
       colis: colisDoc
     });
-
   } catch (err) {
     console.error('Erreur createReservation:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
@@ -209,6 +208,148 @@ const getAllReservations = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur lors de la récupération des réservations:', error);
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({ 
+      message: 'Erreur serveur interne', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
+const getHistorique = async (req, res) => {
+  try {
+    console.log('🔍 Backend getHistorique appelé - req.query:', req.query);
+    
+    const page   = Math.max(1, parseInt(req.query.page) || 1);
+    const limit  = Math.min(50, parseInt(req.query.limit) || 20);
+    const skip   = (page - 1) * limit;
+    const search = req.query.search?.trim() || '';
+    const now = new Date();
+
+    // 1. Récupérer les voyages passés
+    let voyageQuery = { date: { $lt: now } };
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      voyageQuery.$or = [
+        { from: searchRegex },
+        { to: searchRegex },
+        { 'driver.name': searchRegex },
+        { 'driver.numero': searchRegex }
+      ];
+    }
+
+    const voyages = await Voyage.find(voyageQuery)
+      .populate('driver', '-password')
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalVoyages = await Voyage.countDocuments(voyageQuery);
+
+    // 2. Récupérer les réservations passées (date du voyage passée)
+    let reservationQuery = {};
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      reservationQuery.$or = [
+        { 'user.name': searchRegex },
+        { 'user.numero': searchRegex },
+        { 'user.email': searchRegex },
+        { 'voyage.from': searchRegex },
+        { 'voyage.to': searchRegex },
+        { 'bus.from': searchRegex },
+        { 'bus.to': searchRegex }
+      ];
+    }
+
+    const reservations = await Reservation.find(reservationQuery)
+      .populate('user', '-password')
+      .populate({
+        path: 'voyage',
+        match: { date: { $lt: now } },
+        populate: { path: 'driver', select: '-password' }
+      })
+      .populate({
+        path: 'bus',
+        match: { departureDate: { $lt: now } }
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Filtrer les réservations qui ont des voyages/bus passés
+    const filteredReservations = reservations.filter(res => 
+      (res.voyage && res.voyage.date && new Date(res.voyage.date) < now) ||
+      (res.bus && res.bus.departureDate && new Date(res.bus.departureDate) < now) ||
+      (!res.voyage && !res.bus) // colis sans voyage/bus
+    );
+
+    const totalReservations = await Reservation.countDocuments(reservationQuery);
+
+    // 3. Récupérer les colis (réservations de type colis)
+    let colisQuery = { ticket: 'colis' };
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      colisQuery.$or = [
+        { 'user.name': searchRegex },
+        { 'user.numero': searchRegex },
+        { 'user.email': searchRegex },
+        { description: searchRegex }
+      ];
+    }
+
+    const colis = await Colis.find({})
+      .populate({
+        path: 'reservation',
+        populate: [
+          { path: 'user', select: '-password' },
+          { 
+            path: 'voyage',
+            match: { date: { $lt: now } },
+            populate: { path: 'driver', select: '-password' }
+          },
+          { 
+            path: 'bus',
+            match: { departureDate: { $lt: now } }
+          }
+        ]
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Filtrer les colis avec réservations passées
+    const filteredColis = colis.filter(c => 
+      c.reservation && (
+        (c.reservation.voyage && new Date(c.reservation.voyage.date) < now) ||
+        (c.reservation.bus && new Date(c.reservation.bus.departureDate) < now) ||
+        (!c.reservation.voyage && !c.reservation.bus)
+      )
+    );
+
+    const totalColis = await Colis.countDocuments(colisQuery);
+
+    console.log('📈 Résultats Historique - voyages:', voyages.length, 'reservations:', filteredReservations.length, 'colis:', filteredColis.length);
+
+    res.status(200).json({
+      voyages: voyages,
+      reservations: filteredReservations,
+      colis: filteredColis,
+      pagination: {
+        current: page,
+        pageSize: limit,
+        total: totalVoyages + totalReservations + totalColis,
+        totalPages: Math.ceil((totalVoyages + totalReservations + totalColis) / limit)
+      },
+      counts: {
+        voyages: totalVoyages,
+        reservations: totalReservations,
+        colis: totalColis,
+        total: totalVoyages + totalReservations + totalColis
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération de l\'historique:', error);
     console.error('Stack trace:', error.stack);
     res.status(500).json({ 
       message: 'Erreur serveur interne', 
@@ -382,4 +523,4 @@ const scanTicket = async (req, res) => {
   }
 };
 
-module.exports = { createReservation, getAllReservations, getReservationById, updateReservation, deleteReservation, cancelReservation, scanTicket };
+module.exports = { createReservation, getAllReservations, getHistorique, getReservationById, updateReservation, deleteReservation, cancelReservation, scanTicket };

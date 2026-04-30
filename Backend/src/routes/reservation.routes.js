@@ -252,6 +252,63 @@ router.get('/', auth, adminAuth, reservationController.getAllReservations);
 
 /**
  * @swagger
+ * /reservations/historique:
+ *   get:
+ *     summary: Récupérer l'historique complet (voyages, réservations et colis passés)
+ *     tags: [Reservations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Numéro de page
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Nombre d'éléments par page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Recherche textuelle
+ *     responses:
+ *       200:
+ *         description: Historique complet avec pagination
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 voyages:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Voyage'
+ *                 reservations:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Reservation'
+ *                 colis:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Colis'
+ *                 pagination:
+ *                   type: object
+ *                 counts:
+ *                   type: object
+ *       401:
+ *         description: Non autorisé
+ *       500:
+ *         description: Erreur serveur
+ */
+router.get('/historique', auth, adminAuth, reservationController.getHistorique);
+
+/**
+ * @swagger
  * /reservations/{id}:
  *   get:
  *     summary: Récupérer une réservation par ID
