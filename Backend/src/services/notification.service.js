@@ -129,6 +129,25 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
 
     if (admin && admin.messaging) {
       const response = await admin.messaging().sendEach(messages);
+
+      // Nettoyer les tokens invalides (désinstallation, expiration)
+      const invalidTokens = [];
+      response.responses.forEach((r, i) => {
+        if (!r.success) {
+          const code = r.error?.code;
+          if (
+            code === 'messaging/registration-token-not-registered' ||
+            code === 'messaging/invalid-registration-token' ||
+            code === 'messaging/invalid-argument'
+          ) {
+            invalidTokens.push(messages[i].token);
+          }
+        }
+      });
+      if (invalidTokens.length > 0) {
+        cleanupInvalidTokens(invalidTokens).catch(() => {});
+      }
+
       return { success: true, saved: saveToDb, response };
     }
 
@@ -173,9 +192,10 @@ async function sendWelcomeNotification(userId, userName) {
     if (!user) return { success: true, alreadySent: true };
 
     const isDriver = user.role === 'conducteur';
+    const firstName = userName ? userName.split(' ')[0] : '';
     const body = isDriver
-      ? 'Bonjour Bienvenu sur Ticketaf planifier vos voyages et prenez les clients'
-      : `Bonjour ${userName}, bienvenue sur Ticketaf. Réservez votre trajet ou envoyez un colis facilement!`;
+      ? `Bonjour ${firstName}, bienvenu sur Ticketaf ! Planifiez vos voyages et prenez des clients.`
+      : `Bonjour ${firstName}, bienvenu sur Ticketaf ! Réservez votre trajet ou envoyez un colis facilement.`;
 
     await sendAndSaveNotification(
       userId,

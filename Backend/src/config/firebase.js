@@ -6,15 +6,36 @@ let firebaseAdmin = null;
 let isFirebaseAvailable = false;
 
 try {
-  // Chemin spécifique fourni par l'utilisateur
-  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH
-  || path.join(__dirname, '../../firebase-service-account.json');
+  let serviceAccount = null;
 
-  console.log('🔍 Recherche Firebase à:', serviceAccountPath);
-  console.log('📂 Fichier existe:', fs.existsSync(serviceAccountPath));
+  // Priority 1: JSON string in env var (recommended for AWS/cloud deployments)
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    try {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      console.log('🔥 Firebase: credentials chargés depuis FIREBASE_SERVICE_ACCOUNT_JSON');
+    } catch (parseErr) {
+      console.error('❌ FIREBASE_SERVICE_ACCOUNT_JSON invalide (JSON malformé):', parseErr.message);
+    }
+  }
 
-  if (fs.existsSync(serviceAccountPath)) {
-    const serviceAccount = require(serviceAccountPath);
+  // Priority 2: file path from env var or default location
+  if (!serviceAccount) {
+    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH
+      || path.join(__dirname, '../../firebase-service-account.json');
+
+    console.log('🔍 Recherche Firebase à:', serviceAccountPath);
+    console.log('📂 Fichier existe:', fs.existsSync(serviceAccountPath));
+
+    if (fs.existsSync(serviceAccountPath)) {
+      serviceAccount = require(serviceAccountPath);
+    } else {
+      console.error('❌ ERREUR: Fichier Firebase introuvable à:', serviceAccountPath);
+      console.error('📍 Chemin absolu:', path.resolve(serviceAccountPath));
+      console.error('💡 Sur AWS: définir la variable FIREBASE_SERVICE_ACCOUNT_JSON avec le contenu JSON du service account');
+    }
+  }
+
+  if (serviceAccount) {
     firebaseAdmin = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
@@ -23,18 +44,7 @@ try {
     console.log('   Projet:', serviceAccount.project_id);
     console.log('   Service Account:', serviceAccount.client_email);
   } else {
-    console.error('❌ ERREUR: Fichier Firebase introuvable à:', serviceAccountPath);
-    console.error('📍 Chemin absolu:', path.resolve(serviceAccountPath));
-    console.error('📂 Répertoires actuels:');
-    const dir = path.dirname(serviceAccountPath);
-    if (fs.existsSync(dir)) {
-      console.error('   ', fs.readdirSync(dir));
-    } else {
-      console.error('   Répertoire inexistant');
-    }
     isFirebaseAvailable = false;
-
-    // Fallback dummy object
     firebaseAdmin = {
       messaging: () => ({ sendEach: async () => ({ successCount: 0, failureCount: 0, responses: [] }) }),
       auth: () => ({ createCustomToken: async () => null }),
