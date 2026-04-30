@@ -27,31 +27,29 @@ const createVoyage = async (req, res) => {
 
 const getAllVoyage = async (req, res) => {
   try {
+    const hasPagination = req.query.page || req.query.limit;
+
     const page   = Math.max(1, parseInt(req.query.page) || 1);
     const limit  = Math.min(50, parseInt(req.query.limit) || 10);
     const skip   = (page - 1) * limit;
     const search = req.query.search?.trim() || '';
-    const from    = req.query.from || '';
-    const to      = req.query.to || '';
+    const from   = req.query.from || '';
+    const to     = req.query.to || '';
 
     console.log('📊 Pagination Voyages - page:', page, 'limit:', limit, 'skip:', skip);
     console.log('🔍 Filtres reçus - search:', search, 'from:', from, 'to:', to);
 
-    // Construire la requête de base
     let voyageQuery = {};
-    
-    // Ajouter la recherche si fournie
+
+    //  CORRECTION recherche
     if (search) {
       const searchRegex = new RegExp(search, 'i');
       voyageQuery.$or = [
         { from: searchRegex },
-        { to: searchRegex },
-        { 'driver.name': searchRegex },
-        { 'driver.numero': searchRegex }
+        { to: searchRegex }
       ];
     }
-    
-    // Filtrer par itinéraire si spécifié
+
     if (from) {
       voyageQuery.from = new RegExp(`^${from}$`, 'i');
     }
@@ -60,11 +58,9 @@ const getAllVoyage = async (req, res) => {
     }
 
     console.log('🔎 Recherche Voyages avec filter:', voyageQuery);
-    
-    // Compter le total des voyages pour la pagination
+
     const total = await Voyage.countDocuments(voyageQuery);
-    
-    // Récupérer les voyages avec pagination
+
     const voyages = await Voyage.find(voyageQuery)
       .populate({ path: 'driver', select: '-password' })
       .sort({ date: 1 })
@@ -73,6 +69,12 @@ const getAllVoyage = async (req, res) => {
 
     console.log('📈 Résultats Voyages - voyages.length:', voyages.length, 'total:', total);
 
+    // ✅ CAS MOBILE (aucune pagination demandée)
+    if (!hasPagination) {
+      return res.status(200).json(voyages);
+    }
+
+    // ✅ CAS WEB (pagination)
     res.status(200).json({
       voyages: voyages,
       pagination: {
@@ -82,6 +84,7 @@ const getAllVoyage = async (req, res) => {
         totalPages: Math.ceil(total / limit)
       }
     });
+
   } catch (error) {
     console.error('Erreur lors de la récupération des voyages:', error);
     res.status(500).json({ message: 'Erreur serveur interne' });
