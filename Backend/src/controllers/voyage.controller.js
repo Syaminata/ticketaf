@@ -143,6 +143,42 @@ const getAllVoyageIncludingExpired = async (req, res) => {
   }
 };
 
+const getVoyageById = async (req, res) => {
+  try {
+    const voyage = await Voyage.findById(req.params.id)
+      .populate({
+        path: 'driver',
+        select: '-password',
+        populate: {
+          path: 'user',
+          select: 'name email numero'
+        }
+      });
+    
+    if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
+    
+    // Ajouter les réservations associées pour plus de détails
+    const reservations = await require('../models/reservation.model').find({ 
+      voyage: req.params.id, 
+      status: { $ne: 'annulé' } 
+    })
+      .populate('user', 'name email numero')
+      .select('user quantity status createdAt');
+
+    res.status(200).json({
+      ...voyage.toObject(),
+      driver: voyage.driver,
+      reservations: reservations,
+      totalReservations: reservations.length,
+      availableSeats: voyage.availableSeats,
+      totalSeats: voyage.capacity || reservations.reduce((sum, r) => sum + r.quantity, 0) + voyage.availableSeats
+    });
+  } catch (err) {
+    console.error('Erreur getVoyageById:', err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
 const updateVoyage = async (req, res) => {
   try {
     const voyageId = req.params.id;
@@ -228,17 +264,8 @@ const updateVoyage = async (req, res) => {
       .populate('driver', '-password');
     res.status(200).json({ message: 'Trajet mis à jour', voyage: updatedVoyage });
   } catch (err) {
+    console.error('Erreur updateVoyage:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
-  }
-};
-
-const getVoyageById = async (req, res) => {
-  try {
-    const voyage = await Voyage.findById(req.params.id).populate('driver', '-password');
-    if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
-    res.status(200).json(voyage);
-  } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
