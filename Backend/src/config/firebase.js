@@ -12,6 +12,7 @@ try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     try {
       serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
       console.log('🔥 Firebase: credentials chargés depuis FIREBASE_SERVICE_ACCOUNT_JSON');
     } catch (parseErr) {
       console.error('❌ FIREBASE_SERVICE_ACCOUNT_JSON invalide (JSON malformé):', parseErr.message);
