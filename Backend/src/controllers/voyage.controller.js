@@ -27,7 +27,7 @@ const createVoyage = async (req, res) => {
 
 const getAllVoyage = async (req, res) => {
   try {
-    // 🔍 Détecter si pagination (web)
+    //  Détecter si pagination (web)
     const hasPagination = req.query.page || req.query.limit;
 
     const page  = Math.max(1, parseInt(req.query.page) || 1);
@@ -40,9 +40,12 @@ const getAllVoyage = async (req, res) => {
     const search = req.query.search?.trim() || '';
     const from   = req.query.from || '';
     const to     = req.query.to || '';
+    const startDate = req.query.startDate || '';
+    const endDate = req.query.endDate || '';
 
     console.log('📊 hasPagination:', hasPagination);
     console.log('📊 page:', page, 'limit:', limit, 'skip:', skip);
+    console.log('🔍 Filtres dates - startDate:', startDate, 'endDate:', endDate);
 
     // 🕒 Date actuelle (avec heure)
     const now = new Date();
@@ -52,7 +55,29 @@ const getAllVoyage = async (req, res) => {
       date: { $gte: now }
     };
 
-    // 🔍 Recherche simple
+    // 📅 Filtre par plage de dates
+    if (startDate || endDate) {
+      const dateFilter = {};
+      if (startDate) {
+        dateFilter.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        // Inclure toute la journée de fin
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        dateFilter.$lte = endDateTime;
+      }
+      
+      // Combiner avec le filtre de date existant
+      voyageQuery.date = {
+        ...voyageQuery.date,
+        ...dateFilter
+      };
+      
+      console.log('📅 Filtre date appliqué:', voyageQuery.date);
+    }
+
+    //  Recherche simple
     if (search) {
       const searchRegex = new RegExp(search, 'i');
       voyageQuery.$or = [
@@ -61,7 +86,7 @@ const getAllVoyage = async (req, res) => {
       ];
     }
 
-    // 🎯 Filtres précis
+    //  Filtres précis
     if (from) {
       voyageQuery.from = new RegExp(`^${from}$`, 'i');
     }
@@ -73,26 +98,25 @@ const getAllVoyage = async (req, res) => {
 
     const total = await Voyage.countDocuments(voyageQuery);
 
-    // 🔥 Construction dynamique de la requête
+    //  Construction dynamique de la requête
     let query = Voyage.find(voyageQuery)
       .populate({ path: 'driver', select: '-password' })
       .sort({ date: 1 }); // du plus proche au plus loin
 
-    // 👉 Pagination uniquement pour le web
+    //  Pagination uniquement pour le web
     if (hasPagination) {
       query = query.skip(skip).limit(limit);
     }
 
     const voyages = await query;
 
-    console.log('📈 voyages.length:', voyages.length);
 
-    // 📱 MOBILE → liste simple
+    //  MOBILE → liste simple
     if (!hasPagination) {
       return res.status(200).json(voyages);
     }
 
-    // 🌐 WEB → pagination complète
+    //  WEB → pagination complète
     res.status(200).json({
       voyages,
       pagination: {

@@ -72,7 +72,6 @@ export default function Voyage() {
   const [reservations, setReservations] = useState([]);
   const [loadingReservations, setLoadingReservations] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState('all');
   const [dateRange, setDateRange] = useState({
     startDate: null,
     endDate: null
@@ -109,11 +108,14 @@ export default function Voyage() {
         ...(fromFilter && { from: fromFilter }),
         ...(toFilter && { to: toFilter }),
         ...(driverFilter && { driverId: driverFilter }),
+        ...(dateRange.startDate && { startDate: dateRange.startDate }),
+        ...(dateRange.endDate && { endDate: dateRange.endDate }),
       });
 
-      console.log('🌐 URL Voyages appelée:', `/voyages/all/including-expired?${params}`);
+      console.log('🌐 URL Voyages appelée:', `/voyages?${params}`);
+      console.log('📅 Filtre date frontend - startDate:', dateRange.startDate, 'endDate:', dateRange.endDate);
 
-      const res = await axios.get(`/voyages/all/including-expired?${params}`, { 
+      const res = await axios.get(`/voyages?${params}`, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
 
@@ -180,12 +182,12 @@ export default function Voyage() {
   // Changement de page ou de limite
   useEffect(() => {
     fetchVoyages(page, rowsPerPage, searchTerm);
-  }, [page, rowsPerPage, searchTerm, fromFilter, toFilter, driverFilter]);
+  }, [page, rowsPerPage, searchTerm, fromFilter, toFilter, driverFilter, dateRange]);
 
   // Changement de filtres
   useEffect(() => {
     setPage(0);
-  }, [fromFilter, toFilter, driverFilter]);
+  }, [fromFilter, toFilter, driverFilter, dateRange]);
 
   useEffect(() => {
     fetchVoyages();
@@ -567,7 +569,7 @@ export default function Voyage() {
     const diffTime = voyageDate - now;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 0) return 'error';
+    // Plus besoin de gérer le cas "Terminé" car l'API ne retourne que les voyages futurs
     if (diffDays === 0) return 'warning';
     if (diffDays <= 7) return 'info';
     return 'success';
@@ -579,7 +581,7 @@ export default function Voyage() {
     const diffTime = voyageDate - now;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 0) return 'Terminé';
+    // Plus besoin de gérer le cas "Terminé" car l'API ne retourne que les voyages futurs
     if (diffDays === 0) return 'Aujourd\'hui';
     if (diffDays <= 7) return `Dans ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
     return 'Programmé';
@@ -1725,7 +1727,7 @@ export default function Voyage() {
                               <Chip 
                                 label={reservation.status || 'Confirmé'} 
                                 size="small" 
-                                color={getStatusColor(reservation)}
+                                color={reservation.status === 'annulé' ? 'error' : 'success'}
                               />
                             </TableCell>
                           </TableRow>
