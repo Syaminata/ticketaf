@@ -178,18 +178,92 @@ const createReservation = async (req, res) => {
 
 const getAllReservations = async (req, res) => {
   try {
-    const reservations = await Reservation.find()
+    const page   = Math.max(1, parseInt(req.query.page) || 1);
+    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
+    const skip   = (page - 1) * limit;
+    const search = req.query.search?.trim() || '';
+    const status = req.query.status || '';
+    const voyageId = req.query.voyageId || '';
+    const busId = req.query.busId || '';
+
+    console.log('📊 Pagination Reservations - page:', page, 'limit:', limit, 'skip:', skip);
+    console.log('🔍 Filtres reçus - status:', status, 'voyageId:', voyageId, 'busId:', busId);
+
+    // Construire la requête de base
+    let reservationQuery = {};
+    
+    // Ajouter la recherche si fournie
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      reservationQuery.$or = [
+        { 'user.name': searchRegex },
+        { 'user.numero': searchRegex },
+        { 'user.email': searchRegex },
+        { 'voyage.from': searchRegex },
+        { 'voyage.to': searchRegex },
+        { 'voyage.driver.name': searchRegex },
+        { 'voyage.driver.numero': searchRegex }
+      ];
+    }
+    
+    // Filtrer par statut si spécifié
+    if (status && status !== 'all') {
+      reservationQuery.status = status;
+      console.log('🎯 Filtre status appliqué:', status);
+    }
+    
+    // Filtrer par voyage si spécifié
+    if (voyageId) {
+      reservationQuery.voyage = voyageId;
+      console.log('🎯 Filtre voyageId appliqué:', voyageId);
+    }
+    
+    // Filtrer par bus si spécifié
+    if (busId) {
+      reservationQuery.bus = busId;
+      console.log('🎯 Filtre busId appliqué:', busId);
+    }
+
+    console.log('🔎 Recherche Reservations avec filter:', reservationQuery);
+    
+    // Compter le total des réservations pour la pagination
+    const total = await Reservation.countDocuments(reservationQuery);
+    
+    // Récupérer les réservations avec pagination
+    const reservations = await Reservation.find(reservationQuery)
       .populate('user', '-password')
       .populate({
         path: 'voyage',
-        populate: { path: 'driver', select: '-password' }
+        populate: {
+          path: 'driver',
+          select: '-password'
+        }
       })
-      .populate('bus')
-      .sort({ createdAt: -1 });
+      .populate({
+        path: 'bus',
+        populate: {
+          path: 'driver',
+          select: '-password'
+        }
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    res.status(200).json(reservations);
-  } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.log('📈 Résultats Reservations - reservations.length:', reservations.length, 'total:', total);
+
+    res.status(200).json({
+      reservations: reservations,
+      pagination: {
+        current: page,
+        pageSize: limit,
+        total: total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des réservations:', error);
+    res.status(500).json({ message: 'Erreur serveur interne' });
   }
 };
 

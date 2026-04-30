@@ -27,23 +27,115 @@ const createVoyage = async (req, res) => {
 
 const getAllVoyage = async (req, res) => {
   try {
-    const now = new Date();
-    const voyages = await Voyage.find({ date: { $gt: now } })
+    const page   = Math.max(1, parseInt(req.query.page) || 1);
+    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
+    const skip   = (page - 1) * limit;
+    const search = req.query.search?.trim() || '';
+    const from    = req.query.from || '';
+    const to      = req.query.to || '';
+
+    console.log('📊 Pagination Voyages - page:', page, 'limit:', limit, 'skip:', skip);
+    console.log('🔍 Filtres reçus - search:', search, 'from:', from, 'to:', to);
+
+    // Construire la requête de base
+    let voyageQuery = {};
+    
+    // Ajouter la recherche si fournie
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      voyageQuery.$or = [
+        { from: searchRegex },
+        { to: searchRegex },
+        { 'driver.name': searchRegex },
+        { 'driver.numero': searchRegex }
+      ];
+    }
+    
+    // Filtrer par itinéraire si spécifié
+    if (from) {
+      voyageQuery.from = new RegExp(`^${from}$`, 'i');
+    }
+    if (to) {
+      voyageQuery.to = new RegExp(`^${to}$`, 'i');
+    }
+
+    console.log('🔎 Recherche Voyages avec filter:', voyageQuery);
+    
+    // Compter le total des voyages pour la pagination
+    const total = await Voyage.countDocuments(voyageQuery);
+    
+    // Récupérer les voyages avec pagination
+    const voyages = await Voyage.find(voyageQuery)
       .populate({ path: 'driver', select: '-password' })
-      .sort({ date: 1 });
-    res.status(200).json(voyages);
+      .sort({ date: 1 })
+      .skip(skip)
+      .limit(limit);
+
+    console.log('📈 Résultats Voyages - voyages.length:', voyages.length, 'total:', total);
+
+    res.status(200).json({
+      voyages: voyages,
+      pagination: {
+        current: page,
+        pageSize: limit,
+        total: total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('Erreur lors de la récupération des voyages:', error);
+    res.status(500).json({ message: 'Erreur serveur interne' });
   }
 };
 
 const getAllVoyageIncludingExpired = async (req, res) => {
   try {
-    const voyage = await Voyage.find()
+    const page   = Math.max(1, parseInt(req.query.page) || 1);
+    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
+    const skip   = (page - 1) * limit;
+    const search = req.query.search?.trim() || '';
+
+    console.log('📊 Pagination Voyages Including Expired - page:', page, 'limit:', limit, 'skip:', skip);
+
+    // Construire la requête de base
+    let voyageQuery = {};
+    
+    // Ajouter la recherche si fournie
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      voyageQuery.$or = [
+        { from: searchRegex },
+        { to: searchRegex },
+        { 'driver.name': searchRegex },
+        { 'driver.numero': searchRegex }
+      ];
+    }
+    
+    console.log('🔎 Recherche Voyages Including Expired avec filter:', voyageQuery);
+    
+    // Compter le total des voyages pour la pagination
+    const total = await Voyage.countDocuments(voyageQuery);
+    
+    // Récupérer les voyages avec pagination
+    const voyages = await Voyage.find(voyageQuery)
       .populate('driver', '-password')
-      .sort({ date: -1 });
-    res.status(200).json(voyage);
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    console.log('📈 Résultats Voyages Including Expired - voyages.length:', voyages.length, 'total:', total);
+
+    res.status(200).json({
+      voyages: voyages,
+      pagination: {
+        current: page,
+        pageSize: limit,
+        total: total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (err) {
+    console.error('Erreur getAllVoyageIncludingExpired:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
