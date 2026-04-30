@@ -39,7 +39,9 @@ const getAllVoyage = async (req, res) => {
     const now = new Date();
 
     let voyageQuery = {
-      date: { $gte: now } // voyages futurs
+      date: {
+        $gte: now
+      }
     };
 
     // 🔍 recherche
