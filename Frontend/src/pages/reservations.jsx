@@ -207,8 +207,8 @@ export default function Reservations() {
       }
       const data = await response.json();
       console.log(' Voyages récupérés:', data);
-      console.log('Nombre de voyages:', data?.length || 0);
-      setVoyages(data || []);
+      console.log('Nombre de voyages:', data?.voyages?.length || 0);
+      setVoyages(data?.voyages || []);
     } catch (err) {
       console.error(' Erreur lors de la récupération des voyages:', err);
       setError('Erreur lors du chargement des voyages: ' + err.message);
