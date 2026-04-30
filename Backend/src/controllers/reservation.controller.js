@@ -180,20 +180,31 @@ const getAllReservations = async (req, res) => {
   try {
     console.log('🔍 Backend getAllReservations appelé - req.query:', req.query);
     
-    // Test simple sans populate pour diagnostiquer
-    const reservations = await Reservation.find({})
-      .sort({ createdAt: -1 })
-      .limit(10);
+    const page   = Math.max(1, parseInt(req.query.page) || 1);
+    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
+    const skip   = (page - 1) * limit;
 
-    console.log('📈 Résultats Reservations simples - reservations.length:', reservations.length);
+    // Récupérer les réservations avec populate de base
+    const reservations = await Reservation.find({})
+      .populate('user', '-password')
+      .populate('voyage')
+      .populate('bus')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Compter le total
+    const total = await Reservation.countDocuments({});
+
+    console.log('📈 Résultats Reservations - reservations.length:', reservations.length, 'total:', total);
 
     res.status(200).json({
       reservations: reservations,
       pagination: {
-        current: 1,
-        pageSize: 10,
-        total: reservations.length,
-        totalPages: 1
+        current: page,
+        pageSize: limit,
+        total: total,
+        totalPages: Math.ceil(total / limit)
       }
     });
   } catch (error) {
