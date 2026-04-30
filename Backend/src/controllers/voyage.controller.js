@@ -27,24 +27,32 @@ const createVoyage = async (req, res) => {
 
 const getAllVoyage = async (req, res) => {
   try {
+    // 🔍 Détecter si pagination (web)
     const hasPagination = req.query.page || req.query.limit;
 
-    const page   = Math.max(1, parseInt(req.query.page) || 1);
-    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
-    const skip   = (page - 1) * limit;
+    const page  = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = hasPagination
+      ? Math.min(50, parseInt(req.query.limit) || 10)
+      : null;
+
+    const skip = hasPagination ? (page - 1) * limit : 0;
+
     const search = req.query.search?.trim() || '';
     const from   = req.query.from || '';
     const to     = req.query.to || '';
 
+    console.log('📊 hasPagination:', hasPagination);
+    console.log('📊 page:', page, 'limit:', limit, 'skip:', skip);
+
+    // 🕒 Date actuelle (avec heure)
     const now = new Date();
 
+    // 🎯 Base query → voyages futurs uniquement
     let voyageQuery = {
-      date: {
-        $gte: now
-      }
+      date: { $gte: now }
     };
 
-    // 🔍 recherche
+    // 🔍 Recherche simple
     if (search) {
       const searchRegex = new RegExp(search, 'i');
       voyageQuery.$or = [
@@ -53,7 +61,7 @@ const getAllVoyage = async (req, res) => {
       ];
     }
 
-    //  filtres précis
+    // 🎯 Filtres précis
     if (from) {
       voyageQuery.from = new RegExp(`^${from}$`, 'i');
     }
@@ -61,20 +69,30 @@ const getAllVoyage = async (req, res) => {
       voyageQuery.to = new RegExp(`^${to}$`, 'i');
     }
 
+    console.log('🔎 Query:', voyageQuery);
+
     const total = await Voyage.countDocuments(voyageQuery);
 
-    const voyages = await Voyage.find(voyageQuery)
+    // 🔥 Construction dynamique de la requête
+    let query = Voyage.find(voyageQuery)
       .populate({ path: 'driver', select: '-password' })
-      .sort({ date: 1 }) //  futur → du plus proche au plus loin
-      .skip(skip)
-      .limit(limit);
+      .sort({ date: 1 }); // du plus proche au plus loin
 
-    //  mobile
+    // 👉 Pagination uniquement pour le web
+    if (hasPagination) {
+      query = query.skip(skip).limit(limit);
+    }
+
+    const voyages = await query;
+
+    console.log('📈 voyages.length:', voyages.length);
+
+    // 📱 MOBILE → liste simple
     if (!hasPagination) {
       return res.status(200).json(voyages);
     }
 
-    //  web
+    // 🌐 WEB → pagination complète
     res.status(200).json({
       voyages,
       pagination: {
@@ -86,7 +104,7 @@ const getAllVoyage = async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
+    console.error('Erreur getAllVoyage:', error);
     res.status(500).json({ message: 'Erreur serveur interne' });
   }
 };
