@@ -1435,7 +1435,7 @@ useEffect(() => {
                       gap: 1,
                     }}
                   >
-                    <Image sx={{ color: '#ffcc33' }} />
+                    <ImageIcon sx={{ color: '#ffcc33' }} />
                     Photo du colis
                   </Typography>
 
