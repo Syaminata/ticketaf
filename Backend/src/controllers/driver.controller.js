@@ -663,6 +663,12 @@ const getMyProfile = async (req, res) => {
   try {
     const driver = await Driver.findById(req.user.id).select('-password');
     if (!driver) {
+
+      if (req.user.role === 'entreprise') {
+        const user = await User.findById(req.user.id).select('-password');
+        if (!user) return res.status(404).json({ message: 'Profil non trouvé' });
+        return res.status(200).json(user);
+      }
       return res.status(404).json({ message: 'Profil non trouvé' });
     }
     res.status(200).json(driver);
@@ -675,6 +681,38 @@ const getMyProfile = async (req, res) => {
 // 2. Mettre à jour son propre profil (sans fichiers)
 const updateMyProfile = async (req, res) => {
   try {
+    // Les utilisateurs entreprise sont dans la collection User, pas Driver
+    if (req.user.role === 'entreprise') {
+      const { name, email, numero, address } = req.body;
+
+      if (numero) {
+        const existing = await User.findOne({ numero, _id: { $ne: req.user.id } });
+        if (existing) return res.status(400).json({ success: false, message: 'Ce numéro est déjà utilisé' });
+      }
+      if (email && email.trim()) {
+        const existing = await User.findOne({ email: email.trim(), _id: { $ne: req.user.id } });
+        if (existing) return res.status(400).json({ success: false, message: 'Cet email est déjà utilisé' });
+      }
+
+      const updateData = {};
+      if (name) updateData.name = name.trim();
+      if (numero) updateData.numero = numero.trim();
+      if (email !== undefined) updateData.email = email.trim() || undefined;
+      if (address && address.trim()) updateData.address = address.trim();
+
+      const user = await User.findByIdAndUpdate(req.user.id, updateData, { new: true, runValidators: true }).select('-password');
+      if (!user) return res.status(404).json({ success: false, message: 'Profil non trouvé' });
+
+      await sendAndSaveNotification(
+        req.user.id,
+        'Profil mis à jour',
+        'Vos informations de profil ont été mises à jour.',
+        { type: 'info', screen: 'profile' }
+      );
+
+      return res.status(200).json({ success: true, message: 'Profil mis à jour avec succès', driver: user });
+    }
+    
     const { name, email, numero, matricule, marque, capacity, capacity_coffre, climatisation, wifi, address } = req.body;
     
     // Vérifier que l'adresse est fournie

@@ -13,6 +13,7 @@ const busSchema = new mongoose.Schema({
   climatisation: { type: Boolean, default: false },
   wifi: { type: Boolean, default: false },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Propriétaire du bus (entreprise)
+  notificationDayJSent: { type: Boolean, default: false },
 }, { timestamps: true });
 
 busSchema.pre('save', function(next) {

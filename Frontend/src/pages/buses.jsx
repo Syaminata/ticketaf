@@ -42,7 +42,8 @@ import {
   Business as BusinessIcon,
   CalendarToday as CalendarIcon,
   Phone as PhoneIcon,
-  ArrowForward as ArrowForwardIcon
+  ArrowForward as ArrowForwardIcon,
+  AcUnit as AcUnitIcon
 } from "@mui/icons-material";
 import ConfirmationDialog from "../components/ConfirmationDialog";
 
@@ -74,7 +75,9 @@ function Buses() {
     to: "",
     departureDate: "",
     price: "",
-    isActive: false
+    isActive: false,
+    climatisation: false,
+    wifi: false,
   });
 
   const [confirmDialog, setConfirmDialog] = useState({
@@ -193,7 +196,9 @@ function Buses() {
         from: bus.from || "",
         to: bus.to || "",
         departureDate: bus.departureDate ? new Date(bus.departureDate).toISOString().slice(0, 16) : "",
-        price: bus.price ? bus.price.toString() : ""
+        price: bus.price ? bus.price.toString() : "",
+        climatisation: bus.climatisation ?? false,
+        wifi: bus.wifi ?? false,
       });
     } else {
       setFormData({
@@ -203,7 +208,9 @@ function Buses() {
         from: "",
         to: "",
         departureDate: "",
-        price: ""
+        price: "",
+        climatisation: false,
+        wifi: false,
       });
     }
     setOpenDialog(true);
@@ -1105,6 +1112,36 @@ function Buses() {
                       color: '#ffcc33',
                     },
                   }}
+                />
+              </Box>
+            </Box>
+            
+            {/* Équipements */}
+            <Box sx={{ p: 3, backgroundColor: '#fafafa', borderRadius: '12px', border: '1px solid #e0e0e0', mb: 3 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AcUnitIcon sx={{ color: '#ffcc33', fontSize: 20 }} />
+                Équipements du bus
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 4 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.climatisation}
+                      onChange={(e) => setFormData(prev => ({ ...prev, climatisation: e.target.checked }))}
+                      sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#ffcc33' }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: '#ffcc33' } }}
+                    />
+                  }
+                  label="Climatisation"
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.wifi}
+                      onChange={(e) => setFormData(prev => ({ ...prev, wifi: e.target.checked }))}
+                      sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#ffcc33' }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: '#ffcc33' } }}
+                    />
+                  }
+                  label="Wifi à bord"
                 />
               </Box>
             </Box>

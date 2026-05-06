@@ -15,6 +15,15 @@ const voyageSchema = new mongoose.Schema({
     enum: ['CREATED', 'OPEN', 'FULL', 'STARTED', 'FINISHED'],
     default: 'OPEN'
   },
+  
+  climatisation: {
+    type: Boolean,
+    default: false
+  },
+  wifi: {
+    type: Boolean,
+    default: false
+  },
 
   currentClient: {
     type: mongoose.Schema.Types.ObjectId,

@@ -1,4 +1,6 @@
 const Bus = require('../models/bus.model');
+const Reservation = require('../models/reservation.model');
+const { sendAndSaveNotification } = require('../services/notification.service');
 
 const createBus = async (req, res) => {
   try {
@@ -6,7 +8,7 @@ const createBus = async (req, res) => {
       return res.status(403).json({ message: 'Accès refusé.' });
     }
 
-    const { name, plateNumber, capacity, from, to, departureDate, price } = req.body;
+    const { name, plateNumber, capacity, from, to, departureDate, price, climatisation, wifi  } = req.body;
     const existingBus = await Bus.findOne({ plateNumber });
     if (existingBus) return res.status(400).json({ message: 'Numéro de plaque déjà utilisé' });
 
@@ -16,7 +18,9 @@ const createBus = async (req, res) => {
       from, to,
       departureDate: new Date(departureDate),
       price,
-      isActive: true // Par défaut actif pour les tests
+      climatisation: climatisation === true || climatisation === 'true',
+      wifi: wifi === true || wifi === 'true',
+      isActive: true
     };
 
     if (req.user.role === 'entreprise') busData.owner = req.user._id;
@@ -115,7 +119,9 @@ const getBusById = async (req, res) => {
 
 const updateBus = async (req, res) => {
   try {
-    const bus = await Bus.findById(req.params.id);
+    const busId = req.params.id;
+    const updates = req.body;
+    const bus = await Bus.findById(busId);
     if (!bus) return res.status(404).json({ message: 'Bus non trouvé' });
 
     const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
@@ -124,7 +130,52 @@ const updateBus = async (req, res) => {
       return res.status(403).json({ message: 'Action non autorisée' });
     }
 
-    const updatedBus = await Bus.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    // Récupérer les réservations confirmées
+    const reservations = await Reservation.find({ bus: busId, status: 'confirmé' });
+
+    if (reservations.length > 0) {
+      const uniqueUserMap = new Map();
+      for (const r of reservations) {
+        if (!r.user) continue;
+        const uid = r.user.toString();
+        if (!uniqueUserMap.has(uid)) uniqueUserMap.set(uid, r);
+      }
+
+      const changes = [];
+      const dateChanged = updates.departureDate && new Date(updates.departureDate).getTime() !== new Date(bus.departureDate).getTime();
+      if (dateChanged) {
+        changes.push(`date : ${new Date(bus.departureDate).toLocaleDateString('fr-FR')} → ${new Date(updates.departureDate).toLocaleDateString('fr-FR')}`);
+      }
+      if (updates.from && updates.from !== bus.from) changes.push(`départ : ${bus.from} → ${updates.from}`);
+      if (updates.to && updates.to !== bus.to) changes.push(`destination : ${bus.to} → ${updates.to}`);
+
+      // Prix modifié
+      const priceChanged = updates.price !== undefined && Number(updates.price) !== Number(bus.price);
+      if (priceChanged) {
+        for (const [, reservation] of uniqueUserMap) {
+          const locked = reservation.lockedPrice || bus.price;
+          await sendAndSaveNotification(
+            reservation.user,
+            'Prix du bus modifié',
+            `${bus.from} → ${bus.to} : prix passé de ${bus.price} à ${updates.price} FCFA. Votre réservation garde le prix initial de ${locked} FCFA.`,
+            { type: 'info', busId: busId.toString(), screen: 'tickets' }
+          );
+        }
+      }
+
+      // Autres changements (date, trajet)
+      if (changes.length > 0) {
+        const userIds = [...uniqueUserMap.keys()];
+        await sendAndSaveNotification(
+          userIds,
+          'Bus modifié',
+          `Votre trajet en bus ${bus.from} → ${bus.to} a été modifié : ${changes.join(', ')}`,
+          { type: 'info', busId: busId.toString(), screen: 'tickets' }
+        );
+      }
+    }
+
+    const updatedBus = await Bus.findByIdAndUpdate(busId, updates, { new: true });
     res.status(200).json({ message: 'Bus mis à jour', bus: updatedBus });
   } catch (err) {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });

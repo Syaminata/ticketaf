@@ -491,7 +491,6 @@ const scanTicket = async (req, res) => {
       .populate('bus');
 
     if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
-    if (reservation.status === 'annulé') return res.status(400).json({ message: 'Réservation annulée' });
 
     const clientId = reservation.user?._id || reservation.user;
     const driverId = req.user._id || req.user.id;
@@ -499,24 +498,62 @@ const scanTicket = async (req, res) => {
     const to = reservation.voyage?.to || reservation.bus?.to || '';
     const trajet = from && to ? `${from} → ${to}` : 'votre trajet';
     const passengerName = reservation.user?.name || 'Passager';
+    const reservationId = reservation._id.toString();
 
-    // Notification client
+    // 0. Vérification de propriété : le billet doit correspondre au voyage ou au bus du chauffeur/entreprise connecté
+    const isVoyageOwner = reservation.voyage && String(reservation.voyage.driver?._id || reservation.voyage.driver) === String(driverId);
+    const isBusOwner = reservation.bus && String(reservation.bus.owner || reservation.bus.entreprise) === String(driverId);
+
+    if (!isVoyageOwner && !isBusOwner) {
+      return res.status(403).json({ message: 'Ticket invalide — ce billet ne correspond pas à vos trajets', reason: 'invalid' });
+    }
+
+    // 1. Ticket annulé
+    if (reservation.status === 'annulé') {
+      await sendAndSaveNotification(
+        driverId,
+        'Billet annulé ⚠️',
+        `Le billet de ${passengerName} (${trajet}) a été annulé.`,
+        { type: 'alert', reservationId, screen: 'voyages' }
+      );
+      return res.status(400).json({ message: 'Billet annulé', reason: 'cancelled' });
+    }
+
+    // 2. Billet déjà scanné
+    if (reservation.scannedAt) {
+      return res.status(400).json({ message: 'Ce billet a déjà été scanné', reason: 'already_scanned' });
+    }
+
+    // 3. Voyage déjà passé
+    const voyageDate = reservation.voyage?.date || reservation.bus?.departureDate;
+    if (voyageDate && new Date(voyageDate) < new Date(new Date().setHours(0,0,0,0))) {
+      await sendAndSaveNotification(
+        driverId,
+        'Voyage déjà passé ⚠️',
+        `Ce billet concerne un voyage passé : ${trajet}.`,
+        { type: 'alert', reservationId, screen: 'voyages' }
+      );
+      return res.status(400).json({ message: 'Ce voyage est déjà passé', reason: 'expired' });
+    }
+
+    // 4. Billet valide → marquer comme scanné
+    await Reservation.findByIdAndUpdate(reservation._id, { scannedAt: new Date() });
+
     await sendAndSaveNotification(
       clientId,
       'Billet vérifié ✓',
       `Votre billet ${trajet} a été scanné par le chauffeur. Bon voyage !`,
-      { type: 'success', reservationId: reservation._id.toString(), screen: 'tickets' }
+      { type: 'success', reservationId, screen: 'tickets' }
     );
 
-    // Notification chauffeur
     await sendAndSaveNotification(
       driverId,
-      'Billet scanné ✓',
+      'Billet valide ✓',
       `Billet de ${passengerName} — ${trajet} validé avec succès.`,
-      { type: 'success', reservationId: reservation._id.toString(), screen: 'voyages' }
+      { type: 'success', reservationId, screen: 'voyages' }
     );
 
-    res.status(200).json({ message: 'Billet scanné, client et chauffeur notifiés' });
+    res.status(200).json({ message: 'Billet valide', reason: 'valid' });
   } catch (err) {
     console.error('Erreur scanTicket:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });

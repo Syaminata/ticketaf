@@ -85,7 +85,10 @@ const getUserColis = async (req, res) => {
 
 const getAllColis = async (req, res) => {
   try {
-    const colis = await Colis.find().sort({ createdAt: -1 });
+    const colis = await Colis.find()
+      .populate('expediteur', 'name numero email')
+      .populate('createdBy', 'name numero')
+      .sort({ createdAt: -1 });
     res.json(colis);
   } catch (err) {
     res.status(500).json({ message: 'Erreur serveur' });
@@ -94,7 +97,9 @@ const getAllColis = async (req, res) => {
 
 const getColisById = async (req, res) => {
   try {
-    const colis = await Colis.findById(req.params.id);
+    const colis = await Colis.findById(req.params.id)
+      .populate('expediteur', 'name numero email')
+      .populate('createdBy', 'name numero');
     if (!colis) return res.status(404).json({ message: 'Non trouvé' });
     res.json(colis);
   } catch (err) {
@@ -104,7 +109,27 @@ const getColisById = async (req, res) => {
 
 const updateColis = async (req, res) => {
   try {
+    const colis = await Colis.findById(req.params.id);
+    if (!colis) return res.status(404).json({ message: 'Colis non trouvé' });
     const updated = await Colis.findByIdAndUpdate(req.params.id, req.body, { new: true });
+
+    if (colis.expediteur && req.body.status && req.body.status !== colis.status) {
+      const messages = {
+        'envoyé':  'Votre colis est en cours d\'acheminement.',
+        'reçu':    'Votre colis a été livré avec succès.',
+        'annulé':  `Votre colis vers ${colis.destination} a été annulé.`,
+      };
+      const msg = messages[req.body.status];
+      if (msg) {
+        await sendAndSaveNotification(
+          colis.expediteur,
+          req.body.status === 'reçu' ? 'Colis livré' : req.body.status === 'envoyé' ? 'Colis en route' : 'Statut colis mis à jour',
+          msg,
+          { type: req.body.status === 'reçu' ? 'success' : 'info', colisId: colis._id.toString(), screen: 'colis' }
+        );
+      }
+    }
+
     res.json(updated);
   } catch (err) {
     res.status(500).json({ message: 'Erreur serveur' });
@@ -141,8 +166,20 @@ const getColisStats = async (req, res) => {
 
 const updateColisPrix = async (req, res) => {
   try {
-    const colis = await Colis.findByIdAndUpdate(req.params.id, { prix: req.body.prix }, { new: true });
-    res.json(colis);
+    const colis = await Colis.findById(req.params.id);
+    if (!colis) return res.status(404).json({ message: 'Colis non trouvé' });
+    const updated = await Colis.findByIdAndUpdate(req.params.id, { prix: req.body.prix }, { new: true });
+
+    if (colis.expediteur) {
+      await sendAndSaveNotification(
+        colis.expediteur,
+        'Prix de votre colis défini',
+        `Le prix d'envoi de votre colis vers ${colis.destination} est de ${req.body.prix} FCFA.`,
+        { type: 'info', colisId: colis._id.toString(), screen: 'colis' }
+      );
+    }
+
+    res.json(updated);
   } catch (err) {
     res.status(500).json({ message: 'Erreur serveur' });
   }
@@ -150,8 +187,32 @@ const updateColisPrix = async (req, res) => {
 
 const validateColis = async (req, res) => {
   try {
-    const colis = await Colis.findByIdAndUpdate(req.params.id, { status: 'envoyé' }, { new: true });
-    res.json(colis);
+    const colis = await Colis.findById(req.params.id);
+    if (!colis) return res.status(404).json({ message: 'Colis non trouvé' });
+    const updated = await Colis.findByIdAndUpdate(req.params.id, { status: 'envoyé' }, { new: true });
+
+    // Notification au client : confirmation d'acceptation du prix
+    if (colis.expediteur) {
+      await sendAndSaveNotification(
+        colis.expediteur,
+        'Prix accepté',
+        `Vous avez accepté le prix pour votre colis vers ${colis.destination}. Il sera bientôt pris en charge.`,
+        { type: 'success', colisId: colis._id.toString(), screen: 'colis' }
+      );
+    }
+
+    // Notification aux admins : le client a accepté
+    const admins = await User.find({ role: { $in: ['admin', 'superadmin', 'gestionnaireColis'] } }).select('_id');
+    if (admins.length > 0) {
+      await sendAndSaveNotification(
+        admins.map(a => a._id),
+        'Prix colis accepté',
+        `Un client a accepté le prix pour son colis vers ${colis.destination}.`,
+        { type: 'info', colisId: colis._id.toString(), screen: 'colis' }
+      );
+    }
+
+    res.json(updated);
   } catch (err) {
     res.status(500).json({ message: 'Erreur serveur' });
   }
@@ -162,7 +223,7 @@ const cancelColis = async (req, res) => {
     const colis = await Colis.findById(req.params.id);
     if (!colis) return res.status(404).json({ message: 'Colis non trouvé' });
 
-    const isAdmin = ['admin', 'superadmin'].includes(req.user?.role);
+    const isAdmin = ['admin', 'superadmin', 'gestionnaireColis'].includes(req.user?.role);
     const isOwner = String(colis.expediteur) === String(req.user?._id);
     if (!isAdmin && !isOwner) {
       return res.status(403).json({ message: 'Action non autorisée' });
@@ -170,12 +231,28 @@ const cancelColis = async (req, res) => {
 
     const updated = await Colis.findByIdAndUpdate(req.params.id, { status: 'annulé' }, { new: true });
 
-    await sendAndSaveNotification(
-      colis.expediteur,
-      'Colis annulé',
-      `Votre colis vers ${colis.destination} a été annulé.`,
-      { type: 'info', colisId: colis._id.toString(), screen: 'colis' }
-    );
+    // Toujours notifier le client
+    if (colis.expediteur) {
+      await sendAndSaveNotification(
+        colis.expediteur,
+        'Colis annulé',
+        `Votre colis vers ${colis.destination} a été annulé.`,
+        { type: 'warning', colisId: colis._id.toString(), screen: 'colis' }
+      );
+    }
+
+    // Si c'est le client qui annule → notifier les admins
+    if (isOwner && !isAdmin) {
+      const admins = await User.find({ role: { $in: ['admin', 'superadmin', 'gestionnaireColis'] } }).select('_id');
+      if (admins.length > 0) {
+        await sendAndSaveNotification(
+          admins.map(a => a._id),
+          'Colis annulé par le client',
+          `Un client a annulé son colis vers ${colis.destination}.`,
+          { type: 'warning', colisId: colis._id.toString(), screen: 'colis' }
+        );
+      }
+    }
 
     res.json(updated);
   } catch (err) {

@@ -6,7 +6,7 @@ const { sendAndSaveNotification, cleanupInvalidTokens } = require('../services/n
 
 const createVoyage = async (req, res) => {
   try {
-    const { driverId, from, to, date, price, totalSeats } = req.body;
+    const { driverId, from, to, date, price, totalSeats, climatisation, wifi } = req.body;
     if (!driverId || !from || !to || !date || !price) {
       return res.status(400).json({ message: 'Tous les champs sont requis' });
     }
@@ -15,7 +15,15 @@ const createVoyage = async (req, res) => {
 
     const seats = totalSeats || driver.capacity || 4;
     const voyage = await Voyage.create({
-      driver: driver._id, from, to, date, price, totalSeats: seats, availableSeats: seats
+      driver: driver._id,
+      from,
+      to,
+      date,
+      price,
+      totalSeats: seats,
+      availableSeats: seats,
+      climatisation: climatisation === true || climatisation === 'true',
+      wifi: wifi === true || wifi === 'true'
     });
 
     const populatedVoyage = await Voyage.findById(voyage._id).populate('driver', '-password');
@@ -225,6 +233,14 @@ const updateVoyage = async (req, res) => {
   try {
     const voyageId = req.params.id;
     const updates = req.body;
+
+    if (updates.climatisation !== undefined) {
+      updates.climatisation = updates.climatisation === true || updates.climatisation === 'true';
+    }
+    if (updates.wifi !== undefined) {
+      updates.wifi = updates.wifi === true || updates.wifi === 'true';
+    }
+
     const voyage = await Voyage.findById(voyageId);
     if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
 
@@ -362,11 +378,23 @@ const getMyVoyages = async (req, res) => {
 
 const createVoyageByDriver = async (req, res) => {
   try {
-    const { from, to, date, price, totalSeats } = req.body;
+    const { from, to, date, price, totalSeats, climatisation, wifi } = req.body;
     const driver = await Driver.findById(req.user._id);
     if (!driver || !driver.isActive) return res.status(403).json({ message: 'Inactif' });
     const seats = totalSeats || driver.capacity;
-    const voyage = await Voyage.create({ driver: req.user._id, from, to, date, price, totalSeats: seats, availableSeats: seats });
+    console.log(`[VOYAGE_CREATE] Driver ${driver._id} creating voyage with clim=${climatisation}, wifi=${wifi}`);
+
+    const voyage = await Voyage.create({
+      driver: driver._id,
+      from,
+      to,
+      date: d,
+      price,
+      totalSeats: seats,
+      availableSeats: seats,
+      climatisation: climatisation === true || climatisation === 'true',
+      wifi: wifi === true || wifi === 'true'
+    });
     res.status(201).json({ message: 'Succès', voyage });
   } catch (err) {
     res.status(500).json({ message: 'Erreur' });
@@ -375,10 +403,17 @@ const createVoyageByDriver = async (req, res) => {
 
 const updateMyVoyage = async (req, res) => {
   try {
-    const allowedFields = ['from', 'to', 'date', 'price', 'totalSeats'];
+    const allowedFields = ['from', 'to', 'date', 'price', 'totalSeats', 'climatisation', 'wifi'];
     const updateData = Object.fromEntries(
       Object.entries(req.body).filter(([key]) => allowedFields.includes(key))
     );
+    
+    if (updateData.climatisation !== undefined) {
+      updateData.climatisation = updateData.climatisation === true || updateData.climatisation === 'true';
+    }
+    if (updateData.wifi !== undefined) {
+      updateData.wifi = updateData.wifi === true || updateData.wifi === 'true';
+    }
 
     const oldVoyage = await Voyage.findOne({ _id: req.params.id, driver: req.user._id });
     if (!oldVoyage) return res.status(404).json({ message: 'Voyage non trouvé ou non autorisé' });

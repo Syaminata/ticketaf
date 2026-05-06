@@ -89,16 +89,29 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
 
     // Fusionner les tokens des deux collections pour le même _id
     // (les chauffeurs ont une entrée dans User ET Driver avec le même _id)
+    // Fusionner les tokens des deux collections pour le même _id
     const tokenMap = new Map();
     [...users, ...drivers].forEach(u => {
       const id = u._id.toString();
+      const userTokens = u.fcmTokens || [];
+
       if (!tokenMap.has(id)) {
-        tokenMap.set(id, { _id: u._id, fcmTokens: [...(u.fcmTokens || [])] });
+        // Initialiser avec des tokens uniques
+        const uniqueTokens = [];
+        const seen = new Set();
+        for (const t of userTokens) {
+          if (t.token && !seen.has(t.token)) {
+            uniqueTokens.push(t);
+            seen.add(t.token);
+          }
+        }
+        tokenMap.set(id, { _id: u._id, fcmTokens: uniqueTokens });
       } else {
+        // Ajouter les nouveaux tokens uniques de la deuxième collection
         const existing = tokenMap.get(id);
         const knownTokens = new Set(existing.fcmTokens.map(t => t.token));
-        for (const t of (u.fcmTokens || [])) {
-          if (!knownTokens.has(t.token)) {
+        for (const t of userTokens) {
+          if (t.token && !knownTokens.has(t.token)) {
             existing.fcmTokens.push(t);
             knownTokens.add(t.token);
           }
@@ -208,11 +221,10 @@ async function sendWelcomeNotification(userId, userName) {
 
     if (!user) return { success: true, alreadySent: true };
 
-    const isDriver = user.role === 'conducteur';
-    const firstName = userName ? userName.split(' ')[0] : '';
+    const isDriver = user.role === 'conducteur' || user.role === 'entreprise';
     const body = isDriver
-      ? `Bonjour ${firstName}, bienvenu sur Ticketaf ! Planifiez vos voyages et prenez des clients.`
-      : `Bonjour ${firstName}, bienvenu sur Ticketaf ! Réservez votre trajet ou envoyez un colis facilement.`;
+      ? `Bonjour, Bienvenu sur Ticketaf ! Planifiez vos voyages et prenez des clients.`
+      : `Bonjour, Bienvenu sur Ticketaf ! Réservez votre trajet ou envoyez un colis facilement.`;
 
     await sendAndSaveNotification(
       userId,
@@ -230,37 +242,96 @@ async function sendWelcomeNotification(userId, userName) {
 async function sendDayJNotifications() {
   try {
     const Voyage = require('../models/voyage.model');
+    const Bus = require('../models/bus.model');
     const Reservation = require('../models/reservation.model');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const voyagesForToday = await Voyage.find({
-      date: { $gte: today, $lt: tomorrow },
-      notificationDayJSent: false,
-      status: { $in: ['OPEN', 'FULL'] }
+    const now = new Date();
+    // On définit une fenêtre de tir : les départs prévus dans les 2 prochaines heures
+    const inTwoHours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+    let processedCount = 0;
+
+    // --- 1. TRAITEMENT DES VOYAGES (COVOITURAGE) ---
+    // On cherche les voyages prévus bientôt qui n'ont pas encore envoyé la notif
+    const voyagesSoon = await Voyage.find({
+      date: { $gte: now, $lte: inTwoHours },
+      notificationDayJSent: { $ne: true },
+      status: { $in: ['OPEN', 'FULL', 'CREATED'] }
     }).populate('driver');
 
-    for (const voyage of voyagesForToday) {
+    for (const voyage of voyagesSoon) {
       const reservations = await Reservation.find({ voyage: voyage._id, status: 'confirmé', ticket: 'place' }).populate('user');
       const departureTime = new Date(voyage.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
+      // Notifier chaque client confirmé
       for (const reservation of reservations) {
         if (reservation.user) {
           await sendAndSaveNotification(
             reservation.user._id,
-            'Votre voyage est aujourd\'hui',
-            `${voyage.from} → ${voyage.to} à ${departureTime}`,
-            { type: 'TRIP_DAY_J', voyageId: voyage._id.toString(), screen: 'voyages' }
+            'Rappel : Votre voyage est bientôt',
+            `Départ ${voyage.from} → ${voyage.to} prévu à ${departureTime}. Préparez-vous !`,
+            { type: 'TRIP_REMINDER', voyageId: voyage._id.toString(), screen: 'voyages' }
           );
         }
       }
+
+      // Notifier le chauffeur
+      if (voyage.driver) {
+        const passengerCount = reservations.filter(r => r.user).length;
+        await sendAndSaveNotification(
+          voyage.driver._id,
+          'Rappel : Départ imminent',
+          `Votre voyage ${voyage.from} → ${voyage.to} est à ${departureTime}. Vous avez ${passengerCount} passager(s) confirmé(s).`,
+          { type: 'TRIP_REMINDER', voyageId: voyage._id.toString(), screen: 'voyages' }
+        );
+      }
+
       voyage.notificationDayJSent = true;
       await voyage.save();
+      processedCount++;
     }
-    return { processed: voyagesForToday.length };
+
+    // --- 2. TRAITEMENT DES BUS (ENTREPRISE) ---
+    const busesSoon = await Bus.find({
+      departureDate: { $gte: now, $lte: inTwoHours },
+      isActive: true,
+      notificationDayJSent: { $ne: true }
+    }).populate('owner');
+
+    for (const bus of busesSoon) {
+      const reservations = await Reservation.find({ bus: bus._id, status: 'confirmé', ticket: 'place' }).populate('user');
+      const departureTime = new Date(bus.departureDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+      // Notifier chaque client confirmé
+      for (const reservation of reservations) {
+        if (reservation.user) {
+          await sendAndSaveNotification(
+            reservation.user._id,
+            'Rappel : Votre bus part bientôt',
+            `Le bus ${bus.name} (${bus.from} → ${bus.to}) part à ${departureTime}.`,
+            { type: 'TRIP_REMINDER', busId: bus._id.toString(), screen: 'tickets' }
+          );
+        }
+      }
+
+      // Notifier l'entreprise/propriétaire
+      if (bus.owner) {
+        const passengerCount = reservations.filter(r => r.user).length;
+        await sendAndSaveNotification(
+          bus.owner._id,
+          'Rappel : Départ de bus imminent',
+          `Le bus ${bus.name} (${bus.from} → ${bus.to}) part à ${departureTime} avec ${passengerCount} passager(s).`,
+          { type: 'TRIP_REMINDER', busId: bus._id.toString(), screen: 'buses' }
+        );
+      }
+      bus.notificationDayJSent = true;
+      await bus.save();
+      processedCount++;
+    }
+
+    return { processed: processedCount };
   } catch (error) {
+    console.error('Erreur sendDayJNotifications:', error);
     throw error;
   }
 }
