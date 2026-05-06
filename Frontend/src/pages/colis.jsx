@@ -48,7 +48,7 @@ import {
   Visibility as VisibilityIcon,
   Inventory,
   Route,
-  Image,
+  Visibility,
   AttachMoney 
 } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
@@ -737,15 +737,15 @@ useEffect(() => {
           <Table>
             <TableHead sx={{ borderBottom: '3px solid #ffcc33', '& .MuiTableCell-root': { borderBottom: '3px solid #ffcc33' } }}>
               <TableRow>
-                <TableCell sx={{ width: '60px' }}></TableCell>
-                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Destinataire</TableCell>
-                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Trajet</TableCell>
-                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Date d'envoi souhaité</TableCell>
+                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px', width: '6%', textAlign: 'center' }}></TableCell>
+                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px', width: '16%', textAlign: 'center' }}>Destinataire</TableCell>
+                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px', width: '16%', textAlign: 'center' }}>Trajet</TableCell>
+                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px', width: '16%', textAlign: 'center' }}>Date d'envoi</TableCell>
                 {user.role === 'superadmin' || user.role === 'gestionnaireColis' && (
-                  <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px' }}>Expéditeur</TableCell>
+                  <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px', width: '16%', textAlign: 'center' }}>Expéditeur</TableCell>
                 )}
-                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px', textAlign: 'center' }}>Statut</TableCell>
-                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px', textAlign: 'center' }}>Actions</TableCell>
+                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px', width: '16%', textAlign: 'center' }}>Statut</TableCell>
+                <TableCell sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '16px', width: '16%', textAlign: 'center' }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -757,7 +757,7 @@ useEffect(() => {
                     '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' }
                   }}
                 >
-                  <TableCell>
+                  <TableCell sx={{ width: '6%', textAlign: 'center' }}>
                     <Box
                       sx={{
                         width: 40,
@@ -766,13 +766,14 @@ useEffect(() => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#FFA000'
+                        color: '#FFA000',
+                        margin: '0 auto'
                       }}
                     >
                       <LocalShipping />
                     </Box>
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '16%', textAlign: 'center' }}>
                     <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
                       {colisItem.destinataire?.nom}
                     </Typography>
@@ -780,16 +781,16 @@ useEffect(() => {
                       {colisItem.destinataire?.telephone}
                     </Typography>
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '16%', textAlign: 'center' }}>
                     <Box>
-                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a', display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a', display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
                         <span>{colisItem.villeDepart || 'Non spécifiée'}</span>
                         <span>→</span>
                         <span>{colisItem.destination}</span>
                       </Typography>
                     </Box>
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '16%', textAlign: 'center' }}>
                     <Typography sx={{ fontWeight: 500, color: '#1a1a1a' }}>
                       {new Date(colisItem.dateEnvoi).toLocaleDateString('fr-FR', {
                         day: '2-digit',
@@ -799,7 +800,7 @@ useEffect(() => {
                     </Typography>
                   </TableCell>
                   {user.role === 'superadmin' || user.role === 'gestionnaireColis' && (
-                    <TableCell>
+                    <TableCell sx={{ width: '16%', textAlign: 'center' }}>
                       <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
                         {colisItem.expediteur?.name || 'N/A'}
                       </Typography>
@@ -808,7 +809,7 @@ useEffect(() => {
                       </Typography>
                     </TableCell>
                   )}
-                  <TableCell sx={{ textAlign: 'center' }}>
+                  <TableCell sx={{ width: '16%', textAlign: 'center' }}>
                     {colisItem.status === 'enregistré' ? (
                       <Select
                         value={colisItem.status}
@@ -841,66 +842,69 @@ useEffect(() => {
                       />
                     )}
                   </TableCell>
-                  <TableCell sx={{ textAlign: 'center' }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => handleOpenDetails(colisItem)}
-                      sx={{
-                        borderColor: '#ffcc33',
-                        color: '#ffcc33',
-                        fontSize: '12px',
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: '8px',
-                        textTransform: 'none',
-                        '&:hover': {
-                          backgroundColor: 'rgba(255, 204, 51, 0.1)',
-                          borderColor: '#ffb300'
-                        }
-                      }}
-                    >
-                      Voir détails
-                    </Button>
-                    
-                    {/* Bouton Accepter le prix pour les clients quand le statut est "en attente" */}
-                    {colisItem.status === 'en attente' && user.role !== 'superadmin' && user.role !== 'gestionnaireColis' && (
-                      <Button
-                        variant="contained"
-                        size="small"
-                        onClick={() => handleAcceptPrice(colisItem._id)}
-                        sx={{
-                          ml: 1,
-                          backgroundColor: '#4caf50',
-                          color: 'white',
-                          fontSize: '12px',
-                          px: 2,
-                          py: 0.5,
-                          borderRadius: '8px',
-                          textTransform: 'none',
-                          '&:hover': {
-                            backgroundColor: '#45a049'
-                          }
+                  <TableCell sx={{ width: '16%', textAlign: 'center' }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
+                      
+                      {/* Bouton Accepter le prix pour les clients quand le statut est "en attente" */}
+                      {colisItem.status === 'en attente' && user.role !== 'superadmin' && user.role !== 'gestionnaireColis' && (
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => handleAcceptPrice(colisItem._id)}
+                          sx={{
+                            backgroundColor: '#4caf50',
+                            color: 'white',
+                            fontSize: '11px',
+                            px: 1,
+                            py: 0.5,
+                            borderRadius: '6px',
+                            textTransform: 'none',
+                            minWidth: 'auto',
+                            '&:hover': {
+                              backgroundColor: '#45a049'
+                            }
+                          }}
+                        >
+                          Accepter
+                        </Button>
+                      )}
+                      
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <IconButton
+                        onClick={() => handleOpenDetails(colisItem)}
+                        sx={{ 
+                          color: '#256642ff', 
+                          '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' },
+                          padding: 0.5
                         }}
+                        title="Voir détails"
                       >
-                        Accepter le prix
-                      </Button>
-                    )}
-                    
-                    <IconButton
-                      onClick={() => handleOpen(colisItem)}
-                      sx={{ color: '#ffcc33', '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' } }}
-                      title="Modifier"
-                    >
-                      <Edit />
-                    </IconButton>
-                    <IconButton
-                      onClick={() => handleDelete(colisItem._id)}
-                      sx={{ color: '#f44336', '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' } }}
-                      title="Supprimer"
-                    >
-                      <Delete />
-                    </IconButton>
+                        <Visibility fontSize="small" />
+                      </IconButton>
+                        <IconButton
+                          onClick={() => handleOpen(colisItem)}
+                          sx={{ 
+                            color: '#ffcc33', 
+                            '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' },
+                            padding: 0.5
+                          }}
+                          title="Modifier"
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          onClick={() => handleDelete(colisItem._id)}
+                          sx={{ 
+                            color: '#f44336', 
+                            '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' },
+                            padding: 0.5
+                          }}
+                          title="Supprimer"
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))}
