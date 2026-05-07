@@ -274,7 +274,7 @@ const updateUser = async (req, res) => {
     }
 
     if (password && password.trim() !== '') {
-      updateData.password = password;
+      updateData.password = await bcrypt.hash(password.trim(), 10);
     }
 
     // Mettre à jour l'utilisateur
@@ -315,6 +315,9 @@ const updateUser = async (req, res) => {
       }
       if (address !== undefined) {
         driverUpdate.address = address;
+      }
+      if (updateData.password) {
+        driverUpdate.password = updateData.password;
       }
 
       await Driver.findByIdAndUpdate(
