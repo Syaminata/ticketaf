@@ -388,7 +388,7 @@ const createVoyageByDriver = async (req, res) => {
       driver: driver._id,
       from,
       to,
-      date: d,
+      date: date,
       price,
       totalSeats: seats,
       availableSeats: seats,
@@ -397,7 +397,8 @@ const createVoyageByDriver = async (req, res) => {
     });
     res.status(201).json({ message: 'Succès', voyage });
   } catch (err) {
-    res.status(500).json({ message: 'Erreur' });
+    console.error('[VOYAGE_CREATE_DRIVER] Erreur:', err.message, err.stack);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
 

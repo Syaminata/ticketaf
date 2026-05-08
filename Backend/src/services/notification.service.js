@@ -44,6 +44,7 @@ async function cleanupInvalidTokens(invalidTokens) {
  * options.saveToDb = false → push only, no DB save, no Socket.IO
  */
 async function sendAndSaveNotification(userIds, title, body, data = {}, options = {}) {
+  if (!title && !body) return { success: true, saved: false, info: 'empty title and body' };
   const ids = Array.isArray(userIds) ? userIds : [userIds];
   const saveToDb = options.saveToDb !== false;
   try {
@@ -133,9 +134,8 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
         screen: 'notifications',
       });
       u.fcmTokens.forEach(t => {
-        messages.push({
+        const msg = {
           token: t.token,
-          notification: { title, body },
           data: fcmData,
           android: {
             priority: 'high',
@@ -149,7 +149,11 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
               aps: { sound: 'default', badge: 1, contentAvailable: true, alert: { title, body } }
             }
           }
-        });
+        };
+        if (title || body) {
+          msg.notification = { title, body };
+        }
+        messages.push(msg);
       });
     });
 
