@@ -102,7 +102,7 @@ export default function Colis() {
 
     try {
       let res;
-      if (user.role === 'superadmin' || user.role === 'gestionnaireColis') {
+      if (user.role === 'admin' || user.role === 'superadmin' || user.role === 'gestionnaireColis') {
         res = await colisAPI.getAllColis();
       } else {
         res = await colisAPI.getUserColis();
@@ -298,7 +298,7 @@ useEffect(() => {
       
       submitData.append('description', formData.description || '');
       
-      if (user.role === 'superadmin' || user.role === 'gestionnaireColis') {
+      if (user.role === 'admin' || user.role === 'superadmin' || user.role === 'gestionnaireColis') {
         if (formData.prix !== '' && formData.prix !== null) {
           submitData.append('prix', parseFloat(formData.prix));
           // Le statut reste 'en attente' par défaut dans le backend
@@ -320,10 +320,9 @@ useEffect(() => {
 
       if (editColis) {
         await colisAPI.updateColis(editColis._id, submitData);
-        
         // Notifier le client si le prix a changé
         const newPrix = formData.prix !== '' && formData.prix !== null ? parseFloat(formData.prix) : null;
-        if (newPrix !== null && newPrix !== editColis.prix && (user.role === 'superadmin' || user.role === 'gestionnaireColis')) {
+        if (newPrix !== null && newPrix !== editColis.prix && (user.role === 'admin' || user.role === 'superadmin' || user.role === 'gestionnaireColis')) {
           await colisAPI.updateColisPrix(editColis._id, newPrix);
         }
         setSuccess('Colis mis à jour avec succès');
@@ -1092,7 +1091,7 @@ useEffect(() => {
             </Box>
 
             {/* ================== SECTION PRIX (ADMIN UNIQUEMENT) ================== */}
-            {(user.role === 'superadmin' || user.role === 'gestionnaireColis') && (
+            {(user.role === 'admin' || user.role === 'superadmin' || user.role === 'gestionnaireColis') && (
               <Box>
                 <Typography
                   variant="h6"
@@ -1382,10 +1381,10 @@ useEffect(() => {
                   <InfoRow label="Description">
                     {selectedColis.description || 'Aucune description'}
                   </InfoRow>
-                  {(user.role === 'superadmin' || user.role === 'gestionnaireColis') && (
+                  {(user.role === 'admin' || user.role === 'superadmin' || user.role === 'gestionnaireColis') && (
                     <InfoRow label="Prix">
-                      {selectedColis.prix 
-                        ? `${selectedColis.prix.toLocaleString('fr-FR')} FCFA` 
+                      {selectedColis.prix
+                        ? `${selectedColis.prix.toLocaleString('fr-FR')} FCFA`
                         : 'Non défini'}
                     </InfoRow>
                   )}

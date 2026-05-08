@@ -266,16 +266,33 @@ const updateVoyage = async (req, res) => {
       );
     }
 
-    // Date modifiée
+    // Date/heure modifiée
     const dateChanged = updates.date && new Date(updates.date).getTime() !== new Date(voyage.date).getTime();
     if (dateChanged) {
       const userIds = await getConfirmedUserIds();
       if (userIds.length > 0) {
+        const newDate = new Date(updates.date);
+        const dateStr = newDate.toLocaleDateString('fr-FR');
+        const timeStr = newDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         await sendAndSaveNotification(
           userIds,
-          'Date de voyage modifiée',
-          `La date de votre voyage ${voyage.from} → ${voyage.to} a changé : ${new Date(updates.date).toLocaleDateString('fr-FR')}`,
+          'Horaire de voyage modifié',
+          `Votre voyage ${voyage.from} → ${voyage.to} a été reprogrammé au ${dateStr} à ${timeStr}.`,
           { type: 'TRIP_MODIFIED', voyageId: voyageId.toString() }
+        );
+      }
+    }
+
+    // Places disponibles modifiées
+    const seatsChanged = updates.availableSeats !== undefined && Number(updates.availableSeats) !== Number(voyage.availableSeats);
+    if (seatsChanged) {
+      const userIds = await getConfirmedUserIds();
+      if (userIds.length > 0) {
+        await sendAndSaveNotification(
+          userIds,
+          'Places disponibles modifiées',
+          `Le voyage ${voyage.from} → ${voyage.to} dispose maintenant de ${updates.availableSeats} place(s) disponible(s).`,
+          { type: 'info', voyageId: voyageId.toString() }
         );
       }
     }
