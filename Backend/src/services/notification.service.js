@@ -137,22 +137,13 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
         const msg = {
           token: t.token,
           data: fcmData,
-          android: {
-            priority: 'high',
-            notification: {
-              sound: 'default',
-              channelId: 'tiketaf_channel',
-            },
-          },
+          android: { priority: 'high' },
           apns: {
             payload: {
               aps: { sound: 'default', badge: 1, contentAvailable: true, alert: { title, body } }
             }
           }
         };
-        if (title || body) {
-          msg.notification = { title, body };
-        }
         messages.push(msg);
       });
     });

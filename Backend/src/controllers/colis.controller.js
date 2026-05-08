@@ -166,21 +166,30 @@ const getColisStats = async (req, res) => {
 
 const updateColisPrix = async (req, res) => {
   try {
+    const Reservation = require('../models/reservation.model');
     const colis = await Colis.findById(req.params.id);
     if (!colis) return res.status(404).json({ message: 'Colis non trouvé' });
     const updated = await Colis.findByIdAndUpdate(req.params.id, { prix: req.body.prix }, { new: true });
 
-    if (colis.expediteur) {
+    let recipientId = colis.expediteur;
+    if (!recipientId && colis.reservation) {
+      const reservation = await Reservation.findById(colis.reservation).select('user');
+      recipientId = reservation?.user;
+    }
+
+    if (recipientId) {
+      const destination = colis.destination || '';
       await sendAndSaveNotification(
-        colis.expediteur,
+        recipientId,
         'Prix de votre colis défini',
-        `Le prix d'envoi de votre colis vers ${colis.destination} est de ${req.body.prix} FCFA.`,
+        `Le prix d'envoi de votre colis${destination ? ' vers ' + destination : ''} est de ${req.body.prix} FCFA.`,
         { type: 'info', colisId: colis._id.toString(), screen: 'colis' }
       );
     }
 
     res.json(updated);
   } catch (err) {
+    console.error('Erreur updateColisPrix:', err);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
