@@ -320,6 +320,12 @@ useEffect(() => {
 
       if (editColis) {
         await colisAPI.updateColis(editColis._id, submitData);
+        
+        // Notifier le client si le prix a changé
+        const newPrix = formData.prix !== '' && formData.prix !== null ? parseFloat(formData.prix) : null;
+        if (newPrix !== null && newPrix !== editColis.prix && (user.role === 'superadmin' || user.role === 'gestionnaireColis')) {
+          await colisAPI.updateColisPrix(editColis._id, newPrix);
+        }
         setSuccess('Colis mis à jour avec succès');
       } else {
         await colisAPI.createColis(submitData);

@@ -196,14 +196,7 @@ const getAllVoyageIncludingExpired = async (req, res) => {
 const getVoyageById = async (req, res) => {
   try {
     const voyage = await Voyage.findById(req.params.id)
-      .populate({
-        path: 'driver',
-        select: '-password',
-        populate: {
-          path: 'user',
-          select: 'name email numero'
-        }
-      });
+      .populate({ path: 'driver', select: '-password' });
     
     if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
     
