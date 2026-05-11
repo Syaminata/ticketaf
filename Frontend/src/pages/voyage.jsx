@@ -78,7 +78,7 @@ export default function Voyage() {
   });
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
   const [totalVoyages, setTotalVoyages] = useState(0);
   const [fromFilter, setFromFilter] = useState('');
   const [toFilter, setToFilter] = useState('');

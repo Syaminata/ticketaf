@@ -151,6 +151,11 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
     if (messages.length === 0) {
       return { success: true, saved: saveToDb };
     }
+    
+    if (!admin.isAvailable) {
+      console.warn(`⚠️ [FCM] Firebase non configuré — ${messages.length} push ignoré(s). Définir FIREBASE_SERVICE_ACCOUNT_JSON dans .env`);
+      return { success: true, saved: saveToDb, info: 'Firebase non configuré' };
+    }
 
     if (admin && admin.messaging) {
       const response = await admin.messaging().sendEach(messages);
