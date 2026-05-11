@@ -43,8 +43,10 @@ import {
   CalendarToday as CalendarIcon,
   Phone as PhoneIcon,
   ArrowForward as ArrowForwardIcon,
-  AcUnit as AcUnitIcon
+  AcUnit as AcUnitIcon,
+  ListAlt as ListAltIcon
 } from "@mui/icons-material";
+import { CircularProgress, Divider } from "@mui/material";
 import ConfirmationDialog from "../components/ConfirmationDialog";
 
 function Buses() {
@@ -60,10 +62,12 @@ function Buses() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState('all');
   const [anchorEl, setAnchorEl] = useState(null);
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
   
 
   // État du formulaire
@@ -93,6 +97,36 @@ function Buses() {
     bus: null,
     owner: null
   });
+
+  const [reservationsDialog, setReservationsDialog] = useState({
+    open: false,
+    bus: null,
+    reservations: [],
+    loading: false
+  });
+
+  const handleViewReservations = async (bus) => {
+    setReservationsDialog({ open: true, bus, reservations: [], loading: true });
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await axios.get(`/reservations/bus/${bus._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { populate: 'user' }
+      });
+      const data = response.data.reservations || response.data || [];
+      const sorted = Array.isArray(data)
+        ? [...data].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+        : [];
+      setReservationsDialog(prev => ({ ...prev, reservations: sorted, loading: false }));
+    } catch (error) {
+      console.error('Erreur réservations bus:', error);
+      setReservationsDialog(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleCloseReservationsDialog = () => {
+    setReservationsDialog({ open: false, bus: null, reservations: [], loading: false });
+  };
 
   // Charger les villes au montage du composant
   useEffect(() => {
@@ -405,28 +439,36 @@ function Buses() {
       const search = searchTerm.toLowerCase().trim();
       const busFrom = bus.from?.toLowerCase() || '';
       const busTo = bus.to?.toLowerCase() || '';
-      const busDate = bus.departureDate 
+      const busDate = bus.departureDate
         ? new Date(bus.departureDate).toLocaleDateString('fr-FR', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric'
           })
         : '';
-      
-      return (
+
+      if (!(
         busFrom.includes(search) ||
         busTo.includes(search) ||
         busDate.includes(search) ||
         (bus.name && bus.name.toLowerCase().includes(search)) ||
         (bus.plateNumber && bus.plateNumber.toLowerCase().includes(search))
-      );
+      )) return false;
     }
-    
+
     // Filtre par statut
-    if (statusFilter === 'active') return bus.isActive === true;
-    if (statusFilter === 'inactive') return bus.isActive === false;
-    
-    return true; // Si 'all' ou autre valeur non gérée
+    if (statusFilter === 'active' && bus.isActive !== true) return false;
+    if (statusFilter === 'inactive' && bus.isActive !== false) return false;
+
+    // Filtre par date
+    if (dateRange.startDate || dateRange.endDate) {
+      const busDate = bus.departureDate ? new Date(bus.departureDate) : null;
+      if (!busDate) return false;
+      if (dateRange.startDate && busDate < new Date(dateRange.startDate)) return false;
+      if (dateRange.endDate && busDate > new Date(dateRange.endDate + 'T23:59:59')) return false;
+    }
+
+    return true;
   }) : [];
   
   // Tri des bus
@@ -595,7 +637,7 @@ function Buses() {
             variant="outlined"
             onClick={handleOpenFilter}
             startIcon={<FilterListIcon />}
-            sx={{ 
+            sx={{
               textTransform: 'none',
               borderColor: '#ffcc33',
               color: '#666',
@@ -608,63 +650,112 @@ function Buses() {
           >
             {statusFilter === 'all' ? 'Tous' : statusFilter === 'active' ? 'Actifs' : 'Inactifs'}
           </Button>
-          
+
           <Menu
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
             onClose={() => handleCloseFilter()}
-            anchorOrigin={{
-              vertical: 'bottom',
-              horizontal: 'left',
-            }}
-            transformOrigin={{
-              vertical: 'top',
-              horizontal: 'left',
-            }}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'left' }}
           >
-            <MenuItem 
-              onClick={() => handleCloseFilter('all')} 
+            <MenuItem
+              onClick={() => handleCloseFilter('all')}
               selected={statusFilter === 'all'}
-              sx={{ 
-                '&.Mui-selected': { 
-                  backgroundColor: 'rgba(255, 204, 51, 0.08)',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 204, 51, 0.12)'
-                  }
-                }
-              }}
+              sx={{ '&.Mui-selected': { backgroundColor: 'rgba(255, 204, 51, 0.08)', '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.12)' } } }}
             >
               Tous les statuts
             </MenuItem>
-            <MenuItem 
-              onClick={() => handleCloseFilter('active')} 
+            <MenuItem
+              onClick={() => handleCloseFilter('active')}
               selected={statusFilter === 'active'}
-              sx={{ 
-                '&.Mui-selected': { 
-                  backgroundColor: 'rgba(255, 204, 51, 0.08)',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 204, 51, 0.12)'
-                  }
-                }
-              }}
+              sx={{ '&.Mui-selected': { backgroundColor: 'rgba(255, 204, 51, 0.08)', '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.12)' } } }}
             >
               Actifs
             </MenuItem>
-            <MenuItem 
-              onClick={() => handleCloseFilter('inactive')} 
+            <MenuItem
+              onClick={() => handleCloseFilter('inactive')}
               selected={statusFilter === 'inactive'}
-              sx={{ 
-                '&.Mui-selected': { 
-                  backgroundColor: 'rgba(255, 204, 51, 0.08)',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 204, 51, 0.12)'
-                  }
-                }
-              }}
+              sx={{ '&.Mui-selected': { backgroundColor: 'rgba(255, 204, 51, 0.08)', '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.12)' } } }}
             >
               Inactifs
             </MenuItem>
           </Menu>
+
+          <Button
+            variant="outlined"
+            onClick={() => setShowDateFilter(!showDateFilter)}
+            startIcon={<FilterListIcon />}
+            sx={{
+              borderRadius: '12px',
+              textTransform: 'none',
+              borderColor: '#ffcc33',
+              color: '#666',
+              '&:hover': {
+                borderColor: '#e6b800',
+                backgroundColor: 'rgba(255, 204, 51, 0.08)',
+              },
+            }}
+          >
+            Filtre par date
+          </Button>
+
+          {showDateFilter && (
+            <Box sx={{
+              display: 'flex',
+              gap: 2,
+              alignItems: 'center',
+              p: 2,
+              backgroundColor: 'rgba(255, 204, 51, 0.06)',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 204, 51, 0.3)',
+            }}>
+              <TextField
+                label="Date de début"
+                type="date"
+                size="small"
+                value={dateRange.startDate || ''}
+                onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                    '&:hover fieldset': { borderColor: '#ffcc33' },
+                    '&.Mui-focused fieldset': { borderColor: '#ffcc33', borderWidth: 2 },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': { color: '#ffcc33' },
+                }}
+              />
+              <Typography>au</Typography>
+              <TextField
+                label="Date de fin"
+                type="date"
+                size="small"
+                value={dateRange.endDate || ''}
+                onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                    '&:hover fieldset': { borderColor: '#ffcc33' },
+                    '&.Mui-focused fieldset': { borderColor: '#ffcc33', borderWidth: 2 },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': { color: '#ffcc33' },
+                }}
+              />
+              <Button
+                variant="contained"
+                onClick={() => setDateRange({ startDate: '', endDate: '' })}
+                sx={{
+                  borderRadius: '12px',
+                  textTransform: 'none',
+                  backgroundColor: '#ff4d4d',
+                  '&:hover': { backgroundColor: '#ff1a1a' },
+                }}
+              >
+                Réinitialiser
+              </Button>
+            </Box>
+          )}
         </Box>
       </Box>
 
@@ -776,6 +867,27 @@ function Buses() {
                   </TableCell>
                   <TableCell sx={{ textAlign: 'center' }}>
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleViewReservations(bus)}
+                        startIcon={<PeopleIcon sx={{ fontSize: 14 }} />}
+                        sx={{
+                          borderColor: '#4caf50',
+                          color: '#4caf50',
+                          fontSize: '12px',
+                          px: 2,
+                          py: 0.5,
+                          borderRadius: '8px',
+                          textTransform: 'none',
+                          '&:hover': {
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            borderColor: '#388e3c'
+                          }
+                        }}
+                      >
+                        Voir réservations
+                      </Button>
                       <Button
                         variant="outlined"
                         size="small"
@@ -1463,6 +1575,101 @@ function Buses() {
                 backgroundColor: '#ffb300'
               }
             }}
+          >
+            Fermer
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal réservations du bus */}
+      <Dialog
+        open={reservationsDialog.open}
+        onClose={handleCloseReservationsDialog}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '16px', overflow: 'hidden' } }}
+      >
+        <DialogTitle sx={{
+          borderBottom: '3px solid #ffcc33',
+          fontWeight: 700,
+          fontSize: '20px',
+          py: 2.5,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <PeopleIcon sx={{ color: '#ffcc33' }} />
+            Réservations — {reservationsDialog.bus?.name} ({reservationsDialog.bus?.from} → {reservationsDialog.bus?.to})
+          </Box>
+          <IconButton onClick={handleCloseReservationsDialog} size="small">
+            <Close />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 3 }}>
+          {reservationsDialog.loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+              <CircularProgress sx={{ color: '#ffcc33' }} />
+            </Box>
+          ) : reservationsDialog.reservations.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <PeopleIcon sx={{ fontSize: 48, color: '#ccc', mb: 1 }} />
+              <Typography color="text.secondary">Aucune réservation pour ce bus</Typography>
+            </Box>
+          ) : (
+            <Box>
+              <Typography variant="body2" sx={{ mb: 2, color: '#666', fontWeight: 500 }}>
+                {reservationsDialog.reservations.length} réservation(s)
+              </Typography>
+              <Table size="small">
+                <TableHead sx={{ '& .MuiTableCell-root': { borderBottom: '2px solid #ffcc33', fontWeight: 700, fontSize: '13px' } }}>
+                  <TableRow>
+                    <TableCell>#</TableCell>
+                    <TableCell>Passager</TableCell>
+                    <TableCell>Téléphone</TableCell>
+                    <TableCell align="center">Places</TableCell>
+                    <TableCell align="center">Statut</TableCell>
+                    <TableCell>Date réservation</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {reservationsDialog.reservations.map((r, i) => (
+                    <TableRow key={r._id} sx={{ '&:nth-of-type(odd)': { backgroundColor: '#f8f9fa' } }}>
+                      <TableCell sx={{ color: '#999', fontSize: '13px' }}>{i + 1}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{r.user?.name || 'Inconnu'}</TableCell>
+                      <TableCell>{r.user?.numero || '—'}</TableCell>
+                      <TableCell align="center">
+                        <Chip label={r.quantity || 1} size="small" sx={{ backgroundColor: '#fff3e0', color: '#e65100', fontWeight: 700 }} />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label={r.status || 'confirmé'}
+                          size="small"
+                          sx={{
+                            backgroundColor: r.status === 'annulé' ? '#ffebee' : '#e8f5e9',
+                            color: r.status === 'annulé' ? '#c62828' : '#2e7d32',
+                            fontWeight: 600,
+                            fontSize: '11px'
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ fontSize: '13px' }}>
+                        {r.createdAt ? new Date(r.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2, borderTop: '1px solid #e0e0e0' }}>
+          <Button
+            onClick={handleCloseReservationsDialog}
+            variant="contained"
+            sx={{ backgroundColor: '#ffcc33', color: '#1a1a1a', fontWeight: 600, textTransform: 'none', borderRadius: '8px', '&:hover': { backgroundColor: '#ffb300' } }}
           >
             Fermer
           </Button>
