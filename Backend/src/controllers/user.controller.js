@@ -273,7 +273,8 @@ const updateUser = async (req, res) => {
       updateData.email = email || undefined;
     }
 
-    if (password && password.trim() !== '') {
+    const passwordChanged = !!(password && password.trim() !== '');
+    if (passwordChanged) {
       updateData.password = await bcrypt.hash(password.trim(), 10);
     }
 
@@ -295,6 +296,10 @@ const updateUser = async (req, res) => {
 
       if (!driver) {
         return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      }
+
+      if (passwordChanged) {
+        sendAndSaveNotification(driver._id, 'Mot de passe modifié', 'Votre mot de passe vient d\'être modifié par Ticketaf. Si ce n\'est pas vous, contactez le support.', { type: 'warning', screen: 'profile' }).catch(() => {});
       }
 
       return res.status(200).json({
@@ -325,6 +330,10 @@ const updateUser = async (req, res) => {
         driverUpdate,
         { runValidators: true }
       );
+    }
+
+    if (passwordChanged) {
+      sendAndSaveNotification(user._id, 'Mot de passe modifié', 'Votre mot de passe vient d\'être modifié par Ticketaf. Si ce n\'est pas vous, contactez le support.', { type: 'warning', screen: 'profile' }).catch(() => {});
     }
 
     res.status(200).json({
@@ -370,8 +379,8 @@ const deleteUser = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const { name, email, numero, address } = req.body;
-    const userId = req.user.id; // L'ID de l'utilisateur connecté
-    const isDriver = req.user.role === 'conducteur';
+    const userId = req.user._id; // ObjectId fiable pour User et Driver (req.user.id est un virtuel supprimé par toObject())
+    const isDriver = req.user.role === 'conducteur' || req.user.role === 'entreprise';
 
     // Construction des champs à mettre à jour
     const updateData = { name, numero };

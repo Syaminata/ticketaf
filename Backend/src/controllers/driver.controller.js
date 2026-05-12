@@ -281,24 +281,41 @@ const getAllDrivers = async (req, res) => {
 
     console.log('🔎 Recherche Drivers avec filter:', driverQuery);
     
-    // Compter le total des conducteurs pour la pagination
-    const total = await Driver.countDocuments(driverQuery);
-    
+    // Construire la requête pour les entreprises (User collection)
+    let entrepriseQuery = { role: 'entreprise' };
+    if (status && status !== 'all') {
+      entrepriseQuery.isActive = (status === 'active');
+    }
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      entrepriseQuery.$or = [{ name: searchRegex }, { numero: searchRegex }, { email: searchRegex }];
+    }
+
+    // Compter le total (conducteurs + entreprises)
+    const [totalDrivers, totalEntreprises] = await Promise.all([
+      Driver.countDocuments(driverQuery),
+      User.countDocuments(entrepriseQuery)
+    ]);
+    const total = totalDrivers + totalEntreprises;
+
     // Construire la requête de base
     let driverQueryResult = Driver.find(driverQuery)
       .select('-password')
       .sort({ createdAt: -1 });
-    
+
     // Ajouter pagination seulement si ce n'est pas pour le Dashboard
     if (!getAll) {
       driverQueryResult = driverQueryResult.skip(skip).limit(parseInt(limit));
     }
-    
-    // Récupérer les conducteurs
-    const drivers = await driverQueryResult.lean();
 
-    console.log('📈 Résultats Drivers - drivers.length:', drivers.length, 'total:', total);
-    
+    // Récupérer conducteurs ET entreprises
+    const [drivers, entreprises] = await Promise.all([
+      driverQueryResult.lean(),
+      User.find(entrepriseQuery).select('-password').sort({ createdAt: -1 }).lean()
+    ]);
+
+    console.log('📈 Résultats Drivers - conducteurs:', drivers.length, 'entreprises:', entreprises.length, 'total:', total);
+
     // Optimisation : récupérer tous les tripCount en une seule requête avec aggregation
     const Voyage = mongoose.model('Voyage');
     const tripCounts = await Voyage.aggregate([
@@ -315,27 +332,38 @@ const getAllDrivers = async (req, res) => {
         }
       }
     ]);
-    
+
     // Créer une map pour un lookup rapide des tripCount
     const tripCountMap = tripCounts.reduce((acc, item) => {
       acc[item._id.toString()] = item.tripCount;
       return acc;
     }, {});
-    
+
     // Ajouter les tripCount aux conducteurs
     const driversWithTripCount = drivers.map(driver => ({
       ...driver,
       tripCount: tripCountMap[driver._id.toString()] || 0,
       status: driver.isActive ? 'Actif' : 'Inactif',
-      isActive: driver.isActive || false
+      isActive: driver.isActive || false,
+      driverType: 'conducteur'
     }));
-    
-    // Trier les conducteurs par nombre de voyages décroissant
-    driversWithTripCount.sort((a, b) => b.tripCount - a.tripCount);
-    
+
+    // Formater les entreprises dans le même format
+    const entreprisesFormatted = entreprises.map(e => ({
+      ...e,
+      tripCount: 0,
+      status: e.isActive ? 'Actif' : 'Inactif',
+      isActive: e.isActive || false,
+      driverType: 'entreprise'
+    }));
+
+    // Fusionner et trier
+    const allDrivers = [...driversWithTripCount, ...entreprisesFormatted];
+    allDrivers.sort((a, b) => b.tripCount - a.tripCount);
+
     // Retourner les résultats avec pagination
     const response = {
-      drivers: driversWithTripCount,
+      drivers: allDrivers,
       pagination: {
         current: parseInt(page),
         pageSize: parseInt(limit),
@@ -345,7 +373,7 @@ const getAllDrivers = async (req, res) => {
     };
 
     console.log('📤 Réponse Drivers envoyée:', {
-      driversCount: driversWithTripCount.length,
+      driversCount: allDrivers.length,
       total,
       page,
       limit,
@@ -522,29 +550,12 @@ const activateDriver = async (req, res) => {
     ).select('-password');
     if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
 
-    // Envoyer une notification au chauffeur
-    const { sendNotification } = require('../services/notification.service');
-    const User = require('../models/user.model');
-    const UserNotification = require('../models/userNotification.model');
-
-    // Récupérer l'utilisateur associé au chauffeur
-    const user = await User.findById(driver._id);
-    if (user && user.fcmTokens && user.fcmTokens.length > 0) {
-      // Créer la notification utilisateur
-      await UserNotification.create({
-        user: user._id,
-        title: 'Compte activé',
-        body: 'Félicitations ! Votre compte chauffeur a été activé. Vous pouvez maintenant commencer à créer des voyages.',
-        type: 'info'
-      });
-
-      // Envoyer la notification push
-      const tokens = user.fcmTokens.map(t => t.token);
-      await sendNotification(tokens, 'Compte activé', 'Votre compte chauffeur a été activé. Vous pouvez maintenant créer des voyages.', {
-        type: 'info',
-        screen: 'voyages'
-      });
-    }
+    await sendAndSaveNotification(
+      driver._id,
+      'Compte activé',
+      'Votre compte chauffeur a été activé par Ticketaf. Vous pouvez maintenant créer des voyages.',
+      { type: 'info', screen: 'voyages' }
+    );
 
     res.status(200).json({ message: 'Conducteur activé', driver });
   } catch (err) {
@@ -561,6 +572,14 @@ const deactivateDriver = async (req, res) => {
       { new: true }
     ).select('-password');
     if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
+
+    await sendAndSaveNotification(
+      driver._id,
+      'Compte désactivé',
+      'Votre compte vient d\'être désactivé par Ticketaf. Contactez le support pour plus d\'informations.',
+      { type: 'warning', screen: 'profile' }
+    );
+
     res.status(200).json({ message: 'Conducteur désactivé', driver });
   } catch (err) {
     console.error('Erreur deactivateDriver:', err);

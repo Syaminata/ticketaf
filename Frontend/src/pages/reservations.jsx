@@ -206,9 +206,9 @@ export default function Reservations() {
         throw new Error(`Erreur ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
-      console.log(' Voyages récupérés:', data);
-      console.log('Nombre de voyages:', data?.voyages?.length || 0);
-      setVoyages(data?.voyages || []);
+      const voyagesArray = Array.isArray(data) ? data : (data?.voyages || []);
+      console.log(' Voyages récupérés:', voyagesArray.length);
+      setVoyages(voyagesArray);
     } catch (err) {
       console.error(' Erreur lors de la récupération des voyages:', err);
       setError('Erreur lors du chargement des voyages: ' + err.message);
@@ -244,8 +244,9 @@ export default function Reservations() {
       }
       const data = await response.json();
       console.log('👥 Utilisateurs récupérés:', data);
-      console.log('👥 Nombre d\'utilisateurs:', data?.length || 0);
-      setUsers(data || []);
+      const usersArray = Array.isArray(data) ? data : (data?.users || []);
+      console.log('👥 Nombre d\'utilisateurs:', usersArray.length);
+      setUsers(usersArray);
     } catch (err) {
       console.error(' Erreur lors de la récupération des utilisateurs:', err);
       setError('Erreur lors du chargement des utilisateurs: ' + err.message);

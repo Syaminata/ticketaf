@@ -1,5 +1,7 @@
 const path = require('path');
 const Annonce = require('../models/annonce.model');
+const User = require('../models/user.model');
+const { sendAndSaveNotification } = require('../services/notification.service');
 
 exports.createAnnonce = async (req, res) => {
   try {
@@ -28,6 +30,19 @@ exports.createAnnonce = async (req, res) => {
     }
 
     const created = await Annonce.create(payload);
+
+    // Notifier tous les utilisateurs de la nouvelle annonce
+    const allUsers = await User.find({}, '_id').lean();
+    const userIds = allUsers.map(u => u._id);
+    if (userIds.length > 0) {
+      sendAndSaveNotification(
+        userIds,
+        '📢 Nouvelle annonce disponible',
+        `${title.trim()} — Découvrez notre dernière actualité sur Ticketaf !`,
+        { type: 'info', screen: 'home' }
+      ).catch(e => console.warn('⚠️ Notif annonce:', e.message));
+    }
+
     return res.status(201).json({ message: 'Annonce créée', annonce: created });
   } catch (err) {
     console.error('Erreur création annonce:', err);
