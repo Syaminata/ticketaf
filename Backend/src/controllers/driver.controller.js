@@ -519,10 +519,11 @@ const updateDriver = async (req, res) => {
 
 const deleteDriver = async (req, res) => {
   try {
-    const driver = await Driver.findByIdAndDelete(req.params.id);
-    if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
-
-
+    let deleted = await Driver.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      deleted = await User.findOneAndDelete({ _id: req.params.id, role: 'entreprise' });
+    }
+    if (!deleted) return res.status(404).json({ message: 'Conducteur non trouvé' });
     res.status(200).json({ message: 'Conducteur supprimé' });
   } catch (err) {
     console.error('Erreur deleteDriver:', err);

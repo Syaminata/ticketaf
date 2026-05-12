@@ -299,7 +299,7 @@ const updateUser = async (req, res) => {
       }
 
       if (passwordChanged) {
-        sendAndSaveNotification(driver._id, 'Mot de passe modifié', 'Votre mot de passe vient d\'être modifié par Ticketaf. Si ce n\'est pas vous, contactez le support.', { type: 'warning', screen: 'profile' }).catch(() => {});
+        sendAndSaveNotification(driver._id, 'Mot de passe modifié', 'Votre mot de passe a été modifié par Ticketaf.', { type: 'warning', screen: 'profile' }).catch(() => {});
       }
 
       return res.status(200).json({
@@ -333,7 +333,7 @@ const updateUser = async (req, res) => {
     }
 
     if (passwordChanged) {
-      sendAndSaveNotification(user._id, 'Mot de passe modifié', 'Votre mot de passe vient d\'être modifié par Ticketaf. Si ce n\'est pas vous, contactez le support.', { type: 'warning', screen: 'profile' }).catch(() => {});
+      sendAndSaveNotification(user._id, 'Mot de passe modifié', 'Votre mot de passe a été modifié par Ticketaf.', { type: 'warning', screen: 'profile' }).catch(() => {});
     }
 
     res.status(200).json({

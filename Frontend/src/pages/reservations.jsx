@@ -229,7 +229,7 @@ export default function Reservations() {
       const token = sessionStorage.getItem('token');
       console.log('Token:', token ? 'Présent' : 'Absent');
       
-      const response = await fetch('https://ticket-taf.itea.africa/api/users', {
+      const response = await fetch('https://ticket-taf.itea.africa/api/users?role=client&all=true', {
         headers: { Authorization: `Bearer ${token}` }
       });
       

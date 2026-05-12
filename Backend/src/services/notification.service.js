@@ -126,12 +126,12 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
       if (!u.fcmTokens || u.fcmTokens.length === 0) return;
       const notificationId = notifIdByUser[u._id.toString()] || '';
       const fcmData = stringifyDataValues({
-        ...data,
         title,
         body,
         notificationId,
         type: uiType,
         screen: 'notifications',
+        ...data,
       });
       u.fcmTokens.forEach(t => {
         const msg = {
@@ -151,34 +151,36 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
     if (messages.length === 0) {
       return { success: true, saved: saveToDb };
     }
-    
+
     if (!admin.isAvailable) {
       console.warn(`⚠️ [FCM] Firebase non configuré — ${messages.length} push ignoré(s). Définir FIREBASE_SERVICE_ACCOUNT_JSON dans .env`);
       return { success: true, saved: saveToDb, info: 'Firebase non configuré' };
     }
 
     if (admin && admin.messaging) {
-      const response = await admin.messaging().sendEach(messages);
-
-      // Nettoyer les tokens invalides (désinstallation, expiration)
       const invalidTokens = [];
-      response.responses.forEach((r, i) => {
-        if (!r.success) {
-          const code = r.error?.code;
-          if (
-            code === 'messaging/registration-token-not-registered' ||
-            code === 'messaging/invalid-registration-token' ||
-            code === 'messaging/invalid-argument'
-          ) {
-            invalidTokens.push(messages[i].token);
+      const BATCH = 500;
+      for (let i = 0; i < messages.length; i += BATCH) {
+        const chunk = messages.slice(i, i + BATCH);
+        const response = await admin.messaging().sendEach(chunk);
+        response.responses.forEach((r, j) => {
+          if (!r.success) {
+            const code = r.error?.code;
+            if (
+              code === 'messaging/registration-token-not-registered' ||
+              code === 'messaging/invalid-registration-token' ||
+              code === 'messaging/invalid-argument'
+            ) {
+              invalidTokens.push(chunk[j].token);
+            }
           }
-        }
-      });
+        });
+      }
       if (invalidTokens.length > 0) {
         cleanupInvalidTokens(invalidTokens).catch(() => {});
       }
 
-      return { success: true, saved: saveToDb, response };
+      return { success: true, saved: saveToDb };
     }
 
     return { success: true, saved: saveToDb, info: 'Firebase admin non initialisé' };
