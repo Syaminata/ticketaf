@@ -82,7 +82,9 @@ function Buses() {
     isActive: false,
     climatisation: false,
     wifi: false,
+    owner: "",
   });
+  const [enterpriseUsers, setEnterpriseUsers] = useState([]);
 
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
@@ -219,9 +221,18 @@ function Buses() {
     }
   };
 
-  const handleOpenDialog = (bus = null) => {
+  const handleOpenDialog = async (bus = null) => {
     setError('');
     setEditingBus(bus);
+    // Charger les utilisateurs entreprise
+    try {
+      const token = sessionStorage.getItem('token');
+      const res = await axios.get('/users?role=entreprise&all=true', { headers: { Authorization: `Bearer ${token}` } });
+      const arr = Array.isArray(res.data) ? res.data : (res.data?.users || []);
+      setEnterpriseUsers(arr);
+    } catch {
+      setEnterpriseUsers([]);
+    }
     if (bus) {
       setFormData({
         name: bus.name,
@@ -233,6 +244,7 @@ function Buses() {
         price: bus.price ? bus.price.toString() : "",
         climatisation: bus.climatisation ?? false,
         wifi: bus.wifi ?? false,
+        owner: bus.owner || "",
       });
     } else {
       setFormData({
@@ -245,6 +257,7 @@ function Buses() {
         price: "",
         climatisation: false,
         wifi: false,
+        owner: "",
       });
     }
     setOpenDialog(true);
@@ -1036,6 +1049,31 @@ function Buses() {
                     color: '#ffcc33',
                   },
                 }}
+              />
+            </Box>
+
+            {/* Section Propriétaire */}
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h6" sx={{ color: '#1a1a1a', fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <BusinessIcon sx={{ color: '#ffcc33' }} />
+                Propriétaire (Entreprise)
+              </Typography>
+              <Autocomplete
+                options={enterpriseUsers}
+                getOptionLabel={(opt) => opt.name ? `${opt.name} • ${opt.numero || ''}` : ''}
+                value={enterpriseUsers.find(u => u._id === formData.owner) || null}
+                onChange={(_, val) => setFormData(prev => ({ ...prev, owner: val?._id || '' }))}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Associer un compte entreprise"
+                    placeholder="Rechercher..."
+                    sx={{
+                      '& .MuiOutlinedInput-root': { borderRadius: '12px', '&:hover fieldset': { borderColor: '#ffcc33' }, '&.Mui-focused fieldset': { borderColor: '#ffcc33', borderWidth: 2 } },
+                      '& .MuiInputLabel-root.Mui-focused': { color: '#ffcc33' },
+                    }}
+                  />
+                )}
               />
             </Box>
 

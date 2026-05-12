@@ -32,6 +32,7 @@ const createBus = async (req, res) => {
     };
 
     if (req.user.role === 'entreprise') busData.owner = req.user._id;
+    else if (req.body.owner) busData.owner = req.body.owner;
 
     const bus = await Bus.create(busData);
     res.status(201).json({ message: 'Bus créé', bus });

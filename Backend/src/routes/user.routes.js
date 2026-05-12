@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAllUsers, getUserById, createUser, updateUser, deleteUser, updateProfile, changePassword } = require('../controllers/user.controller');
+const { getAllUsers, getUserById, createUser, updateUser, deleteUser, updateProfile, changePassword, activateUser, deactivateUser } = require('../controllers/user.controller');
 const { auth, adminAuth } = require('../middleware/auth');
 const User = require('../models/user.model');
 const Driver = require('../models/driver.model');
@@ -401,6 +401,9 @@ router.post('/:id/restore-deletion', auth, adminAuth, async (req, res) => {
  *         description: Utilisateur non trouvé
  */
 router.delete('/:id', auth, adminAuth, deleteUser);
+
+router.post('/:id/activate', auth, adminAuth, activateUser);
+router.post('/:id/deactivate', auth, adminAuth, deactivateUser);
 
 // Admin : effacer toutes les réservations et colis d'un utilisateur (nettoyage données de test)
 router.delete('/:id/clear-data', auth, adminAuth, async (req, res) => {

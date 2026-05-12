@@ -90,6 +90,7 @@ export default function Colis() {
   });
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedColis, setSelectedColis] = useState(null);
+  const [statusDialog, setStatusDialog] = useState({ open: false, colisId: null, currentStatus: '', newStatus: '' });
 
   const user = JSON.parse(sessionStorage.getItem('user') || '{}');
 
@@ -365,6 +366,36 @@ useEffect(() => {
       onConfirm: () => confirmDelete(id),
       loading: false
     });
+  };
+
+  const getNextStatuses = (current) => {
+    switch (current) {
+      case 'en attente': return ['enregistré', 'annulé'];
+      case 'enregistré': return ['envoyé', 'annulé'];
+      case 'envoyé':     return ['reçu', 'annulé'];
+      default:           return [];
+    }
+  };
+
+  const handleOpenStatusDialog = (colisItem) => {
+    const next = getNextStatuses(colisItem.status);
+    if (next.length === 0) return;
+    setStatusDialog({ open: true, colisId: colisItem._id, currentStatus: colisItem.status, newStatus: next[0] });
+  };
+
+  const handleConfirmStatusChange = async () => {
+    try {
+      setLoading(true);
+      await colisAPI.updateColis(statusDialog.colisId, { status: statusDialog.newStatus });
+      await fetchColis();
+      setSuccess(`Statut mis à jour : ${statusDialog.newStatus}`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError('Erreur lors de la mise à jour du statut');
+    } finally {
+      setLoading(false);
+      setStatusDialog({ open: false, colisId: null, currentStatus: '', newStatus: '' });
+    }
   };
 
   const handleOpenDetails = (colisItem) => {
@@ -815,29 +846,7 @@ useEffect(() => {
                     </TableCell>
                   )}
                   <TableCell sx={{ width: '16%', textAlign: 'center' }}>
-                    {colisItem.status === 'enregistré' ? (
-                      <Select
-                        value={colisItem.status}
-                        onChange={(e) => handleStatusChange(colisItem._id, e.target.value)}
-                        size="small"
-                        sx={{
-                          minWidth: 120,
-                          '& .MuiSelect-select': {
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '6px 12px',
-                            borderRadius: '4px',
-                            fontWeight: 500,
-                            backgroundColor: '#e3f2fd',
-                            color: '#1565c0'
-                          }
-                        }}
-                        disabled={loading}
-                      >
-                        <MenuItem value="enregistré">Enregistré</MenuItem>
-                        <MenuItem value="envoyé">Marquer comme Envoyé</MenuItem>
-                      </Select>
-                    ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
                       <Chip
                         icon={getStatusIcon(colisItem.status)}
                         label={getStatusText(colisItem.status)}
@@ -845,7 +854,23 @@ useEffect(() => {
                         size="small"
                         sx={{ fontWeight: 600 }}
                       />
-                    )}
+                      {(user.role === 'admin' || user.role === 'superadmin' || user.role === 'gestionnaireColis') &&
+                        getNextStatuses(colisItem.status).length > 0 && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => handleOpenStatusDialog(colisItem)}
+                          sx={{
+                            fontSize: '10px', px: 1, py: 0.2, minWidth: 'auto',
+                            borderColor: '#ffcc33', color: '#b6660abd',
+                            borderRadius: '6px', textTransform: 'none',
+                            '&:hover': { backgroundColor: 'rgba(255,204,51,0.1)', borderColor: '#ffb300' }
+                          }}
+                        >
+                          Changer
+                        </Button>
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell sx={{ width: '16%', textAlign: 'center' }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
@@ -1231,6 +1256,52 @@ useEffect(() => {
             }}
           >
             {loading ? 'Traitement...' : (editColis ? 'Modifier' : 'Créer')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog changement de statut */}
+      <Dialog
+        open={statusDialog.open}
+        onClose={() => setStatusDialog({ ...statusDialog, open: false })}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
+        <DialogTitle sx={{ borderBottom: '3px solid #ffcc33', fontWeight: 700, textAlign: 'center' }}>
+          Changer le statut du colis
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Typography variant="body2" sx={{ mb: 2, color: '#666' }}>
+            Statut actuel : <strong>{statusDialog.currentStatus}</strong>
+          </Typography>
+          <FormControl fullWidth size="small">
+            <Select
+              value={statusDialog.newStatus}
+              onChange={(e) => setStatusDialog(prev => ({ ...prev, newStatus: e.target.value }))}
+              sx={{ borderRadius: '8px', '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#ffcc33' } }}
+            >
+              {getNextStatuses(statusDialog.currentStatus).map(s => (
+                <MenuItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            onClick={() => setStatusDialog({ ...statusDialog, open: false })}
+            variant="outlined"
+            sx={{ borderRadius: '8px', textTransform: 'none', borderColor: '#ddd', color: '#666' }}
+          >
+            Annuler
+          </Button>
+          <Button
+            onClick={handleConfirmStatusChange}
+            variant="contained"
+            disabled={loading}
+            sx={{ borderRadius: '8px', textTransform: 'none', backgroundColor: '#ffcc33', color: '#1a1a1a', fontWeight: 600, '&:hover': { backgroundColor: '#ffb300' } }}
+          >
+            Confirmer
           </Button>
         </DialogActions>
       </Dialog>

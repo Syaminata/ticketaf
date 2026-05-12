@@ -211,7 +211,8 @@ const createUser = async (req, res) => {
         password,
         numero,
         address: req.body.address,
-        role: role || 'client'
+        role: role || 'client',
+        isActive: true
       });
     }
 
@@ -528,6 +529,32 @@ const changePassword = async (req, res) => {
   }
 };
 
+const activateUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.params.id, { isActive: true }, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    res.json({ message: 'Compte activé', user });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+const deactivateUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    sendAndSaveNotification(
+      user._id,
+      'Compte désactivé',
+      'Votre compte Ticketaf a été désactivé par un administrateur. Contactez le support pour plus d\'informations.',
+      { type: 'warning', screen: 'profile' }
+    ).catch(() => {});
+    res.json({ message: 'Compte désactivé', user });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -535,5 +562,7 @@ module.exports = {
   updateUser,
   deleteUser,
   updateProfile,
-  changePassword
+  changePassword,
+  activateUser,
+  deactivateUser
 };

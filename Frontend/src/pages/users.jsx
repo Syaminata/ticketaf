@@ -25,7 +25,7 @@ import {
   Menu,
   Tooltip
 } from '@mui/material';
-import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search as SearchIcon, FilterList as FilterIcon, LocationOn, RestoreFromTrash } from '@mui/icons-material';
+import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search as SearchIcon, FilterList as FilterIcon, LocationOn, RestoreFromTrash, Block, CheckCircle } from '@mui/icons-material';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import storage from '../utils/storage';
 
@@ -264,6 +264,22 @@ export default function Users() {
     }
   };
 
+
+  const handleToggleUser = async (user) => {
+    const token = sessionStorage.getItem('token');
+    if (!token) return;
+    const isActive = user.isActive !== false;
+    try {
+      await axios.post(`/users/${user._id}/${isActive ? 'deactivate' : 'activate'}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUsers(prev => (prev || []).map(u => u._id === user._id ? { ...u, isActive: !isActive } : u));
+      setSuccess(`Compte ${isActive ? 'désactivé' : 'activé'} avec succès`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors du changement de statut');
+    }
+  };
 
   const handleRestore = async (id) => {
     const token = sessionStorage.getItem('token');
@@ -623,15 +639,20 @@ export default function Users() {
                   )}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  <IconButton 
+                  <IconButton
                     onClick={() => handleOpen(user)}
-                    sx={{ 
-                      color: '#ffcc33',
-                      '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' }
-                    }}
+                    sx={{ color: '#ffcc33', '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' } }}
                   >
                     <Edit />
                   </IconButton>
+                  <Tooltip title={user.isActive !== false ? 'Désactiver le compte' : 'Activer le compte'} arrow>
+                    <IconButton
+                      onClick={() => handleToggleUser(user)}
+                      sx={{ color: user.isActive !== false ? '#ff9800' : '#4caf50', '&:hover': { backgroundColor: user.isActive !== false ? 'rgba(255,152,0,0.1)' : 'rgba(76,175,80,0.1)' } }}
+                    >
+                      {user.isActive !== false ? <Block /> : <CheckCircle />}
+                    </IconButton>
+                  </Tooltip>
                   {user.pendingDeletion ? (
                     <Tooltip title="Restaurer le compte" arrow>
                       <IconButton
@@ -644,10 +665,7 @@ export default function Users() {
                   ) : (
                     <IconButton
                       onClick={() => handleDelete(user._id)}
-                      sx={{
-                        color: '#f44336',
-                        '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' }
-                      }}
+                      sx={{ color: '#f44336', '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' } }}
                     >
                       <Delete />
                     </IconButton>

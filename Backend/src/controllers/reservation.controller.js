@@ -23,6 +23,10 @@ const createReservation = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
+    if (user.isActive === false) {
+      return res.status(403).json({ message: 'Votre compte est désactivé, veuillez contacter le support.' });
+    }
+
     if (voyageId) {
       const voyage = await Voyage.findById(voyageId);
       if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });

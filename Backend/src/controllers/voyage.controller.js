@@ -390,7 +390,7 @@ const createVoyageByDriver = async (req, res) => {
   try {
     const { from, to, date, price, totalSeats, climatisation, wifi } = req.body;
     const driver = await Driver.findById(req.user._id);
-    if (!driver || !driver.isActive) return res.status(403).json({ message: 'Inactif' });
+    if (!driver || !driver.isActive) return res.status(403).json({ message: 'Votre compte est désactivé' });
     const seats = totalSeats || driver.capacity;
     console.log(`[VOYAGE_CREATE] Driver ${driver._id} creating voyage with clim=${climatisation}, wifi=${wifi}`);
 
