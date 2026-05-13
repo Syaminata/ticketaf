@@ -504,11 +504,19 @@ const scanTicket = async (req, res) => {
     const passengerName = reservation.user?.name || 'Passager';
     const reservationId = reservation._id.toString();
 
-    // 0. Vérification de propriété : le billet doit correspondre au voyage ou au bus du chauffeur/entreprise connecté
-    const isVoyageOwner = reservation.voyage && String(reservation.voyage.driver?._id || reservation.voyage.driver) === String(driverId);
-    const isBusOwner = reservation.bus && String(reservation.bus.owner || reservation.bus.entreprise) === String(driverId);
-
-    if (!isVoyageOwner && !isBusOwner) {
+    // 0. Vérification de propriété via requête DB directe (fiable même si le populate échoue)
+    let isOwner = false;
+    if (reservation.voyage) {
+      const voyageId = reservation.voyage._id || reservation.voyage;
+      const ownedVoyage = await Voyage.findOne({ _id: voyageId, driver: driverId });
+      isOwner = !!ownedVoyage;
+    }
+    if (!isOwner && reservation.bus) {
+      const busId = reservation.bus._id || reservation.bus;
+      const ownedBus = await Bus.findOne({ _id: busId, owner: driverId });
+      isOwner = !!ownedBus;
+    }
+    if (!isOwner) {
       return res.status(403).json({ message: 'Ticket invalide — ce billet ne correspond pas à vos trajets', reason: 'invalid' });
     }
 

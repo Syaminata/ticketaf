@@ -18,7 +18,6 @@ const COLIS_NOTIF = {
 
 const createColis = async (req, res) => {
   try {
-    
     if (req.user.isActive === false) {
       return res.status(403).json({ message: 'Votre compte est désactivé, veuillez contacter le support.' });
     }

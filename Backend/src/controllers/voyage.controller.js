@@ -266,39 +266,39 @@ const updateVoyage = async (req, res) => {
       );
     }
 
-    // Date/heure modifiée
+    // Détection de tous les changements
     const dateChanged = updates.date && new Date(updates.date).getTime() !== new Date(voyage.date).getTime();
+    const priceChanged = updates.price !== undefined && Number(updates.price) !== Number(voyage.price);
+    const fromChanged = updates.from && updates.from !== voyage.from;
+    const toChanged = updates.to && updates.to !== voyage.to;
+    const seatsChanged = updates.availableSeats !== undefined && Number(updates.availableSeats) !== Number(voyage.availableSeats);
+    const wifiChanged = updates.wifi !== undefined && updates.wifi !== voyage.wifi;
+    const climChanged = updates.climatisation !== undefined && updates.climatisation !== voyage.climatisation;
+
+    // Notifications clients — une seule notification consolidée (sauf prix : message spécial lockedPrice)
+    const clientChanges = [];
     if (dateChanged) {
+      const d = new Date(updates.date);
+      clientChanges.push(`horaire : ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+    }
+    if (fromChanged || toChanged) clientChanges.push(`trajet : ${updates.from || voyage.from} → ${updates.to || voyage.to}`);
+    if (seatsChanged) clientChanges.push(`places disponibles : ${updates.availableSeats}`);
+    if (wifiChanged) clientChanges.push(`WiFi : ${updates.wifi ? 'disponible' : 'indisponible'}`);
+    if (climChanged) clientChanges.push(`climatisation : ${updates.climatisation ? 'disponible' : 'indisponible'}`);
+
+    if (clientChanges.length > 0) {
       const userIds = await getConfirmedUserIds();
       if (userIds.length > 0) {
-        const newDate = new Date(updates.date);
-        const dateStr = newDate.toLocaleDateString('fr-FR');
-        const timeStr = newDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         await sendAndSaveNotification(
           userIds,
-          'Horaire de voyage modifié',
-          `Votre voyage ${voyage.from} → ${voyage.to} a été reprogrammé au ${dateStr} à ${timeStr}.`,
+          'Voyage modifié',
+          `Votre voyage ${voyage.from} → ${voyage.to} a été modifié : ${clientChanges.join(', ')}.`,
           { type: 'TRIP_MODIFIED', voyageId: voyageId.toString() }
         );
       }
     }
 
-    // Places disponibles modifiées
-    const seatsChanged = updates.availableSeats !== undefined && Number(updates.availableSeats) !== Number(voyage.availableSeats);
-    if (seatsChanged) {
-      const userIds = await getConfirmedUserIds();
-      if (userIds.length > 0) {
-        await sendAndSaveNotification(
-          userIds,
-          'Places disponibles modifiées',
-          `Le voyage ${voyage.from} → ${voyage.to} dispose maintenant de ${updates.availableSeats} place(s) disponible(s).`,
-          { type: 'info', voyageId: voyageId.toString() }
-        );
-      }
-    }
-
-    // Prix modifié — le prix verrouillé (lockedPrice) des réservations existantes n'est PAS modifié
-    const priceChanged = updates.price !== undefined && Number(updates.price) !== Number(voyage.price);
+    // Prix modifié — notification séparée (lockedPrice préservé)
     if (priceChanged) {
       const userIds = await getConfirmedUserIds();
       if (userIds.length > 0) {
@@ -311,25 +311,27 @@ const updateVoyage = async (req, res) => {
       }
     }
 
-    // Trajet modifié (départ ou destination)
-    const fromChanged = updates.from && updates.from !== voyage.from;
-    const toChanged = updates.to && updates.to !== voyage.to;
-    if ((fromChanged || toChanged) && !dateChanged) {
-      const userIds = await getConfirmedUserIds();
-      if (userIds.length > 0) {
-        const newFrom = updates.from || voyage.from;
-        const newTo = updates.to || voyage.to;
-        await sendAndSaveNotification(
-          userIds,
-          'Trajet modifié',
-          `Votre voyage a été modifié : ${newFrom} → ${newTo}`,
-          { type: 'TRIP_MODIFIED', voyageId: voyageId.toString() }
-        );
-      }
-    }
-
     const updatedVoyage = await Voyage.findByIdAndUpdate(voyageId, updates, { new: true })
       .populate('driver', '-password');
+
+    // Notifier le chauffeur de la confirmation de modification
+    const changesSummary = [];
+    if (dateChanged) {
+      const d = new Date(updates.date);
+      changesSummary.push(`horaire : ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+    }
+    if (priceChanged) changesSummary.push(`prix : ${updates.price} FCFA`);
+    if (fromChanged || toChanged) changesSummary.push(`trajet : ${updates.from || voyage.from} → ${updates.to || voyage.to}`);
+    if (seatsChanged) changesSummary.push(`places : ${updates.availableSeats}`);
+    if (changesSummary.length > 0) {
+      await sendAndSaveNotification(
+        voyage.driver,
+        'Voyage modifié ✓',
+        `${voyage.from} → ${voyage.to} : ${changesSummary.join(', ')}.`,
+        { type: 'info', voyageId: voyageId.toString(), screen: 'voyages' }
+      );
+    }
+
     res.status(200).json({ message: 'Trajet mis à jour', voyage: updatedVoyage });
   } catch (err) {
     console.error('Erreur updateVoyage:', err);
@@ -347,6 +349,7 @@ const deleteVoyage = async (req, res) => {
     if (!isAdmin && !isOwner) {
       return res.status(403).json({ message: 'Action non autorisée' });
     }
+
     // Notifier le chauffeur si c'est un admin qui supprime
     if (isAdmin) {
       const trajet = `${voyage.from} → ${voyage.to}`;
@@ -400,7 +403,7 @@ const createVoyageByDriver = async (req, res) => {
   try {
     const { from, to, date, price, totalSeats, climatisation, wifi } = req.body;
     const driver = await Driver.findById(req.user._id);
-    if (!driver || !driver.isActive) return res.status(403).json({ message: 'Votre compte est désactivé' });
+    if (!driver || !driver.isActive) return res.status(403).json({ message: 'Votre compte est désactivé.' });
     const seats = totalSeats || driver.capacity;
     console.log(`[VOYAGE_CREATE] Driver ${driver._id} creating voyage with clim=${climatisation}, wifi=${wifi}`);
 

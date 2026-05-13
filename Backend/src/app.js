@@ -31,16 +31,6 @@ const { auth, adminAuth } = require('./middleware/auth');
 const validateObjectId = require('./middleware/validateObjectId'); 
 
 const app = express();
-
-app.use((req, res, next) => {
-  console.log('====================');
-  console.log('METHOD:', req.method);
-  console.log('URL:', req.url);
-  console.log('ORIGINAL URL:', req.originalUrl);
-  console.log('HEADERS:', req.headers);
-  console.log('====================');
-  next();
-});
 // Middlewares
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -50,8 +40,6 @@ app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 5000
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec)); 
-
-
 /**
  * @swagger
  * /test:
@@ -356,24 +344,6 @@ app.use('/api/faqs', faqRoutes);
 // Catch-all
 app.use((req, res) => {
   res.status(404).json({ message: 'Endpoint non trouvé' });
-});
-
-app.use((err, req, res, next) => {
-  console.error('❌ ERREUR GLOBALE');
-  console.error('URL:', req.originalUrl);
-  console.error(err);
-
-  if (err instanceof URIError) {
-    return res.status(400).json({
-      success: false,
-      message: 'URL invalide'
-    });
-  }
-
-  res.status(500).json({
-    success: false,
-    message: 'Erreur serveur'
-  });
 });
 
 module.exports = app;
