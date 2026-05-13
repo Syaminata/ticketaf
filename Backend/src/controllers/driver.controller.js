@@ -544,21 +544,30 @@ const cleanFiles = async (req, res) => {
 
 const activateDriver = async (req, res) => {
   try {
-    const driver = await Driver.findByIdAndUpdate(
+    let record = await Driver.findByIdAndUpdate(
       req.params.id,
       { isActive: true },
       { new: true }
     ).select('-password');
-    if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
+
+    if (!record) {
+      record = await User.findByIdAndUpdate(
+        req.params.id,
+        { isActive: true },
+        { new: true }
+      ).select('-password');
+    }
+
+    if (!record) return res.status(404).json({ message: 'Conducteur non trouvé' });
 
     await sendAndSaveNotification(
-      driver._id,
+      record._id,
       'Compte activé',
-      'Votre compte chauffeur a été activé par Ticketaf. Vous pouvez maintenant créer des voyages.',
+      'Votre compte a été activé par Ticketaf. Vous pouvez maintenant utiliser l\'application.',
       { type: 'info', screen: 'voyages' }
     );
 
-    res.status(200).json({ message: 'Conducteur activé', driver });
+    res.status(200).json({ message: 'Conducteur activé', driver: record });
   } catch (err) {
     console.error('Erreur activateDriver:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
@@ -567,21 +576,30 @@ const activateDriver = async (req, res) => {
 
 const deactivateDriver = async (req, res) => {
   try {
-    const driver = await Driver.findByIdAndUpdate(
+    let record = await Driver.findByIdAndUpdate(
       req.params.id,
       { isActive: false },
       { new: true }
     ).select('-password');
-    if (!driver) return res.status(404).json({ message: 'Conducteur non trouvé' });
+
+    if (!record) {
+      record = await User.findByIdAndUpdate(
+        req.params.id,
+        { isActive: false },
+        { new: true }
+      ).select('-password');
+    }
+
+    if (!record) return res.status(404).json({ message: 'Conducteur non trouvé' });
 
     await sendAndSaveNotification(
-      driver._id,
+      record._id,
       'Compte désactivé',
       'Votre compte vient d\'être désactivé par Ticketaf. Contactez le support pour plus d\'informations.',
       { type: 'warning', screen: 'profile' }
     );
 
-    res.status(200).json({ message: 'Conducteur désactivé', driver });
+    res.status(200).json({ message: 'Conducteur désactivé', driver: record });
   } catch (err) {
     console.error('Erreur deactivateDriver:', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
