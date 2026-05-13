@@ -33,13 +33,13 @@ const validateObjectId = require('./middleware/validateObjectId');
 const app = express();
 
 app.use((req, res, next) => {
-  try {
-    console.log('URL reçue:', req.originalUrl);
-    next();
-  } catch (e) {
-    console.error('Erreur URL:', e);
-    res.status(400).send('URL invalide');
-  }
+  console.log('====================');
+  console.log('METHOD:', req.method);
+  console.log('URL:', req.url);
+  console.log('ORIGINAL URL:', req.originalUrl);
+  console.log('HEADERS:', req.headers);
+  console.log('====================');
+  next();
 });
 // Middlewares
 app.use(cors());
@@ -358,14 +358,15 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Endpoint non trouvé' });
 });
 
-// Gestion globale des erreurs URI
 app.use((err, req, res, next) => {
-  console.error('Erreur globale:', err);
+  console.error('❌ ERREUR GLOBALE');
+  console.error('URL:', req.originalUrl);
+  console.error(err);
 
   if (err instanceof URIError) {
     return res.status(400).json({
       success: false,
-      message: 'URL mal encodée'
+      message: 'URL invalide'
     });
   }
 
