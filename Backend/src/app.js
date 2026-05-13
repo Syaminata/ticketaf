@@ -42,6 +42,10 @@ app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 5000
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec)); 
+app.use((req, res, next) => {
+  console.log('URL reçue:', req.originalUrl);
+  next();
+});
 
 /**
  * @swagger
