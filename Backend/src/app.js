@@ -32,7 +32,15 @@ const validateObjectId = require('./middleware/validateObjectId');
 
 const app = express();
 
-
+app.use((req, res, next) => {
+  try {
+    console.log('URL reçue:', req.originalUrl);
+    next();
+  } catch (e) {
+    console.error('Erreur URL:', e);
+    res.status(400).send('URL invalide');
+  }
+});
 // Middlewares
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -42,10 +50,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 5000
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec)); 
-app.use((req, res, next) => {
-  console.log('URL reçue:', req.originalUrl);
-  next();
-});
+
 
 /**
  * @swagger
@@ -351,6 +356,23 @@ app.use('/api/faqs', faqRoutes);
 // Catch-all
 app.use((req, res) => {
   res.status(404).json({ message: 'Endpoint non trouvé' });
+});
+
+// Gestion globale des erreurs URI
+app.use((err, req, res, next) => {
+  console.error('Erreur globale:', err);
+
+  if (err instanceof URIError) {
+    return res.status(400).json({
+      success: false,
+      message: 'URL mal encodée'
+    });
+  }
+
+  res.status(500).json({
+    success: false,
+    message: 'Erreur serveur'
+  });
 });
 
 module.exports = app;
