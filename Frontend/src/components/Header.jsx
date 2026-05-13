@@ -7,7 +7,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-const Header = ({ adminName = 'Admin', adminRole = 'Administrateur', onLogout }) => {
+const Header = ({ adminName = 'Admin', adminRole = 'Administrateur', onLogout, onMenuToggle }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const navigate = useNavigate();
@@ -75,14 +75,22 @@ const Header = ({ adminName = 'Admin', adminRole = 'Administrateur', onLogout })
       }}
     >
       <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-        
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            {getPageTitle()}
-          </Typography>
-          <Typography variant="body2" sx={{ color: '#666' }}>
-            Bienvenue !
-          </Typography>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <IconButton
+            onClick={onMenuToggle}
+            sx={{ display: { md: 'none' }, color: '#1a1a1a' }}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {getPageTitle()}
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#666' }}>
+              Bienvenue !
+            </Typography>
+          </Box>
         </Box>
 
         

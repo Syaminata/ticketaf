@@ -42,18 +42,24 @@ function App() {
     setUser(null);
   };
 
-  const AdminLayout = ({ children }) => (
+  const AdminLayout = ({ children }) => {
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    return (
     <Box sx={{ display: 'flex', height: '100vh', background: '#ffff', overflow: 'hidden' }}>
-      
-      <Sidebar />
+
+      <Sidebar
+        onLogout={handleLogout}
+        mobileOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       {/* Conteneur: Header + Contenu */}
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-       
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+
         <Header
           adminName={user?.name}
           onLogout={handleLogout}
-          sx={{ width: 'calc(100% - 240px)' }} // largeur = full - sidebar
+          onMenuToggle={() => setSidebarOpen(prev => !prev)}
         />
 
         {/* Contenu principal */}
@@ -75,6 +81,7 @@ function App() {
       </Box>
     </Box>
   );
+  };
 
   return (
     <Router>

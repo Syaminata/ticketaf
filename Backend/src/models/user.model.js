@@ -35,6 +35,10 @@ const userSchema = new mongoose.Schema({
   },
   deletionScheduledAt: {
     type: Date
+  },
+  isActive: {
+    type: Boolean,
+    default: true
   }
 }, { timestamps: true });
 

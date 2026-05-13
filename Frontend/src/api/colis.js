@@ -46,13 +46,14 @@ export const colisAPI = {
     return response.data;
   },
 
-  // Mettre à jour un colis
+  // Mettre à jour un colis (avec image = multipart, sans image = JSON)
   updateColis: async (id, formData) => {
     const token = sessionStorage.getItem('token');
+    const isFormData = formData instanceof FormData;
     const response = await axios.put(`/colis/${id}`, formData, {
-      headers: { 
+      headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data'
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       }
     });
     return response.data;

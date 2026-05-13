@@ -533,6 +533,12 @@ const activateUser = async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(req.params.id, { isActive: true }, { new: true }).select('-password');
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    sendAndSaveNotification(
+      user._id,
+      'Compte réactivé',
+      'Votre compte Ticketaf a été réactivé. Vous pouvez à nouveau utiliser tous les services.',
+      { type: 'info', screen: 'profile' }
+    ).catch(() => {});
     res.json({ message: 'Compte activé', user });
   } catch (err) {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });

@@ -504,3 +504,26 @@
   font-size: 12px !important;
   line-height: 1;
 }
+
+/* ── Responsive admin ── */
+@media (max-width: 899px) {
+  /* Tables: scroll horizontal sur petits écrans */
+  .MuiTableContainer-root {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Dialogs: plein écran sur mobile */
+  .MuiDialog-paper {
+    margin: 8px !important;
+    width: calc(100% - 16px) !important;
+    max-width: 100% !important;
+    max-height: calc(100% - 16px) !important;
+  }
+
+  /* Réduire le padding des pages */
+  .MuiBox-root > .MuiBox-root {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+}

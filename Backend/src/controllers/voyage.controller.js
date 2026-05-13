@@ -347,6 +347,16 @@ const deleteVoyage = async (req, res) => {
     if (!isAdmin && !isOwner) {
       return res.status(403).json({ message: 'Action non autorisée' });
     }
+    // Notifier le chauffeur si c'est un admin qui supprime
+    if (isAdmin) {
+      const trajet = `${voyage.from} → ${voyage.to}`;
+      sendAndSaveNotification(
+        voyage.driver,
+        'Voyage annulé',
+        `Votre voyage ${trajet} a été annulé par un administrateur.`,
+        { type: 'warning', screen: 'trips' }
+      ).catch(() => {});
+    }
 
     await Voyage.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: 'Voyage supprimé' });
