@@ -70,8 +70,8 @@ const Header = ({ adminName = 'Admin', adminRole = 'Administrateur', onLogout, o
         color: '#1a1a1a',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
         borderRadius: '16px',
-        m: '8px',   
-        width: '99%'
+        m: '8px',
+        width: 'calc(100% - 16px)'
       }}
     >
       <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>

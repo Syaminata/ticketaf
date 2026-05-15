@@ -652,10 +652,11 @@ export default function AdminNotifications() {
       </Box>
 
       {/* Historique */}
-      <Paper sx={{ 
-        borderRadius: '12px', 
+      <Paper sx={{
+        borderRadius: '12px',
         border: '1px solid #e0e0e0',
-        overflow: 'hidden',
+        overflowX: 'auto',
+        overflowY: 'hidden',
         boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)'
       }}>
         <Box sx={{ p: 3, borderBottom: '3px solid #ffcc33' }}>

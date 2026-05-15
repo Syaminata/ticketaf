@@ -677,9 +677,10 @@ export default function Drivers() {
       </Box>
 
       {/* Table */}
-      <Paper sx={{ 
+      <Paper sx={{
         borderRadius: '12px',
-        overflow: 'hidden',
+        overflowX: 'auto',
+        overflowY: 'hidden',
         boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)'
       }}>
         <Table>
@@ -992,7 +993,7 @@ export default function Drivers() {
         }}>
           <Box sx={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
             gap: 2.5,
             padding: "15px",
             pt: '35px'
@@ -1604,7 +1605,7 @@ export default function Drivers() {
           {detailsDialog.driver && (
             <Box>
               {/* Section Informations personnelles */}
-              <Box sx={{ p: 4, borderBottom: '1px solid #f0f0f0' }}>
+              <Box sx={{ p: { xs: 2, md: 4 }, borderBottom: '1px solid #f0f0f0' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                   <Typography variant="h6" sx={{
                     color: '#1a1a1a',
@@ -1652,7 +1653,7 @@ export default function Drivers() {
               </Box>
 
               {/* Section Informations du véhicule */}
-              <Box sx={{ p: 4, borderBottom: '1px solid #f0f0f0' }}>
+              <Box sx={{ p: { xs: 2, md: 4 }, borderBottom: '1px solid #f0f0f0' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                   <Typography variant="h6" sx={{
                     color: '#1a1a1a',
@@ -1705,7 +1706,7 @@ export default function Drivers() {
               </Box>
 
               {/* Section Statistiques */}
-              <Box sx={{ p: 4 }}>
+              <Box sx={{ p: { xs: 2, md: 4 } }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                   <Typography variant="h6" sx={{
                     color: '#1a1a1a',

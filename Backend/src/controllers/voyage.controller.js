@@ -214,7 +214,7 @@ const getVoyageById = async (req, res) => {
       reservations: reservations,
       totalReservations: reservations.length,
       availableSeats: voyage.availableSeats,
-      totalSeats: voyage.capacity || reservations.reduce((sum, r) => sum + r.quantity, 0) + voyage.availableSeats
+      totalSeats: voyage.totalSeats,
     });
   } catch (err) {
     console.error('Erreur getVoyageById:', err);
@@ -345,25 +345,55 @@ const deleteVoyage = async (req, res) => {
     if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
 
     const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
-    const isOwner = req.user.role === 'conducteur' && String(voyage.driver) === String(req.user._id);
+    const isOwner = String(voyage.driver) === String(req.user._id);
     if (!isAdmin && !isOwner) {
       return res.status(403).json({ message: 'Action non autorisée' });
     }
 
-    // Notifier le chauffeur si c'est un admin qui supprime
+    const trajet = `${voyage.from} → ${voyage.to}`;
+    const dateStr = new Date(voyage.date).toLocaleDateString('fr-FR');
+
+    // Récupérer les clients ayant une réservation confirmée
+    const reservations = await Reservation.find({ voyage: voyage._id, status: 'confirmé' });
+    const clientIds = reservations.map(r => r.user).filter(Boolean);
+
     if (isAdmin) {
-      const trajet = `${voyage.from} → ${voyage.to}`;
+      // Notifier le chauffeur
       sendAndSaveNotification(
         voyage.driver,
         'Voyage annulé',
-        `Votre voyage ${trajet} a été annulé par un administrateur.`,
+        `Votre voyage ${trajet} du ${dateStr} a été annulé par un administrateur.`,
         { type: 'warning', screen: 'trips' }
+      ).catch(() => {});
+    }
+
+    if (isOwner) {
+      // Confirmation de suppression au chauffeur lui-même
+      sendAndSaveNotification(
+        voyage.driver,
+        'Voyage supprimé',
+        `Votre voyage ${trajet} du ${dateStr} a été supprimé.`,
+        { type: 'info', screen: 'trips' }
+      ).catch(() => {});
+    }
+
+    // Notifier les clients dans tous les cas (admin ou chauffeur qui supprime)
+    if (clientIds.length > 0) {
+      const msgClient = isAdmin
+        ? `Le voyage ${trajet} du ${dateStr} a été annulé par l'administrateur.`
+        : `Le chauffeur a annulé le voyage ${trajet} du ${dateStr}.`;
+      sendAndSaveNotification(
+        clientIds,
+        'Voyage annulé',
+        msgClient,
+        { type: 'warning', screen: 'tickets' }
       ).catch(() => {});
     }
 
     await Voyage.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: 'Voyage supprimé' });
   } catch (err) {
+    console.error('[VOYAGE_DELETE] Erreur:', err.message);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
@@ -427,7 +457,7 @@ const createVoyageByDriver = async (req, res) => {
 
 const updateMyVoyage = async (req, res) => {
   try {
-    const allowedFields = ['from', 'to', 'date', 'price', 'totalSeats', 'climatisation', 'wifi'];
+    const allowedFields = ['from', 'to', 'date', 'price', 'totalSeats', 'availableSeats', 'climatisation', 'wifi'];
     const updateData = Object.fromEntries(
       Object.entries(req.body).filter(([key]) => allowedFields.includes(key))
     );
@@ -470,21 +500,34 @@ const updateMyVoyage = async (req, res) => {
         }
       }
 
-      // Autres changements (date, trajet) → notification groupée
+      // Autres changements (date, trajet, places, équipements) → notification groupée
+      if (updateData.totalSeats !== undefined && Number(updateData.totalSeats) !== Number(oldVoyage.totalSeats)) {
+        changes.push(`nombre de places : ${updateData.totalSeats}`);
+      }
+      if (updateData.wifi !== undefined && updateData.wifi !== oldVoyage.wifi) {
+        changes.push(`WiFi : ${updateData.wifi ? 'disponible' : 'indisponible'}`);
+      }
+      if (updateData.climatisation !== undefined && updateData.climatisation !== oldVoyage.climatisation) {
+        changes.push(`climatisation : ${updateData.climatisation ? 'disponible' : 'indisponible'}`);
+      }
+
       if (changes.length > 0) {
         const userIds = reservations.map(r => r.user).filter(Boolean);
-        await sendAndSaveNotification(
-          userIds,
-          'Voyage modifié',
-          `Votre voyage ${oldVoyage.from} → ${oldVoyage.to} a été modifié: ${changes.join(', ')}`,
-          { type: 'TRIP_MODIFIED', voyageId: voyage._id.toString(), screen: 'voyages' }
-        );
+        if (userIds.length > 0) {
+          await sendAndSaveNotification(
+            userIds,
+            'Voyage modifié',
+            `Votre voyage ${oldVoyage.from} → ${oldVoyage.to} a été modifié : ${changes.join(', ')}.`,
+            { type: 'TRIP_MODIFIED', voyageId: voyage._id.toString(), screen: 'voyages' }
+          );
+        }
       }
     }
 
     res.status(200).json({ message: 'Succès', voyage });
   } catch (err) {
-    res.status(500).json({ message: 'Erreur' });
+    console.error('[VOYAGE_UPDATE_DRIVER] Erreur:', err.message);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
 

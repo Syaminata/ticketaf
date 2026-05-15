@@ -769,7 +769,7 @@ useEffect(() => {
 
       {/* Table */}
       {colis.length > 0 ? (
-        <Paper sx={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)' }}>
+        <Paper sx={{ borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)' }}>
           <Table>
             <TableHead sx={{ borderBottom: '3px solid #ffcc33', '& .MuiTableCell-root': { borderBottom: '3px solid #ffcc33' } }}>
               <TableRow>

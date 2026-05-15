@@ -781,7 +781,7 @@ function Dashboard() {
       </div>
 
       
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "24px", marginBottom: "24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(400px, 1fr))", gap: "24px", marginBottom: "24px" }}>
         {/* Section Réservations Récentes */}
         {userRole !== 'gestionnaireColis' && (
         <div style={{ 

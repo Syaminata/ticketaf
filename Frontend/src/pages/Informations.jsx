@@ -4,6 +4,7 @@ import {
   Box, Typography, TextField, Button, CircularProgress, Alert, Paper, Tabs, Tab, Divider,
   List, ListItem, ListItemText, IconButton, Dialog, DialogTitle, DialogContent,
   DialogActions, Switch, FormControlLabel, Tooltip, ToggleButton, ToggleButtonGroup,
+  useMediaQuery, useTheme,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import LockIcon from '@mui/icons-material/Lock';
@@ -20,7 +21,7 @@ const KEYS = {
 };
 
 // ─── Content Section (privacy / about) ───────────────────────────────────────
-function ContentSection({ contentKey, meta, token }) {
+function ContentSection({ contentKey, meta, token, isMobile }) {
   const [content, setContent] = useState('');
   const [title, setTitle]     = useState('');
   const [loading, setLoading] = useState(true);
@@ -90,7 +91,7 @@ function ContentSection({ contentKey, meta, token }) {
         <TextField
           value={content}
           onChange={e => setContent(e.target.value)}
-          fullWidth multiline minRows={18} maxRows={40}
+          fullWidth multiline minRows={isMobile ? 8 : 18} maxRows={40}
           placeholder={meta.placeholder}
           sx={{
             '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: 14, lineHeight: 1.7, alignItems: 'flex-start', '&.Mui-focused fieldset': { borderColor: '#b6660abd' } },
@@ -289,7 +290,7 @@ function FaqSection({ token }) {
         </Alert>
       )}
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 1, mb: 2 }}>
         <Typography variant="body2" color="text.secondary">
           {faqs.length} question{faqs.length !== 1 ? 's' : ''} — les questions visibles apparaissent dans l'app
         </Typography>
@@ -400,9 +401,11 @@ export default function Informations() {
   const token = sessionStorage.getItem('token');
   const [tab, setTab] = useState(0);
   const keys = Object.keys(KEYS);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1.5, md: 3 } }}>
       <Box sx={{ mb: 3 }}>
         <Typography variant="h5" fontWeight={700} color="#1a1a1a">
           Informations de l'application
@@ -416,24 +419,26 @@ export default function Informations() {
         <Tabs
           value={tab}
           onChange={(_, v) => setTab(v)}
+          variant="scrollable"
+          scrollButtons="auto"
           sx={{
             borderBottom: '1px solid #e0e0e0',
-            px: 2,
-            '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 54, fontSize: 14 },
+            px: { xs: 0, md: 2 },
+            '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 54, fontSize: { xs: 12, md: 14 } },
             '& .Mui-selected': { color: '#b6660abd' },
             '& .MuiTabs-indicator': { backgroundColor: '#b6660abd' },
           }}
         >
           {keys.map(k => (
-            <Tab key={k} icon={KEYS[k].icon} iconPosition="start" label={KEYS[k].label} />
+            <Tab key={k} icon={isMobile ? null : KEYS[k].icon} iconPosition="start" label={KEYS[k].label} />
           ))}
-          <Tab icon={<HelpOutlineIcon />} iconPosition="start" label="FAQ Centre d'aide" />
+          <Tab icon={isMobile ? null : <HelpOutlineIcon />} iconPosition="start" label="FAQ Centre d'aide" />
         </Tabs>
 
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 1.5, md: 3 } }}>
           {keys.map((k, i) =>
             tab === i ? (
-              <ContentSection key={k} contentKey={k} meta={KEYS[k]} token={token} />
+              <ContentSection key={k} contentKey={k} meta={KEYS[k]} token={token} isMobile={isMobile} />
             ) : null
           )}
           {tab === keys.length && <FaqSection token={token} />}

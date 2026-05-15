@@ -229,14 +229,52 @@ const deleteBus = async (req, res) => {
     if (!bus) return res.status(404).json({ message: 'Bus non trouvé' });
 
     const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
-    const isOwner = req.user.role === 'entreprise' && String(bus.owner) === String(req.user._id);
+    const isOwner = String(bus.owner) === String(req.user._id);
     if (!isAdmin && !isOwner) {
       return res.status(403).json({ message: 'Action non autorisée' });
+    }
+
+    const trajet = `${bus.from} → ${bus.to}`;
+    const dateStr = new Date(bus.departureDate).toLocaleDateString('fr-FR');
+
+    // Récupérer les clients ayant une réservation confirmée
+    const reservations = await Reservation.find({ bus: bus._id, status: 'confirmé' });
+    const clientIds = reservations.map(r => r.user).filter(Boolean);
+
+    if (isAdmin) {
+      sendAndSaveNotification(
+        bus.owner,
+        'Bus annulé',
+        `Votre bus ${trajet} du ${dateStr} a été annulé par un administrateur.`,
+        { type: 'warning', screen: 'buses' }
+      ).catch(() => {});
+    }
+
+    if (isOwner) {
+      sendAndSaveNotification(
+        bus.owner,
+        'Bus supprimé',
+        `Votre bus ${trajet} du ${dateStr} a été supprimé.`,
+        { type: 'info', screen: 'buses' }
+      ).catch(() => {});
+    }
+
+    if (clientIds.length > 0) {
+      const msgClient = isAdmin
+        ? `Le bus ${trajet} du ${dateStr} a été annulé par l'administrateur.`
+        : `L'entreprise a annulé le bus ${trajet} du ${dateStr}.`;
+      sendAndSaveNotification(
+        clientIds,
+        'Bus annulé',
+        msgClient,
+        { type: 'warning', screen: 'tickets' }
+      ).catch(() => {});
     }
 
     await Bus.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: 'Bus supprimé avec succès' });
   } catch (err) {
+    console.error('[BUS_DELETE] Erreur:', err.message);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 };
@@ -244,6 +282,15 @@ const deleteBus = async (req, res) => {
 const activateBus = async (req, res) => {
   try {
     const bus = await Bus.findByIdAndUpdate(req.params.id, { isActive: true }, { new: true });
+    if (!bus) return res.status(404).json({ message: 'Bus non trouvé' });
+    if (bus.owner) {
+      sendAndSaveNotification(
+        bus.owner,
+        'Bus activé',
+        `Votre bus ${bus.from} → ${bus.to} a été activé par Ticketaf.`,
+        { type: 'info', screen: 'buses' }
+      ).catch(() => {});
+    }
     res.status(200).json({ message: 'Bus activé', bus });
   } catch (err) {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
@@ -253,6 +300,15 @@ const activateBus = async (req, res) => {
 const deactivateBus = async (req, res) => {
   try {
     const bus = await Bus.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    if (!bus) return res.status(404).json({ message: 'Bus non trouvé' });
+    if (bus.owner) {
+      sendAndSaveNotification(
+        bus.owner,
+        'Bus désactivé',
+        `Votre bus ${bus.from} → ${bus.to} a été désactivé par un administrateur. Contactez le support pour plus d'informations.`,
+        { type: 'warning', screen: 'buses' }
+      ).catch(() => {});
+    }
     res.status(200).json({ message: 'Bus désactivé', bus });
   } catch (err) {
     res.status(500).json({ message: 'Erreur serveur', error: err.message });

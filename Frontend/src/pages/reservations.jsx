@@ -1050,9 +1050,10 @@ const confirmDelete = async (id) => {
           <CircularProgress sx={{ color: '#ffcc33' }} />
         </Box>
       ) : displayedReservations.length > 0 ? (
-        <Paper sx={{ 
+        <Paper sx={{
           borderRadius: '12px',
-          overflow: 'hidden',
+          overflowX: 'auto',
+          overflowY: 'hidden',
           boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)'
         }}>
           <Table>
@@ -1285,7 +1286,7 @@ const confirmDelete = async (id) => {
           p: 0,
           backgroundColor: '#ffffff'
         }}>
-          <Box sx={{ p: 4 }}>
+          <Box sx={{ p: { xs: 2, md: 4 } }}>
             {/* Section Utilisateur */}
             <Box sx={{ mb: 4 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -1637,7 +1638,7 @@ const confirmDelete = async (id) => {
                 <LocalShipping sx={{ color: '#ffcc33' }} />
                 Détails de la réservation
               </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
               {/* Nombre de ticket ou description */}
               {formData.ticket === 'place' ? (
                 <TextField
@@ -1946,7 +1947,7 @@ const confirmDelete = async (id) => {
           }}
         >
           {detailsReservation && (
-            <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <Box sx={{ p: { xs: 2, md: 4 }, display: 'flex', flexDirection: 'column', gap: 4 }}>
               {/* Infos Client */}
               <Paper 
                 elevation={0}

@@ -838,9 +838,10 @@ export default function Voyage() {
 
       {/* Table */}
       {voyages.length > 0 ? (
-        <Paper sx={{ 
+        <Paper sx={{
           borderRadius: '12px',
-          overflow: 'hidden',
+          overflowX: 'auto',
+          overflowY: 'hidden',
           boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)'
         }}>
           <Table>
@@ -1063,7 +1064,7 @@ export default function Voyage() {
           p: 0,
           backgroundColor: '#ffffff'
         }}>
-          <Box sx={{ p: 4 }}>
+          <Box sx={{ p: { xs: 2, md: 4 } }}>
             {/* Section Conducteur */}
             <Box sx={{ mb: 4 }}>
               <Typography variant="h6" sx={{ 
@@ -1164,7 +1165,7 @@ export default function Voyage() {
                 <LocationOn sx={{ color: '#ffcc33' }} />
                 Détails du trajet
               </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                   <Autocomplete
                     options={cities}
@@ -1309,7 +1310,7 @@ export default function Voyage() {
                 <AccessTime sx={{ color: '#ffcc33' }} />
                 Planification et tarif
               </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
                 <TextField
                   label="Date et heure de départ"
                   name="date"
@@ -1616,7 +1617,7 @@ export default function Voyage() {
         
         <DialogContent sx={{ p: 0 }}>
           {currentVoyage && (
-            <Box sx={{ p: 4 }}>
+            <Box sx={{ p: { xs: 2, md: 4 } }}>
               {/* En-tête avec les informations du voyage */}
               <Box sx={{ 
                 backgroundColor: '#f8de9181', 

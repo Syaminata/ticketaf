@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { reservationsAPI } from '../api/reservations';
+import API_BASE_URL from '../config/api';
 import axios from '../api/axios';
+import ConfirmationDialog from '../components/ConfirmationDialog';
 import {
   Box,
   Button,
@@ -8,42 +11,100 @@ import {
   DialogContent,
   DialogTitle,
   TextField,
+  Typography,
+  IconButton,
   MenuItem,
+  Chip,
+  Alert,
+  Grid,
+  Card,
+  CardContent,
+  CircularProgress,
+  Autocomplete,
+  TablePagination,
+  Menu,
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
-  IconButton,
-  Typography,
   Paper,
-  Chip,
-  Avatar,
-  Alert,
-  InputAdornment,
-  TablePagination,
-  Menu,
   Tooltip
 } from '@mui/material';
-import { Edit, Delete, Add, Person, Email, Phone, Lock, AdminPanelSettings, Search as SearchIcon, FilterList as FilterIcon, LocationOn, RestoreFromTrash, Block, CheckCircle } from '@mui/icons-material';
-import ConfirmationDialog from '../components/ConfirmationDialog';
-import storage from '../utils/storage';
+import { 
+  Edit, 
+  Delete, 
+  Add,
+  Person, 
+  DirectionsBus,
+  DirectionsCar,
+  EventSeat,
+  LocalShipping,
+  Visibility,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  LocationOn,
+  Cancel,
+  Receipt,
+  AttachMoney,
+  EventNote,
+  Route,
+  ArrowForward,
+  AccessTime,
+  ReceiptLong,
+  ReceiptLongOutlined,
+  AccountCircle,
+  Phone,
+  Info
+} from '@mui/icons-material';
+import { Divider, styled } from '@mui/material';
 
-export default function Users() {
-  const [users, setUsers] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [editUser, setEditUser] = useState(null);
+// Composant pour afficher une ligne d'information
+const InfoRow = ({ label, children }) => (
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+    <Typography variant="subtitle2" sx={{ color: '#666', minWidth: '160px' }}>{label}</Typography>
+    <Box sx={{ flex: 1, textAlign: 'right' }}>
+      {children}
+    </Box>
+  </Box>
+);
+
+export default function Reservations() {
+  const [reservations, setReservations] = useState([]);
+  const [voyages, setVoyages] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    numero: '',
-    address: '',
-    password: '',
-    role: 'client'
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [totalReservations, setTotalReservations] = useState(0);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [routeFilter, setRouteFilter] = useState('');
+  const [routeBusFilter, setRouteBusFilter] = useState('');
+  const [dateRange, setDateRange] = useState({
+    startDate: null,
+    endDate: null
   });
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [buses, setBuses] = useState([]);
+  const [loadingBuses, setLoadingBuses] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [editReservation, setEditReservation] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsReservation, setDetailsReservation] = useState(null);
+  const [formData, setFormData] = useState({
+    userId: null,
+    transportMode: '', // 'voyage' ou 'bus'
+    voyageId: null,
+    busId: null,
+    ticket: 'place',
+    quantity: 1,
+    description: ''
+  });
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     title: '',
@@ -52,270 +113,206 @@ export default function Users() {
     loading: false
   });
 
-  const [currentUserRole] = useState(storage.getUser()?.role || null);
-  const [loading, setLoading] = useState(false);
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [anchorEl, setAnchorEl] = useState(null);
+  // Etat pour création rapide d'utilisateur
+  const [newUserOpen, setNewUserOpen] = useState(false);
+  const [newUserLoading, setNewUserLoading] = useState(false);
+  const [newUserError, setNewUserError] = useState('');
+  const [newUserData, setNewUserData] = useState({ name: '', email: '', numero: '', password: '', role: 'client' });
+  const [pageBuses, setPageBuses] = useState(0);
+  const [rowsPerPageBuses, setRowsPerPageBuses] = useState(10);
 
 
-  const fetchUsers = async (currentPage = page, currentLimit = rowsPerPage, search = searchTerm) => {
-    const token = sessionStorage.getItem('token');
-    if (!token) return;
 
+  // ----- Fetch data -----
+  const fetchReservations = async (currentPage = page, currentLimit = rowsPerPage, search = searchTerm) => {
     setLoading(true);
     try {
+      console.log('🔍 Filtres frontend - statusFilter:', statusFilter, 'routeFilter:', routeFilter, 'routeBusFilter:', routeBusFilter, 'dateRange:', dateRange);
+      const [routeFrom, routeTo] = routeFilter ? routeFilter.split('|') : [null, null];
+      const [busRouteFrom, busRouteTo] = routeBusFilter ? routeBusFilter.split('|') : [null, null];
       const params = new URLSearchParams({
-        page:  currentPage + 1,
+        page: currentPage + 1,
         limit: currentLimit,
         ...(search && { search }),
-        ...(roleFilter !== 'all' && { role: roleFilter }), 
+        ...(statusFilter && statusFilter !== 'all' && { status: statusFilter }),
+        ...(routeFrom && routeTo && { routeFrom, routeTo }),
+        ...(busRouteFrom && busRouteTo && { busRouteFrom, busRouteTo }),
+        ...(dateRange.startDate && { startDate: dateRange.startDate }),
+        ...(dateRange.endDate && { endDate: dateRange.endDate }),
       });
 
-      console.log('🌐 URL appelée:', `/users?${params}`);
+      console.log('🌐 URL Reservations appelée:', `/reservations?${params}`);
 
-      const res = await axios.get(`/users?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await axios.get(`/reservations?${params}`, { 
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('token')}` } 
       });
 
-      console.log('📊 Réponse API Users:', res.data);
-      console.log('📊 Type de réponse:', typeof res.data);
-      console.log('📊 Est un tableau?', Array.isArray(res.data));
-      console.log('📊 Keys de la réponse:', Object.keys(res.data || {}));
-      console.log('📊 Users:', res.data.users);
-      console.log('📊 Total:', res.data.total);
+      console.log('📊 Réponse API Reservations:', res.data);
+      console.log('📊 Reservations:', res.data.reservations);
+      console.log('📊 Pagination:', res.data.pagination);
 
-      // Gérer les deux formats possibles de réponse
-      let usersArray, totalCount;
-      
-      if (Array.isArray(res.data)) {
-        // Format: [users...] (ancien format)
-        usersArray = res.data;
-        totalCount = res.data.length;
-        console.log('🔄 Format tableau direct détecté');
-      } else if (res.data.users && Array.isArray(res.data.users)) {
-        // Format: { users: [...], total: N } (nouveau format)
-        usersArray = res.data.users;
-        totalCount = res.data.total || 0;
-        console.log('🔄 Format structuré détecté');
-      } else {
-        // Format inattendu
-        console.warn('⚠️ Format de réponse inattendu:', res.data);
-        usersArray = [];
-        totalCount = 0;
-      }
+      // Le backend renvoie un objet structuré avec pagination
+      const reservationsArray = res.data.reservations || [];
+      const totalCount = res.data.pagination?.total || 0;
 
-      setUsers(usersArray);
-      setTotalUsers(totalCount);
-      
-      console.log('📊 totalUsers après set:', totalCount);
-      console.log('📊 users.length:', usersArray.length);
-    } catch (err) {
-      setError('Erreur lors du chargement des utilisateurs');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  
-
-  const handleOpen = (user = null) => {
-    setError('');
-    setEditUser(user);
-    if (user) {
-      setFormData({ ...user, numero: user.numero || '', password: '', address: user.address || '' });
-    } else {
-      setFormData({ name: '', email: '', numero: '', address: '', password: '', role: 'client' });
-    }
-    setOpen(true);
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-    setError('');
-    // Ne pas effacer le message de succès pour qu'il reste visible
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    
-    // Validation spéciale pour le numéro de téléphone
-    if (name === 'numero') {
-      // Formatage automatique : ne garder que les chiffres
-      const cleanValue = value.replace(/\D/g, '');
-      
-      // Limiter à 9 chiffres maximum
-      if (cleanValue.length <= 9) {
-        setFormData(prev => ({ ...prev, [name]: cleanValue }));
-      }
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-  };
-
-  const handleSubmit = async () => {
-    const token = sessionStorage.getItem('token');
-    if (!token) return setError("Authentification nécessaire.");
-
-    // Validation du format du numéro de téléphone sénégalais
-    if (formData.numero) {
-      const phoneRegex = /^(77|78|76|70|75|33|71)\d{7}$/;
-      if (!phoneRegex.test(formData.numero)) {
-        setError("Le numéro de téléphone doit commencer par 77, 78, 76, 70, 75, 33 ou 71 et contenir exactement 9 chiffres.");
-        return;
-      }
-    }
-
-    try {
-      setLoading(true);
+      setReservations(reservationsArray);
+      setTotalReservations(totalCount);
       setError('');
-
-      if (editUser) {
-        const dataToSubmit = { ...formData };
-        if (dataToSubmit.password === '') {
-          delete dataToSubmit.password;
-        }
-        
-        // Mise à jour optimiste
-        setUsers(prevUsers => 
-          (prevUsers || []).map(user => 
-            user._id === editUser._id 
-              ? { ...user, ...dataToSubmit } 
-              : user
-          )
-        );
-        
-        // Envoyer la requête de mise à jour
-        await axios.put(`/users/${editUser._id}`, dataToSubmit, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        setSuccess('Utilisateur mis à jour avec succès');
-      } else {
-        const response = await axios.post('/users', formData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setSuccess('Utilisateur créé avec succès');
-        // Ajouter le nouvel utilisateur à la liste
-        setUsers(prevUsers => [...(prevUsers || []), response.data.user]);
-      }
       
-      // Fermer la boîte de dialogue
-      handleClose();
-      
-      // Rafraîchir les données depuis le serveur
-      await fetchUsers();
-      
-      // Effacer le message de succès après 5 secondes
-      setTimeout(() => {
-        setSuccess('');
-      }, 5000);
+      console.log('📊 totalReservations après set:', totalCount);
+      console.log('📊 reservations.length:', reservationsArray.length);
     } catch (err) {
-      // En cas d'erreur, recharger les données pour récupérer l'état correct
-      await fetchUsers();
-      console.error("Erreur lors de la soumission du formulaire:", err);
-      setError(err.response?.data?.message || 'Erreur lors de la communication avec le serveur.');
+      console.error('Erreur lors du chargement des réservations:', err);
+      if (err.response?.status === 401) {
+        setError('Token d\'authentification expiré. Veuillez vous reconnecter.');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        window.location.href = '/login';
+      } else {
+        setError("Erreur lors du chargement des réservations: " + (err.response?.data?.message || err.message));
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = (id) => {
-    const user = (users || []).find(u => u._id === id);
-    const userInfo = user 
-      ? `"${user.name}" (${user.email})`
-      : 'cet utilisateur';
-    
-    setConfirmDialog({
-      open: true,
-      title: "Supprimer l'utilisateur",
-      message: `Êtes-vous sûr de vouloir supprimer définitivement l'utilisateur ${userInfo} ?`,
-      onConfirm: () => confirmDelete(id),
-      loading: false
-    });
+  const handleOpenDetails = (reservation) => {
+    setDetailsReservation(reservation);
+    setDetailsOpen(true);
   };
 
-  const confirmDelete = async (id) => {
-    setConfirmDialog(prev => ({ ...prev, loading: true }));
-    
-    const token = sessionStorage.getItem('token');
-    if (!token) {
-      setError("Authentification nécessaire pour la suppression.");
-      setConfirmDialog(prev => ({ ...prev, loading: false }));
-      return;
-    }
+  const handleCloseDetails = () => {
+    setDetailsOpen(false);
+    setDetailsReservation(null);
+  };
 
+  const fetchVoyages = async () => {
     try {
-      await axios.delete(`/users/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setSuccess('Utilisateur supprimé avec succès');
-      fetchUsers();
-      setConfirmDialog(prev => ({ ...prev, open: false }));
+      console.log(' Récupération des voyages...');
+      const token = sessionStorage.getItem('token');
+      console.log('Token:', token ? 'Présent' : 'Absent');
       
-      // Effacer le message de succès après 5 secondes
-      setTimeout(() => {
-        setSuccess('');
-      }, 5000);
-    } catch (err) {
-      console.error("Erreur lors de la suppression de l'utilisateur:", err);
-      setError("Erreur lors de la suppression de l'utilisateur.");
-      setConfirmDialog(prev => ({ ...prev, loading: false }));
-    }
-  };
-
-
-  const handleToggleUser = async (user) => {
-    const token = sessionStorage.getItem('token');
-    if (!token) return;
-    const isActive = user.isActive !== false;
-    try {
-      await axios.post(`/users/${user._id}/${isActive ? 'deactivate' : 'activate'}`, {}, {
+      const response = await fetch('https://ticket-taf.itea.africa/api/voyages', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setUsers(prev => (prev || []).map(u => u._id === user._id ? { ...u, isActive: !isActive } : u));
-      setSuccess(`Compte ${isActive ? 'désactivé' : 'activé'} avec succès`);
-      setTimeout(() => setSuccess(''), 3000);
+      
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Token d\'authentification expiré. Veuillez vous reconnecter.');
+        }
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      }
+      const data = await response.json();
+      const voyagesArray = Array.isArray(data) ? data : (data?.voyages || []);
+      console.log(' Voyages récupérés:', voyagesArray.length);
+      setVoyages(voyagesArray);
     } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors du changement de statut');
+      console.error(' Erreur lors de la récupération des voyages:', err);
+      setError('Erreur lors du chargement des voyages: ' + err.message);
+      setVoyages([]); // S'assurer que voyages est un tableau vide en cas d'erreur
     }
   };
 
-  const handleRestore = async (id) => {
-    const token = sessionStorage.getItem('token');
-    if (!token) return setError("Authentification nécessaire.");
+  const upcomingVoyages = (voyages || []).filter((v) => {
+    if (!v?.date) return false;
+    const voyageDate = new Date(v.date);
+    const now = new Date();
+    return voyageDate >= now; // garder seulement les voyages futurs ou aujourd'hui
+  });
+
+  const fetchUsers = async () => {
     try {
-      await axios.post(`/users/${id}/restore-deletion`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      setSuccess('Compte restauré avec succès');
-      fetchUsers();
-      setTimeout(() => setSuccess(''), 5000);
+      console.log('🔍 Récupération des utilisateurs...');
+      const token = sessionStorage.getItem('token');
+      console.log('Token:', token ? 'Présent' : 'Absent');
+      
+      const response = await fetch('https://ticket-taf.itea.africa/api/users?role=client&all=true', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Token d\'authentification expiré. Veuillez vous reconnecter.');
+        }
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      }
+      const data = await response.json();
+      console.log('👥 Utilisateurs récupérés:', data);
+      const usersArray = Array.isArray(data) ? data : (data?.users || []);
+      console.log('👥 Nombre d\'utilisateurs:', usersArray.length);
+      setUsers(usersArray);
     } catch (err) {
-      setError("Erreur lors de la restauration du compte.");
+      console.error(' Erreur lors de la récupération des utilisateurs:', err);
+      setError('Erreur lors du chargement des utilisateurs: ' + err.message);
+      setUsers([]); // S'assurer que users est un tableau vide en cas d'erreur
     }
   };
 
-  const getRoleLabel = (role) => {
-    switch (role) {
-      case 'admin': return 'Admin';
-      case 'gestionnaireColis': return 'gestionnaire de colis';
-      case 'conducteur': return 'Conducteur';
-      case 'client': return 'Client';
-      case 'entreprise': return 'Entreprise';
-      default: return role;
+  const fetchBuses = async (currentPage = 0, currentLimit = 10, search = '') => {
+    try {
+      setLoadingBuses(true);
+      console.log('Récupération des bus...');
+      const token = sessionStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Aucun token d\'authentification trouvé');
+      }
+      
+      const params = new URLSearchParams({
+        page: currentPage + 1,
+        limit: currentLimit,
+        ...(search && { search })
+      });
+
+      console.log('🌐 URL Buses appelée:', `/buses?${params}`);
+
+      const response = await fetch(`https://ticket-taf.itea.africa/api/buses?${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      // Gérer la nouvelle réponse structurée avec pagination
+      const busesData = data.buses || data;
+      setBuses(Array.isArray(busesData) ? busesData : []);
+      setError('');
+      console.log(`${Array.isArray(busesData) ? busesData.length : 0} bus chargés avec succès`);
+    } catch (error) {
+      console.error('Erreur lors du chargement des bus:', error);
+      setError('Erreur lors du chargement des bus. Veuillez réessayer.');
+    } finally {
+      setLoadingBuses(false);
     }
   };
 
-  
-  // Chargement initial + event driver
-  useEffect(() => {
-  const handleDriverUpdated = () => {
-    fetchUsers(page, rowsPerPage, searchTerm);
-  };
+  const uniqueRoutes = useMemo(() => {
+    const seen = new Set();
+    return (voyages || []).filter(v => {
+      const key = `${v.from}|${v.to}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [voyages]);
 
-  window.addEventListener('driverUpdated', handleDriverUpdated);
-
-  return () => window.removeEventListener('driverUpdated', handleDriverUpdated);
-}, [page, rowsPerPage, searchTerm]);
+  const uniqueBusRoutes = useMemo(() => {
+    const seen = new Set();
+    return (buses || []).filter(b => {
+      const key = `${b.from}|${b.to}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [buses]);
 
   // Debounce sur la recherche
   useEffect(() => {
@@ -328,78 +325,442 @@ export default function Users() {
 
   // Changement de page ou de limite
   useEffect(() => {
-  fetchUsers(page, rowsPerPage, searchTerm);
-}, [page, rowsPerPage, searchTerm, roleFilter]);
+    fetchReservations(page, rowsPerPage, searchTerm);
+  }, [page, rowsPerPage, searchTerm, statusFilter, routeFilter, routeBusFilter, dateRange]);
 
-  // Changement de filtre par rôle
+  // Changement de filtres
   useEffect(() => {
     setPage(0);
-  }, [roleFilter]);
+  }, [statusFilter, routeFilter, routeBusFilter, dateRange]);
 
-  const handleOpenFilter = (event) => {
-    setAnchorEl(event.currentTarget);
+  useEffect(() => {
+    fetchReservations();
+    fetchVoyages();
+    fetchUsers();
+    fetchBuses();
+  }, []);
+
+  useEffect(() => {
+    fetchBuses(pageBuses, rowsPerPageBuses, '');
+  }, [pageBuses, rowsPerPageBuses]);
+
+  useEffect(() => {
+    fetchBuses(0, 10, '');
+  }, [statusFilter, routeFilter, routeBusFilter]);
+
+  // ----- Dialog -----
+  const handleOpen = (reservation = null) => {
+    setError('');
+    setSuccess('');
+    
+    // Réinitialiser les données
+    setFormData({
+      userId: null,
+      transportMode: '',
+      voyageId: null,
+      busId: null,
+      ticket: 'place',
+      quantity: 1,
+      description: ''
+    });
+    
+    setEditReservation(reservation);
+    if (reservation) {
+      // Déterminer le mode de transport basé sur les données existantes
+      const transportMode = reservation.voyage ? 'voyage' : reservation.bus ? 'bus' : '';
+      setFormData({
+        userId: reservation.user || null,
+        transportMode: transportMode,
+        voyageId: reservation.voyage || null,
+        busId: reservation.bus || null,
+        ticket: reservation.ticket,
+        quantity: reservation.quantity || 1,
+        description: reservation.description || ''
+      });
+    }
+    setOpen(true);
   };
 
-  const handleCloseFilter = (role) => {
-    setAnchorEl(null);
-    if (role) setRoleFilter(role);
+  const handleClose = () => {
+    setOpen(false);
+    setEditReservation(null);
+    setFormData({ 
+      userId: null, 
+      transportMode: '', 
+      voyageId: null, 
+      busId: null, 
+      ticket: 'place', 
+      quantity: 1,
+      description: ''
+    });
   };
 
+  // Handlers création utilisateur
+  const openNewUser = () => {
+    setNewUserError('');
+    setNewUserData({ name: '', email: '', numero: '', password: '', role: 'client' });
+    setNewUserOpen(true);
+  };
+  const closeNewUser = () => {
+    setNewUserOpen(false);
+    setNewUserError('');
+  };
+  const handleCreateUser = async () => {
+    setError('');
+    setSuccess('');
+    
+    // Validation
+    if (!newUserData.name || !newUserData.numero || !newUserData.password) {
+      setNewUserError('Le nom, le numéro et le mot de passe sont requis');
+      return;
+    }
+    const phoneRegex = /^(77|78|76|70|75|33|71)\d{7}$/;
+    if (!phoneRegex.test(newUserData.numero)) {
+      setNewUserError('Numéro invalide (format: 77/78/76/70/75/33/71 + 7 chiffres)');
+      return;
+    }
+    setNewUserLoading(true);
+    try {
+      const token = sessionStorage.getItem('token');
+      const resp = await fetch(`${API_BASE_URL}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newUserData)
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data?.message || "Erreur à la création de l'utilisateur");
+      const created = data.user;
+      setUsers(prev => [created, ...prev]);
+      setFormData(prev => ({ ...prev, userId: created }));
+      setSuccess('Utilisateur créé et sélectionné');
+      setNewUserOpen(false);
+      // Rafraîchir la liste des buses après création
+      fetchBuses(pageBuses, rowsPerPageBuses, '');
+    } catch (err) {
+      setNewUserError(err.message || 'Erreur lors de la création');
+    } finally {
+      setNewUserLoading(false);
+    }
+  };
+
+
+  // ----- CRUD -----
+  const handleSubmit = async () => {
+    setError('');
+    setSuccess('');
+    
+    // Validation
+    if (!formData.userId) {
+      setError('Veuillez sélectionner un utilisateur');
+      return;
+    }
+    
+    if (!formData.transportMode) {
+      setError('Veuillez choisir un mode de transport');
+      return;
+    }
+    
+    if (formData.transportMode === 'voyage' && !formData.voyageId) {
+      setError('Veuillez sélectionner un voyage');
+      return;
+    }
+    
+    if (formData.transportMode === 'bus' && !formData.busId) {
+      setError('Veuillez sélectionner un bus');
+      return;
+    }
+
+    // Vérifier les places disponibles (uniquement pour les places, pas les colis)
+    if (formData.ticket === 'place' && formData.transportMode === 'voyage' && formData.voyageId) {
+      const selectedVoyage = voyages.find(v => v._id === formData.voyageId._id);
+      if (selectedVoyage && selectedVoyage.availableSeats < formData.quantity) {
+        setError(`Pas assez de places disponibles. Places restantes: ${selectedVoyage.availableSeats}`);
+        return;
+      }
+    }
+
+    if (formData.ticket === 'place' && formData.transportMode === 'bus' && formData.busId) {
+      const selectedBus = Array.isArray(buses) ? buses.find(b => b._id === formData.busId._id) : null;
+      if (selectedBus && selectedBus.availableSeats < formData.quantity) {
+        setError(`Pas assez de places disponibles. Places restantes: ${selectedBus.availableSeats}`);
+        return;
+      }
+    }
+    
+    // Validation plus stricte
+    if (!formData.userId || !formData.userId._id) {
+      setError('Utilisateur invalide');
+      return;
+    }
+    
+    if (formData.transportMode === 'voyage' && (!formData.voyageId || !formData.voyageId._id)) {
+      setError('Voyage invalide');
+      return;
+    }
+
+    if (formData.transportMode === 'bus' && (!formData.busId || !formData.busId._id)) {
+      setError('Bus invalide');
+      return;
+    }
+    // Champs colis obligatoires (description uniquement)
+    if (formData.ticket === 'colis' && !formData.description) {
+      setError('Veuillez saisir la description du colis');
+      return;
+    }
+    
+    setLoading(true);
+
+    try {
+      const reservationData = {
+        userId: formData.userId._id || formData.userId,
+        ticket: formData.ticket,
+        quantity: formData.quantity || 1,
+      };
+
+      // Ajouter voyageId ou busId selon ce qui est sélectionné
+      if (formData.voyageId) {
+        reservationData.voyageId = formData.voyageId._id || formData.voyageId;
+      }
+      if (formData.busId) {
+        reservationData.busId = formData.busId._id || formData.busId;
+      }
+      // Ajouter description si colis
+      if (formData.ticket === 'colis') {
+        reservationData.description = formData.description;
+      }
+      
+      console.log('Données à envoyer:', reservationData); // Debug
+      
+      if (editReservation) {
+        await reservationsAPI.updateReservation(editReservation._id, reservationData);
+        setSuccess('Réservation mise à jour avec succès');
+      } else {
+        await reservationsAPI.createReservation(reservationData);
+        setSuccess('Réservation créée avec succès');
+      }
+      
+      await fetchReservations();
+      handleClose();
+    } catch (err) {
+      console.error('Erreur lors de la sauvegarde:', err);
+      setError(err.response?.data?.message || err.message || 'Erreur lors de la sauvegarde');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = (id) => {
+  const reservation = reservations.find(r => r._id === id);
+  const info = reservation
+    ? `${reservation.user?.name || 'Client'} - ${
+        reservation.voyage
+          ? `${reservation.voyage.from} → ${reservation.voyage.to}`
+          : reservation.bus
+          ? `${reservation.bus.from} → ${reservation.bus.to}`
+          : 'Trajet non défini'
+      }`
+    : 'cette réservation';
+
+  setConfirmDialog({
+    open: true,
+    title: 'Supprimer la réservation',
+    message: `Êtes-vous sûr de vouloir supprimer définitivement ${info} ?`,
+    onConfirm: () => confirmDelete(id),
+    loading: false
+  });
+};
+
+const confirmDelete = async (id) => {
+  setConfirmDialog(prev => ({ ...prev, loading: true }));
+
+  try {
+    await reservationsAPI.deleteReservation(id);
+    setSuccess('Réservation supprimée avec succès');
+    await fetchReservations();
+    setConfirmDialog(prev => ({ ...prev, open: false }));
+  } catch (err) {
+    console.error(err);
+    setError('Erreur lors de la suppression.');
+    setConfirmDialog(prev => ({ ...prev, loading: false }));
+  }
+};
+  // ----- Helpers -----
+  const getStatusColor = (dateString) => {
+    const voyageDate = new Date(dateString);
+    const now = new Date();
+    const diffTime = voyageDate - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return 'error';
+    if (diffDays === 0) return 'warning';
+    if (diffDays <= 7) return 'info';
+    return 'success';
+  };
+
+  const getStatusText = (dateString) => {
+    const voyageDate = new Date(dateString);
+    const now = new Date();
+    const diffTime = voyageDate - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return 'Terminé';
+    if (diffDays === 0) return 'Aujourd\'hui';
+    if (diffDays <= 7) return `Dans ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+    return 'Programmé';
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Format de date court et lisible avec heure (ex: 28/10/2025 14:30)
+  const formatDateShort = (dateString) => {
+    if (!dateString) return 'Non définie';
+    const date = new Date(dateString);
+    const dateStr = date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    const timeStr = date.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    return `${dateStr} à ${timeStr}`;
+  };
+
+  const getTicketIcon = (ticket) => {
+    return ticket === 'colis' ? <LocalShipping /> : <EventSeat />;
+  };
+
+  const getTicketColor = (ticket) => {
+    return ticket === 'colis' ? 'secondary' : 'primary';
+  };
+
+  // Masquer les réservations passées (affichées plutôt dans Historique)
+  const isReservationPast = (reservation) => {
+    const dateStr = reservation?.voyage?.date || reservation?.bus?.departureDate;
+    if (!dateStr) return false;
+    
+    try {
+      // Créer les dates en format YYYY-MM-DD pour une comparaison simple
+      const reservationDate = new Date(dateStr);
+      const today = new Date();
+      
+      // Formater les dates en YYYY-MM-DD pour une comparaison précise
+      const formatDate = (date) => {
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const resDateStr = formatDate(reservationDate);
+      const todayStr = formatDate(today);
+      
+      console.log('Comparing dates - Reservation:', resDateStr, 'Today:', todayStr);
+      
+      // Comparer les chaînes de date formatées
+      return resDateStr < todayStr;
+    } catch (error) {
+      console.error('Error comparing dates:', error);
+      return false; // En cas d'erreur, on considère que la réservation n'est pas passée
+    }
+  };
+
+  // Marquer comme annulée si entité liée supprimée (voyage/bus manquant)
+  const isReservationCanceled = (reservation) => {
+    const hasVoyageRef = Boolean(reservation?.voyageId || reservation?.voyage?._id);
+    const hasBusRef = Boolean(reservation?.busId || reservation?.bus?._id);
+    const voyageMissing = hasVoyageRef && !reservation?.voyage;
+    const busMissing = hasBusRef && !reservation?.bus;
+    return Boolean(voyageMissing || busMissing);
+  };
+
+  const visibleReservations = (reservations || []).filter(r => {
+    const isPast = isReservationPast(r);
+    const isCanceled = isReservationCanceled(r);
+    console.log('Reservation:', r?._id, 'isPast:', isPast, 'isCanceled:', isCanceled);
+    return !isPast && !isCanceled;
+  });
   
+  console.log('Total reservations:', reservations?.length, 'Visible reservations:', visibleReservations.length);
+
+  // Les reservations sont déjà filtrées et triées par le backend
+  const displayedReservations = reservations;
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleChangePageBuses = (event, newPage) => {
+    setPageBuses(newPage);
+  };
+
+  const handleChangeRowsPerPageBuses = (event) => {
+    setRowsPerPageBuses(parseInt(event.target.value, 10));
+    setPageBuses(0);
+  };
+  
+  // Gérer le changement de type de transport
+  const handleTransportModeChange = (event) => {
+    const mode = event.target.value;
+    setFormData(prev => ({
+      ...prev,
+      transportMode: mode,
+      busId: null // Réinitialiser la sélection de bus
+    }));
+  };
+
+  // Filtrer les bus en fonction du type sélectionné
+  const filteredBuses = Array.isArray(buses) ? buses.filter(bus => {
+    if (!bus.isActive) return false;
+    if (formData.transportMode === 'minibus') {
+      return bus.capacity <= 30;
+    } else if (formData.transportMode === 'bus') {
+      return bus.capacity > 30;
+    }
+    return true;
+  }) : [];
 
   return (
-    <Box sx={{ 
-      p: 1, 
-      backgroundColor: '#ffff', 
-      minHeight: '100vh',
-      color: '#1a1a1a'
-    }}>
-      {/* Messages d'alerte */}
-      {error && (
-        <Alert 
-          severity="error" 
-          sx={{ mb: 3, borderRadius: '8px' }}
-          onClose={() => setError('')}
-        >
-          {error}
-        </Alert>
-      )}
-      
-      {success && (
-        <Alert 
-          severity="success" 
-          sx={{ mb: 3, borderRadius: '8px' }}
-          onClose={() => setSuccess('')}
-        >
-          {success}
-        </Alert>
-      )}
-
-      {/* Header Section */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        mb: 3 
-      }}>
+    <Box sx={{ p: 1, backgroundColor: '#ffff', minHeight: '100vh' }}>
+      <ConfirmationDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title || 'Confirmation de suppression'}
+        message={confirmDialog.message || "Voulez-vous vraiment supprimer cette réservation ?"}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        type="delete"
+        loading={confirmDialog.loading}
+      />
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
-          <Typography variant="h4" sx={{ 
-            fontWeight: 700, 
-            fontSize: "20px",
-            color: '#1a1a1a',
-            mb: 1
-          }}>
-            Liste des Utilisateurs
+          <Typography variant="h4" sx={{ fontWeight: 700, fontSize: '20px', color: '#1a1a1a', mb: 1 }}>
+            Liste des Réservations
           </Typography>
-          <Typography variant="body1" sx={{ 
-            color: '#666666',
-            fontSize: '16px'
-          }}>
-            Gérez les comptes utilisateurs et leurs rôles
+          <Typography variant="body1" sx={{ color: '#666666', fontSize: '16px' }}>
+            Gérez les réservations de vos clients ({visibleReservations.length} réservation{visibleReservations.length > 1 ? 's' : ''})
           </Typography>
+          
         </Box>
         <Button 
-          variant="outlined"
+          variant="outlined" 
           onClick={() => handleOpen()} 
           startIcon={<Add />}
           sx={{ 
@@ -419,326 +780,35 @@ export default function Users() {
             },
           }}
         >
-          Ajouter un utilisateur
+          Nouvelle Réservation
         </Button>
       </Box>
-
-      {/* Recherche simple */}
-      <Box sx={{ 
-        display: 'flex', 
-        gap: 2, 
-        alignItems: 'center', 
+      {/* Recherche */}
+      <Box sx={{
+        display: 'flex',
+        gap: 2,
+        alignItems: 'center',
         mb: 3,
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        flexWrap: 'wrap'
       }}>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <TextField
-            placeholder="Rechercher un utilisateur..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            size="small"
-            InputProps={{
-              startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
-            }}
-            sx={{
-              width: 300,
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '8px',
-                '&:hover fieldset': { borderColor: '#ffcc33' },
-                '&.Mui-focused fieldset': { borderColor: '#ffcc33', borderWidth: 2 },
-              },
-            }}
-          />
-
-          <IconButton 
-            onClick={handleOpenFilter} 
-            size="small" 
-            sx={{ border: '1px solid #ffcc33', borderRadius: '8px' }}
-          >
-            <FilterIcon />
-          </IconButton>
-
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={() => handleCloseFilter(null)}
-          >
-            <MenuItem onClick={() => handleCloseFilter('all')}>Tous les rôles</MenuItem>
-            <MenuItem onClick={() => handleCloseFilter('admin')}>Admin</MenuItem>
-            <MenuItem onClick={() => handleCloseFilter('gestionnaireColis')}>Gestionnaire de colis</MenuItem>
-            <MenuItem onClick={() => handleCloseFilter('conducteur')}>Conducteur</MenuItem>
-            <MenuItem onClick={() => handleCloseFilter('client')}>Client</MenuItem>
-            <MenuItem onClick={() => handleCloseFilter('entreprise')}>Entreprise</MenuItem>
-          </Menu>
-        </Box>
-        
-      </Box>
-      {/* Table */}
-      <Paper sx={{ 
-        borderRadius: '12px',
-        overflow: 'hidden',
-        boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)'
-      }}>
-        <Table>
-          <TableHead sx={{ 
-            borderBottom: '3px solid #ffcc33',
-            '& .MuiTableCell-root': {
-              borderBottom: '3px solid #ffcc33'
-            }
-          }}>
-            <TableRow>
-              <TableCell sx={{ 
-                color: '#1a1a1a', 
-                fontWeight: 700,
-                fontSize: '16px'
-              }}>
-                Utilisateurs
-              </TableCell>
-              <TableCell sx={{ 
-                color: '#1a1a1a', 
-                fontWeight: 700,
-                fontSize: '16px'
-              }}>
-                Numéro
-              </TableCell>
-              <TableCell sx={{ 
-                color: '#1a1a1a', 
-                fontWeight: 700,
-                fontSize: '16px',
-                maxWidth: '200px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
-              }}>
-                Adresse
-              </TableCell>
-              <TableCell sx={{ 
-                color: '#1a1a1a', 
-                fontWeight: 700,
-                fontSize: '16px'
-              }}>
-                Rôle
-              </TableCell>
-              <TableCell sx={{ 
-                color: '#1a1a1a', 
-                fontWeight: 700,
-                fontSize: '16px',
-                textAlign: 'center'
-              }}>
-                Collaborations
-              </TableCell>
-              <TableCell sx={{ 
-                color: '#1a1a1a', 
-                fontWeight: 700,
-                fontSize: '16px',
-                textAlign: 'center'
-              }}>
-                Actions
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {console.log('🎨 Rendu - users:', users, 'totalUsers:', totalUsers) || (users || []).map((user) => (
-              <TableRow 
-                key={user._id}
-                sx={{ 
-                  '&:nth-of-type(odd)': { backgroundColor: '#f8f9fa' },
-                  '&:hover': { backgroundColor: 'rgba(128, 127, 125, 0.1)' }
-                }}
-              >
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Avatar sx={{ 
-                      backgroundColor: 'transparent',
-                      color: '#ffcc33',
-                      width: 32,
-                      height: 32,
-                      fontSize: '14px',
-                      fontWeight: 600
-                    }}>
-                      <Person />
-                    </Avatar>
-                    <Box>
-                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                        {user.name}
-                      </Typography>
-                      {user.pendingDeletion && (
-                        <Chip
-                          label="Suppression en attente"
-                          size="small"
-                          sx={{ backgroundColor: '#ff9800', color: 'white', fontSize: '10px', height: '18px', mt: 0.5 }}
-                        />
-                      )}
-                    </Box>
-                  </Box>
-                </TableCell>
-                <TableCell sx={{ color: '#666666' }}>
-                  {user.numero || 'Non renseigné'}
-                </TableCell>
-                <TableCell sx={{ 
-                  color: '#666666',
-                  maxWidth: '200px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {console.log(`Affichage de l'adresse pour ${user.name}:`, {
-                  id: user._id,
-                  address: user.address,
-                  hasDriverDetails: !!user.driverDetails,
-                  driverAddress: user.driverDetails?.address
-                })}
-                  {user.address || (user.driverDetails?.address || 'Non renseignée')}
-                </TableCell>
-                <TableCell>
-                  <Chip 
-                    label={getRoleLabel(user.role)}
-                    variant="outlined"
-                    sx={{
-                      color: '#1a1a1a',
-                      fontWeight: 600,
-                      fontSize: '12px',
-                      backgroundColor: 'transparent',
-                      borderColor: '#e0e0e0'
-                    }}
-                  />
-                </TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>
-                  {user.role === 'client' ? (
-                    <Tooltip title={`${user.reservationCount || 0} réservations`} arrow>
-                      <Chip 
-                        label={user.reservationCount || 0} 
-                        size="small" 
-                        sx={{ 
-                          backgroundColor: '#b6660abd', 
-                          color: 'white',
-                          minWidth: '24px',
-                          fontWeight: 600
-                        }} 
-                      />
-                    </Tooltip>
-                  ) : user.role === 'conducteur' ? (
-                    <Tooltip title={`${user.tripCount || 0} voyages effectués`} arrow>
-                      <Chip 
-                        label={user.tripCount || 0}
-                        size="small" 
-                        sx={{ 
-                          backgroundColor: '#2e7d32', 
-                          color: 'white',
-                          minWidth: '24px',
-                          fontWeight: 600
-                        }} 
-                      />
-                    </Tooltip>
-                  ) : (
-                    <Chip 
-                      label="N/A" 
-                      size="small" 
-                      variant="outlined" 
-                    />
-                  )}
-                </TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>
-                  <IconButton
-                    onClick={() => handleOpen(user)}
-                    sx={{ color: '#ffcc33', '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' } }}
-                  >
-                    <Edit />
-                  </IconButton>
-                  <Tooltip title={user.isActive !== false ? 'Désactiver le compte' : 'Activer le compte'} arrow>
-                    <IconButton
-                      onClick={() => handleToggleUser(user)}
-                      sx={{ color: user.isActive !== false ? '#ff9800' : '#4caf50', '&:hover': { backgroundColor: user.isActive !== false ? 'rgba(255,152,0,0.1)' : 'rgba(76,175,80,0.1)' } }}
-                    >
-                      {user.isActive !== false ? <Block /> : <CheckCircle />}
-                    </IconButton>
-                  </Tooltip>
-                  {user.pendingDeletion ? (
-                    <Tooltip title="Restaurer le compte" arrow>
-                      <IconButton
-                        onClick={() => handleRestore(user._id)}
-                        sx={{ color: '#ff9800', '&:hover': { backgroundColor: 'rgba(255, 152, 0, 0.1)' } }}
-                      >
-                        <RestoreFromTrash />
-                      </IconButton>
-                    </Tooltip>
-                  ) : (
-                    <IconButton
-                      onClick={() => handleDelete(user._id)}
-                      sx={{ color: '#f44336', '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' } }}
-                    >
-                      <Delete />
-                    </IconButton>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <TablePagination
-          component="div"
-          count={totalUsers}
-          page={page}
-          onPageChange={(event, newPage) => setPage(newPage)}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={(event) => {
-            setRowsPerPage(parseInt(event.target.value, 10));
-            setPage(0);
-          }}
-          rowsPerPageOptions={[10, 25, 50]}
-          labelRowsPerPage="Lignes par page"
-        />
-      </Paper>
-
-      <Dialog 
-        open={open} 
-        onClose={handleClose}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '16px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
-          }
-        }}
-      >
-        <DialogTitle sx={{ 
-          borderBottom: '3px solid #ffcc33',
-          color: '#1a1a1a',
-          fontWeight: 700,
-          fontSize: '20px',
-          textAlign: 'center',
-          py: 2,
-          borderRadius: "0px 0px 5px 5px",
+        <Box sx={{
+          display: 'flex',
+          gap: 2,
+          alignItems: 'center',
+          flexWrap: 'wrap'
         }}>
-          {editUser ? 'Modifier l\'utilisateur' : 'Ajouter un nouveau utilisateur'}
-        </DialogTitle>
-        <DialogContent sx={{ 
-          p: 3,
-          backgroundColor: '#ffffff'
-        }}>
-          <Box sx={{ 
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: 2.5,
-            padding: "15px",
-            pt: '35px'
-          }}>
-            {/* Ligne 1: Nom et Email */}
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
             <TextField
-              label="Nom complet"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              fullWidth
+              placeholder="Rechercher par client, trajet ou date..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              size="small"
               InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Person sx={{ color: '#ffcc33' }} />
-                  </InputAdornment>
-                ),
+                startAdornment: <SearchIcon sx={{ color: '#666', mr: 1, fontSize: 20 }} />
               }}
               sx={{
+                width: 300,
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
                   '&:hover fieldset': {
@@ -746,96 +816,7 @@ export default function Users() {
                   },
                   '&.Mui-focused fieldset': {
                     borderColor: '#ffcc33',
-                  },
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#ffcc33',
-                },
-              }}
-            />
-            <TextField
-              label="Adresse email (optionnel)"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              fullWidth
-              helperText="L'email est optionnel."
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Email sx={{ color: '#ffcc33' }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '8px',
-                  '&:hover fieldset': {
-                    borderColor: '#ffcc33',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#ffcc33',
-                  },
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#ffcc33',
-                },
-              }}
-            />
-            {/* Ligne 2: Téléphone et Adresse */}
-            <TextField
-              label="Numéro de téléphone"
-              name="numero"
-              type="tel"
-              value={formData.numero}
-              onChange={handleChange}
-              fullWidth
-              required
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Phone sx={{ color: '#ffcc33' }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '8px',
-                  '&:hover fieldset': {
-                    borderColor: '#ffcc33',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#ffcc33',
-                  },
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#ffcc33',
-                },
-              }}
-            />
-            <TextField
-              label="Adresse"
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              fullWidth
-              required
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LocationOn sx={{ color: '#ffcc33' }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '8px',
-                  '&:hover fieldset': {
-                    borderColor: '#ffcc33',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#ffcc33',
+                    borderWidth: 2,
                   },
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
@@ -845,19 +826,12 @@ export default function Users() {
             />
             <TextField
               select
-              label="Rôle utilisateur"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              fullWidth
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <AdminPanelSettings sx={{ color: '#ffcc33' }} />
-                  </InputAdornment>
-                ),
-              }}
+              label="Filtrer par statut"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              size="small"
               sx={{
+                width: 200,
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
                   '&:hover fieldset': {
@@ -865,6 +839,7 @@ export default function Users() {
                   },
                   '&.Mui-focused fieldset': {
                     borderColor: '#ffcc33',
+                    borderWidth: 2,
                   },
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
@@ -872,31 +847,19 @@ export default function Users() {
                 },
               }}
             >
-              <MenuItem value="client">Client</MenuItem>
-              <MenuItem value="admin">Administrateur</MenuItem>
-              <MenuItem value="gestionnaireColis">Gestionnaire de Colis</MenuItem>
-              <MenuItem value="entreprise">Entreprise</MenuItem>
+              <MenuItem value="all">Tous</MenuItem>
+              <MenuItem value="confirmé">Confirmé</MenuItem>
+              <MenuItem value="annulé">Annulé</MenuItem>
+              <MenuItem value="en attente">En attente</MenuItem>
             </TextField>
-
-            {/* Ligne 3: Mot de passe (pleine largeur) */}
             <TextField
-              label="Mot de passe"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              fullWidth
-              required={!editUser}
-              helperText={editUser ? "Laissez vide pour conserver le mot de passe actuel" : "Mot de passe requis pour le nouvel utilisateur"}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock sx={{ color: '#ffcc33' }} />
-                  </InputAdornment>
-                ),
-              }}
+              select
+              label="Filtrer par itinéraire"
+              value={routeFilter}
+              onChange={(e) => setRouteFilter(e.target.value)}
+              size="small"
               sx={{
-                gridColumn: 'span 2',
+                width: 200,
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
                   '&:hover fieldset': {
@@ -904,41 +867,974 @@ export default function Users() {
                   },
                   '&.Mui-focused fieldset': {
                     borderColor: '#ffcc33',
+                    borderWidth: 2,
                   },
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
                   color: '#ffcc33',
                 },
               }}
-            />
+            >
+              <MenuItem value="">Tous</MenuItem>
+              {uniqueRoutes.map(voyage => (
+                <MenuItem key={`${voyage.from}|${voyage.to}`} value={`${voyage.from}|${voyage.to}`}>
+                  {voyage.from} → {voyage.to}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              label="Filtrer par itinéraire bus"
+              value={routeBusFilter}
+              onChange={(e) => setRouteBusFilter(e.target.value)}
+              size="small"
+              sx={{
+                width: 200,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px',
+                  '&:hover fieldset': {
+                    borderColor: '#ffcc33',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#ffcc33',
+                    borderWidth: 2,
+                  },
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#ffcc33',
+                },
+              }}
+            >
+              <MenuItem value="">Tous</MenuItem>
+              {uniqueBusRoutes.map(bus => (
+                <MenuItem key={`${bus.from}|${bus.to}`} value={`${bus.from}|${bus.to}`}>
+                  {bus.from} → {bus.to}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Button
+              variant="outlined"
+              onClick={() => setShowDateFilter(!showDateFilter)}
+              startIcon={<FilterListIcon />}
+              sx={{
+                borderRadius: '12px',
+                textTransform: 'none',
+                borderColor: '#ffcc33',
+                color: '#1a1a1a',
+                '&:hover': {
+                  borderColor: '#e6b800',
+                  backgroundColor: 'rgba(255, 204, 51, 0.08)',
+                },
+              }}
+            >
+              Filtre par date
+            </Button>
+            
+            {showDateFilter && (
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 2, 
+                alignItems: 'center',
+                p: 2, 
+                bgcolor: 'background.paper',
+                borderRadius: '12px',
+                mt: 1,
+                width: '100%',
+                flexWrap: 'wrap'
+              }}>
+                <TextField
+                  label="Date de début"
+                  type="date"
+                  size="small"
+                  value={dateRange.startDate || ''}
+                  onChange={(e) => setDateRange({...dateRange, startDate: e.target.value})}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                      '&:hover fieldset': {
+                        borderColor: '#ffcc33',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#ffcc33',
+                        borderWidth: 2,
+                      },
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: '#ffcc33',
+                    },
+                  }}
+                />
+                <Typography>au</Typography>
+                <TextField
+                  label="Date de fin"
+                  type="date"
+                  size="small"
+                  value={dateRange.endDate || ''}
+                  onChange={(e) => setDateRange({...dateRange, endDate: e.target.value})}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                      '&:hover fieldset': {
+                        borderColor: '#ffcc33',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#ffcc33',
+                        borderWidth: 2,
+                      },
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: '#ffcc33',
+                    },
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={() => setDateRange({ startDate: null, endDate: null })}
+                  sx={{
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    backgroundColor: '#ff4d4d',
+                    '&:hover': {
+                      backgroundColor: '#ff1a1a',
+                    },
+                  }}
+                >
+                  Réinitialiser
+                </Button>
+              </Box>
+            )}
+          </Box>
+        </Box>
+      </Box>
+      {/* Alerts */}
+      {error && (
+        <Alert 
+          severity="error" 
+          sx={{ mb: 3, borderRadius: '8px' }}
+          action={
+            error.includes('Token d\'authentification expiré') ? (
+              <Button 
+                color="inherit" 
+                size="small" 
+                onClick={() => {
+                  sessionStorage.removeItem('token');
+                  window.location.href = '/login';
+                }}
+                sx={{ fontWeight: 600 }}
+              >
+                Se reconnecter
+              </Button>
+            ) : null
+          }
+        >
+          {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert severity="success" sx={{ mb: 3, borderRadius: '8px' }}>
+          {success}
+        </Alert>
+      )}
+
+      {/* Tableau des réservations */}
+      {console.log('Loading:', loading, 'Visible reservations:', displayedReservations, 'Length:', displayedReservations?.length)}
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress sx={{ color: '#ffcc33' }} />
+        </Box>
+      ) : displayedReservations.length > 0 ? (
+        <Paper sx={{
+          borderRadius: '12px',
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)'
+        }}>
+          <Table>
+            <TableHead sx={{ 
+              borderBottom: '3px solid #ffcc33',
+              '& .MuiTableCell-root': {
+                borderBottom: '3px solid #ffcc33',
+                color: '#1a1a1a',
+                fontWeight: 700,
+                fontSize: '16px',
+                py: 2
+              }
+            }}>
+              <TableRow>
+                <TableCell>Client</TableCell>
+                <TableCell>Téléphone</TableCell>
+                <TableCell>Trajet</TableCell>
+                <TableCell>Date</TableCell>
+                <TableCell>Prix</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {displayedReservations.map((reservation) => (
+                <TableRow 
+                  key={reservation._id}
+                  sx={{ 
+                    '&:nth-of-type(odd)': { backgroundColor: '#f8f9fa' },
+                    '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' },
+                    '& td': {
+                      color: '#1a1a1a',
+                      py: 2,
+                      borderBottom: '1px solid #f0f0f0',
+                    }
+                  }}
+                >
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Person sx={{ color: '#ffcc33', fontSize: 24 }} />
+                      <Box>
+                        <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                          {reservation.user?.name || 'Non spécifié'}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#666666', mt: 0.5 }}>
+                          {reservation.user?.email || ''}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Typography sx={{ color: '#1a1a1a' }}>
+                      {reservation.user?.numero || '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box>
+                        <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                          {isReservationCanceled(reservation)
+                            ? 'Trajet annulé'
+                            : reservation.voyage
+                            ? `${reservation.voyage.from} → ${reservation.voyage.to}`
+                            : reservation.bus
+                            ? `${reservation.bus.from} → ${reservation.bus.to}`
+                            : 'Non défini'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AccessTime sx={{ fontSize: 16, color: '#ffcc33' }} />
+                      <Typography sx={{ color: '#1a1a1a' }}>
+                        {formatDateShort(reservation.voyage?.date || reservation.bus?.departureDate || reservation.createdAt)}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Typography sx={{ fontWeight: 600, color: '#4caf50' }}>
+                      {reservation.voyage 
+                        ? `${(reservation.voyage.price * (reservation.quantity || 1)).toLocaleString('fr-FR')} FCFA` 
+                        : reservation.bus 
+                          ? `${(reservation.bus.price * (reservation.quantity || 1)).toLocaleString('fr-FR')} FCFA` 
+                          : '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ textAlign: 'center' }}>
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                      <Tooltip title="Voir les détails">
+                        <IconButton 
+                          onClick={() => handleOpenDetails(reservation)}
+                          sx={{ 
+                            color: '#21740cff',
+                            '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)', color: '#4F4F4F' }
+                          }}
+                        >
+                          <Visibility />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Modifier">
+                        <IconButton 
+                          onClick={() => handleOpen(reservation)}
+                          sx={{ 
+                            color: '#ffcc33',
+                            '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' }
+                          }}
+                        >
+                          <Edit />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Supprimer">
+                        <IconButton 
+                          onClick={() => handleDelete(reservation._id)}
+                          sx={{ 
+                            color: '#f44336',
+                            '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' }
+                          }}
+                        >
+                          <Delete />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          
+          {/* Pagination */}
+          <TablePagination
+            component="div"
+            count={totalReservations}
+            page={page}
+            onPageChange={handleChangePage}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            rowsPerPageOptions={[5, 10, 25]}
+            labelRowsPerPage="Lignes par page :"
+            sx={{
+              '& .MuiTablePagination-toolbar': {
+                padding: '16px',
+                backgroundColor: '#f8f9fa',
+                borderTop: '1px solid #e0e0e0',
+                borderBottomLeftRadius: '12px',
+                borderBottomRightRadius: '12px'
+              },
+              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                margin: 0,
+                fontSize: '0.875rem',
+                color: '#555'
+              },
+              '& .MuiSelect-select': {
+                padding: '4px 24px 4px 4px',
+                borderRadius: '4px',
+                border: '1px solid #e0e0e0',
+                '&:focus': {
+                  borderRadius: '4px',
+                  borderColor: '#ffcc33'
+                }
+              },
+              '& .MuiTablePagination-actions': {
+                marginLeft: '8px',
+                '& .MuiIconButton-root': {
+                  padding: '4px',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 204, 51, 0.1)'
+                  },
+                  '&.Mui-disabled': {
+                    color: '#bdbdbd'
+                  }
+                }
+              }
+            }}
+          />
+        </Paper>
+      ) : (
+        <Box sx={{ 
+          textAlign: 'center', 
+          py: 8,
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+          border: '1px solid #f0f0f0',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 2,
+          p: 4
+        }}>
+          <EventNote sx={{ fontSize: 60, color: '#e0e0e0' }} />
+          <Typography variant="h6" sx={{ color: '#757575', fontWeight: 500, mt: 2 }}>
+            Aucune réservation pour l'instant
+          </Typography>
+          <Typography variant="body1" sx={{ color: '#9e9e9e', mb: 3, maxWidth: '500px' }}>
+            Les réservations apparaîtront ici une fois créées.
+          </Typography>
+        </Box>
+      )}
+
+      {/* Dialog pour créer/modifier une réservation */}
+      <Dialog 
+        open={open} 
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: '3px solid #ffcc33',
+          color: '#1a1a1a',
+          fontWeight: 700,
+          fontSize: '24px',
+          textAlign: 'center',
+          py: 3
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+            <EventSeat sx={{ fontSize: 28 }} />
+            {editReservation ? 'Modifier la réservation' : 'Nouvelle réservation'}
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ 
+          p: 0,
+          backgroundColor: '#ffffff'
+        }}>
+          <Box sx={{ p: { xs: 2, md: 4 } }}>
+            {/* Section Utilisateur */}
+            <Box sx={{ mb: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h6" sx={{ 
+                  color: '#1a1a1a', 
+                  fontWeight: 600, 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <Person sx={{ color: '#ffcc33' }} />
+                  Sélection de l'utilisateur
+                  {users?.length === 0 && (
+                    <Typography variant="caption" sx={{ color: '#f44336', ml: 2 }}>
+                      (Aucun utilisateur disponible)
+                    </Typography>
+                  )}
+                </Typography>
+                <Button 
+                  variant="outlined"
+                  onClick={openNewUser}
+                  sx={{
+                    borderColor: '#ffcc33',
+                    color: '#ffcc33',
+                    textTransform: 'none',
+                    fontWeight: 600
+                  }}
+                >
+                  Ajouter un utilisateur
+                </Button>
+              </Box>
+              <Autocomplete
+                options={users || []}
+                getOptionLabel={(option) => `${option.name} • ${option.numero}`}
+                value={formData.userId}
+                onChange={(e, newValue) => {
+                  console.log('Utilisateur sélectionné:', newValue);
+                  setFormData({ ...formData, userId: newValue });
+                }}
+                noOptionsText="Aucun utilisateur trouvé"
+                loadingText="Chargement des utilisateurs..."
+                ListboxProps={{
+                  style: {
+                    maxHeight: '100px',
+                    overflow: 'auto'
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField 
+                    {...params} 
+                    label="Utilisateur" 
+                    required 
+                    helperText={users?.length === 0 ? "Aucun utilisateur disponible" : `${users?.length || 0} utilisateur(s) disponible(s)`}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '12px',
+                        '&:hover fieldset': {
+                          borderColor: '#ffcc33',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#ffcc33',
+                          borderWidth: 2,
+                        },
+                      },
+                      '& .MuiInputLabel-root.Mui-focused': {
+                        color: '#ffcc33',
+                      },
+                    }}
+                  />
+                )}
+              />
+            </Box>
+
+            {/* Section Mode de Transport */}
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h6" sx={{ 
+                color: '#1a1a1a', 
+                fontWeight: 600, 
+                mb: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <DirectionsBus sx={{ color: '#ffcc33' }} />
+                Mode de transport
+              </Typography>
+              
+              <TextField
+                select
+                label="Choisissez votre mode de transport"
+                value={formData.transportMode}
+                onChange={handleTransportModeChange}
+                fullWidth
+                required
+                sx={{
+                  mb: 3,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                    '&:hover fieldset': {
+                      borderColor: '#ffcc33',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#ffcc33',
+                      borderWidth: 2,
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#ffcc33',
+                  },
+                }}
+              >
+                <MenuItem value="voyage">Covoiturage</MenuItem>
+                <MenuItem value="minibus">Minibus</MenuItem>
+                <MenuItem value="bus">Bus</MenuItem>
+              </TextField>
+            </Box>
+
+            {/* Section Voyage */}
+            {formData.transportMode === 'voyage' && (
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h6" sx={{ 
+                  color: '#1a1a1a', 
+                  fontWeight: 600, 
+                  mb: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <DirectionsBus sx={{ color: '#ffcc33' }} />
+                  Sélection du voyage
+                  {voyages?.length === 0 && (
+                    <Typography variant="caption" sx={{ color: '#f44336', ml: 2 }}>
+                      (Aucun voyage disponible)
+                    </Typography>
+                  )}
+                </Typography>
+                <Autocomplete
+                  options={voyages || []}
+                  getOptionLabel={(option) => `${option.from} → ${option.to} • ${formatDateShort(option.date)} • ${option.price} FCFA • ${option.availableSeats || 0} places`}
+                  value={formData.voyageId}
+                  onChange={(e, newValue) => {
+                    console.log('Voyage sélectionné:', newValue);
+                    setFormData({ ...formData, voyageId: newValue });
+                  }}
+                  noOptionsText="Aucun voyage trouvé"
+                  loadingText="Chargement des voyages..."
+                  ListboxProps={{
+                    style: {
+                      maxHeight: '150px',
+                      overflow: 'auto'
+                    }
+                  }}
+                  renderOption={(props, option) => (
+                    <li {...props}>
+                      <Box sx={{ width: '100%' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="body1">
+                            {option.from} → {option.to}
+                          </Typography>
+                          <Chip 
+                            label={`${option.availableSeats || 0} places`} 
+                            size="small" 
+                            color={option.availableSeats > 0 ? 'success' : 'error'}
+                            variant="outlined"
+                          />
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {formatDateShort(option.date)}
+                          </Typography>
+                          <Typography variant="body2" fontWeight="bold">
+                            {option.price} FCFA
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </li>
+                  )}
+                  renderInput={(params) => (
+                    <TextField 
+                      {...params} 
+                      label="Voyage" 
+                      required
+                      helperText={voyages?.length === 0 ? "Aucun voyage disponible" : `${voyages?.length || 0} voyage(s) disponible(s)`}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          '&:hover fieldset': {
+                            borderColor: '#ffcc33',
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: '#ffcc33',
+                            borderWidth: 2,
+                          },
+                        },
+                        '& .MuiInputLabel-root.Mui-focused': {
+                          color: '#ffcc33',
+                        },
+                      }}
+                    />
+                  )}
+                />
+              </Box>
+            )}
+
+            {/* Section Bus */}
+            {(formData.transportMode === 'bus' || formData.transportMode === 'minibus') && (
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h6" sx={{ 
+                  color: '#1a1a1a', 
+                  fontWeight: 600, 
+                  mb: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <DirectionsBus sx={{ color: '#ffcc33' }} />
+                  {formData.transportMode === 'minibus' ? 'Sélection du Minibus' : 'Sélection du Bus'}
+                </Typography>
+                
+                <TextField
+                  select
+                  fullWidth
+                  label={`Sélectionner un ${formData.transportMode === 'minibus' ? 'minibus' : 'bus'}`}
+                  value={formData.busId || ''}
+                  onChange={(e) => setFormData({...formData, busId: e.target.value})}
+                  margin="normal"
+                  required
+                  disabled={loadingBuses}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                      '&:hover fieldset': {
+                        borderRadius: '12px',
+                        borderColor: '#ffcc33',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderRadius: '12px',
+                        borderColor: '#ffcc33',
+                        borderWidth: 2,
+                      },
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: '#ffcc33',
+                    },
+                  }}
+                >
+                  {loadingBuses ? (
+                    <MenuItem disabled>Chargement des véhicules...</MenuItem>
+                  ) : filteredBuses.length > 0 ? (
+                    filteredBuses.map((bus) => (
+                      <MenuItem key={bus._id} value={bus._id}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            width: '100%',
+                            fontSize: '14px'
+                          }}
+                        >
+                          <span>
+                            <strong>{bus.name}</strong> {'   '}
+                            <span style={{ color: '#666', fontWeight: 500 }}>
+                              {bus.from} → {bus.to}
+                            </span> {''}
+                            {new Date(bus.departureDate).toLocaleString('fr-FR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+
+                          <span style={{ fontWeight: 600 }}>
+                            {bus.capacity} places · {bus.price}
+                          </span>
+                        </div>
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <MenuItem disabled>
+                      Aucun véhicule disponible pour cette catégorie
+                    </MenuItem>
+                  )}
+                </TextField>
+              </Box>
+            )}
+
+            {/* Pagination des buses */}
+            {Array.isArray(buses) && buses.length > 0 && (
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                <TablePagination
+                  component="div"
+                  count={buses.length || 0}
+                  page={pageBuses}
+                  onPageChange={handleChangePageBuses}
+                  rowsPerPage={rowsPerPageBuses}
+                  onRowsPerPageChange={handleChangeRowsPerPageBuses}
+                  rowsPerPageOptions={[5, 10, 25]}
+                  labelRowsPerPage="Lignes par page :"
+                  sx={{
+                    '& .MuiTablePagination-toolbar': {
+                      padding: '16px',
+                      backgroundColor: '#f8f9fa',
+                      borderTop: '1px solid #e0e0e0',
+                      borderRadius: '12px'
+                    },
+                    '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                      margin: 0,
+                      fontSize: '0.875rem',
+                      color: '#555'
+                    },
+                    '& .MuiSelect-select': {
+                      padding: '4px 24px 4px 4px',
+                      borderRadius: '4px',
+                      border: '1px solid #e0e0e0',
+                      '&:focus': {
+                        borderRadius: '4px',
+                        borderColor: '#ffcc33'
+                      }
+                    },
+                    '& .MuiTablePagination-actions': {
+                      marginLeft: '8px',
+                      '& .MuiIconButton-root': {
+                        padding: '4px',
+                        '&:hover': {
+                          backgroundColor: 'rgba(255, 204, 51, 0.1)'
+                        },
+                        '&.Mui-disabled': {
+                          color: '#bdbdbd'
+                        }
+                      }
+                    }
+                  }}
+                />
+              </Box>
+            )}
+
+            {/* Section Quantité */}
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h6" sx={{ 
+                color: '#1a1a1a', 
+                fontWeight: 600, 
+                mb: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <LocalShipping sx={{ color: '#ffcc33' }} />
+                Détails de la réservation
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+              {/* Nombre de ticket ou description */}
+              {formData.ticket === 'place' ? (
+                <TextField
+                  label="Nombre de ticket"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                  inputProps={{ min: 1 }}
+                  required
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                      '&:hover fieldset': { borderColor: '#ffcc33' },
+                      '&.Mui-focused fieldset': { borderColor: '#ffcc33', borderWidth: 2 },
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': { color: '#ffcc33' },
+                  }}
+                />
+              ) : (
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
+                  <TextField
+                    label="Description du colis"
+                    type="text"
+                    value={formData.description || ''}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    required
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '12px',
+                        '&:hover fieldset': { borderColor: '#ffcc33' },
+                        '&.Mui-focused fieldset': { borderColor: '#ffcc33', borderWidth: 2 },
+                      },
+                      '& .MuiInputLabel-root.Mui-focused': { color: '#ffcc33' },
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+
+            </Box>
+
+            {/* Résumé de la réservation */}
+            {formData.userId && formData.transportMode && formData.ticket && (formData.ticket === 'colis' ? true : formData.quantity) && (
+              <Box sx={{ 
+                p: 3, 
+                backgroundColor: '#f8f9fa', 
+                borderRadius: '12px',
+                border: '2px solid #ffcc33',
+                mb: 3
+              }}>
+                <Typography variant="h6" sx={{ 
+                  color: '#1a1a1a', 
+                  fontWeight: 600, 
+                  mb: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <EventSeat sx={{ color: '#ffcc33' }} />
+                  Résumé de la réservation
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Client</Typography>
+                    <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                      {users.find(u => u._id === formData.userId?._id)?.name || 'Non sélectionné'}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Mode de transport</Typography>
+                    <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                      {formData.transportMode === 'voyage' ? ' Covoiturage' : ' Transport en bus'}
+                    </Typography>
+                  </Box>
+                  {formData.transportMode === 'voyage' && formData.voyageId && (
+                    <Box>
+                      <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Voyage</Typography>
+                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                        {voyages.find(v => v._id === formData.voyageId?._id) ? 
+                          `${voyages.find(v => v._id === formData.voyageId._id).from} → ${voyages.find(v => v._id === formData.voyageId._id).to}` : 
+                          'Non sélectionné'
+                        }
+                      </Typography>
+                    </Box>
+                  )}
+                  {formData.transportMode === 'voyage' && formData.voyageId && (
+                    <Box>
+                      <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Prix</Typography>
+                      <Typography sx={{ fontWeight: 600, color: '#4caf50' }}>
+                        {voyages.find(v => v._id === formData.voyageId?._id) ? 
+                          `${voyages.find(v => v._id === formData.voyageId._id).price} FCFA` : 
+                          'Non défini'
+                        }
+                      </Typography>
+                    </Box>
+                  )}
+                  {formData.transportMode === 'bus' && formData.busId && (
+                    <Box>
+                      <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Bus</Typography>
+                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                        {Array.isArray(buses) ? (buses.find(b => b._id === formData.busId?._id) ? 
+                          `${buses.find(b => b._id === formData.busId._id).name} (${buses.find(b => b._id === formData.busId._id).plateNumber})` : 
+                          'Non sélectionné'
+                        ) : 'Non sélectionné'
+                        }
+                      </Typography>
+                    </Box>
+                  )}
+                  {formData.transportMode === 'bus' && formData.busId && (
+                    <Box>
+                      <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Trajet</Typography>
+                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                        {Array.isArray(buses) ? (buses.find(b => b._id === formData.busId?._id) ? 
+                          `${buses.find(b => b._id === formData.busId._id).from} → ${buses.find(b => b._id === formData.busId._id).to}` : 
+                          'Non défini'
+                        ) : 'Non défini'
+                        }
+                      </Typography>
+                    </Box>
+                  )}
+                  {formData.transportMode === 'bus' && formData.busId && (
+                    <Box>
+                      <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Prix</Typography>
+                      <Typography sx={{ fontWeight: 600, color: '#4caf50' }}>
+                        {Array.isArray(buses) ? (buses.find(b => b._id === formData.busId?._id) ? 
+                          `${buses.find(b => b._id === formData.busId._id).price} FCFA` : 
+                          'Non défini'
+                        ) : 'Non défini'
+                        }
+                      </Typography>
+                    </Box>
+                  )}
+                  <Box>
+                    <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Type</Typography>
+                    <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                      {formData.ticket === 'colis' ? 'Colis' : 'Place'}
+                    </Typography>
+                  </Box>
+                  {formData.ticket === 'place' ? (
+                    <Box>
+                      <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Nombre de ticket</Typography>
+                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                        {formData.quantity}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <>
+                      <Box>
+                        <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Description</Typography>
+                        <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                          {formData.description || 'Non défini'}
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
+                </Box>
+              </Box>
+            )}
+
             {error && (
               <Box sx={{ 
-                gridColumn: 'span 2',
-                p: 2, 
+                p: 3, 
                 backgroundColor: '#ffebee', 
-                borderRadius: '8px',
-                border: '1px solid #f44336'
+                borderRadius: '12px',
+                border: '2px solid #f44336',
+                mb: 3
               }}>
-                <Typography color="error" variant="body2" sx={{ fontWeight: 500 }}>
+                <Typography color="error" variant="body1" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
                   {error}
                 </Typography>
               </Box>
             )}
           </Box>
         </DialogContent>
+        
         <DialogActions sx={{ 
-          p: 3, 
+          p: 2, 
           backgroundColor: '#f8f9fa',
-          gap: 2
+          gap: 2,
+          borderTop: '1px solid #e0e0e0'
         }}>
           <Button 
             onClick={handleClose}
+            variant="outlined"
             sx={{
               color: '#666666',
+              borderColor: '#ddd',
               fontWeight: 600,
               textTransform: 'none',
-              px: 3,
-              py: 1
+              px: 4,
+              py: 1.5,
+              borderRadius: '12px',
+              '&:hover': {
+                borderColor: '#999',
+                backgroundColor: '#f5f5f5'
+              }
             }}
           >
             Annuler
@@ -946,36 +1842,401 @@ export default function Users() {
           <Button 
             onClick={handleSubmit} 
             variant="contained"
+            disabled={loading}
             sx={{
               backgroundColor: '#ffcc33',
               color: '#1a1a1a',
               fontWeight: 600,
               textTransform: 'none',
-              px: 3,
-              py: 1,
-              borderRadius: '8px',
+              px: 4,
+              py: 1.5,
+              borderRadius: '12px',
+              boxShadow: '0 4px 12px rgba(255, 204, 51, 0.3)',
               '&:hover': {
                 backgroundColor: '#ffb300',
-              }
+                boxShadow: '0 6px 16px rgba(255, 204, 51, 0.4)',
+                transform: 'translateY(-2px)'
+              },
+              transition: 'all 0.3s ease'
             }}
           >
-            {editUser ? 'Modifier' : 'Créer'}
+            {loading ? "Traitement..." : editReservation ? 'Modifier la réservation' : 'Créer la réservation'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Dialogue de confirmation de suppression */}
-      <ConfirmationDialog
-        open={confirmDialog.open}
-        onClose={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
-        onConfirm={confirmDialog.onConfirm}
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        loading={confirmDialog.loading}
-        type="delete"
-        confirmText="Supprimer définitivement"
-        cancelText="Annuler"
-      />
+      {/* Dialog Création d'un nouvel utilisateur */}
+      <Dialog open={newUserOpen} onClose={closeNewUser} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
+        <DialogTitle>Ajouter un utilisateur</DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ display: 'grid', gap: 2, mt: 1 }}>
+            {newUserError && (
+              <Alert severity="error" onClose={() => setNewUserError('')}>{newUserError}</Alert>
+            )}
+            <TextField label="Nom complet" value={newUserData.name} onChange={(e) => setNewUserData({ ...newUserData, name: e.target.value })} required fullWidth />
+            <TextField label="Email (optionnel)" type="email" value={newUserData.email} onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })} fullWidth />
+            <TextField label="Numéro" value={newUserData.numero} onChange={(e) => setNewUserData({ ...newUserData, numero: e.target.value })} helperText="Format: 7. ... .. .." required fullWidth />
+            <TextField label="Mot de passe" type="password" value={newUserData.password} onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })} required fullWidth />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeNewUser} disabled={newUserLoading}>Annuler</Button>
+          <Button onClick={handleCreateUser} variant="contained" disabled={newUserLoading}>{newUserLoading ? 'Création...' : 'Créer'}</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Détails Réservation */}
+      <Dialog
+        open={detailsOpen}
+        onClose={handleCloseDetails}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+            overflow: 'hidden',
+            minHeight: '60vh',
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: '90vh',
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            borderBottom: '3px solid #ffcc33',
+            color: '#1a1a1a',
+            fontWeight: 700,
+            fontSize: '24px',
+            textAlign: 'center',
+            py: 3,
+            backgroundColor: '#fff',
+            position: 'sticky',
+            top: 0,
+            zIndex: 1,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+            <EventSeat sx={{ fontSize: 28, color: '#ffcc33' }} />
+            Détails de la réservation
+          </Box>
+        </DialogTitle>
+
+        {/* ================= CONTENT ================= */}
+        <DialogContent 
+          sx={{ 
+            p: 0,
+            backgroundColor: '#f8f9fa',
+            flex: '1 1 auto',
+            overflowY: 'auto',
+            '&::-webkit-scrollbar': {
+              width: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: '#f1f1f1',
+              borderRadius: '4px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: '#d1d1d1',
+              borderRadius: '4px',
+              '&:hover': {
+                background: '#b3b3b3',
+              },
+            },
+          }}
+        >
+          {detailsReservation && (
+            <Box sx={{ p: { xs: 2, md: 4 }, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {/* Infos Client */}
+              <Paper 
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: '12px',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                  <Person sx={{ color: '#ffcc33', fontSize: 28 }} />
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 700,
+                      color: '#1a1a1a',
+                    }}
+                  >
+                    Informations du client
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'grid', gap: 2.5, pl: 2 }}>
+                  <InfoRow label="Nom complet">
+                    <Typography sx={{ fontWeight: 500 }}>
+                      {detailsReservation.user?.name || 'Non spécifié'}
+                    </Typography>
+                  </InfoRow>
+                  
+                  <InfoRow label="Téléphone">
+                      <Typography sx={{ fontWeight: 500 }}>
+                        {detailsReservation.user?.numero || 'Non spécifié'}
+                      </Typography>
+                  </InfoRow>
+                </Box>
+              </Paper>
+
+              {/* Détails de la réservation */}
+              <Paper 
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: '12px',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                  <EventSeat sx={{ color: '#ffcc33', fontSize: 28 }} />
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 700,
+                      color: '#1a1a1a',
+                    }}
+                  >
+                    Détails de la réservation
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'grid', gap: 2.5, pl: 2 }}>
+                  <InfoRow label="Référence">
+                    <Chip 
+                      label={`#${detailsReservation._id?.substring(0, 6).toUpperCase() || 'N/A'}`} 
+                      size="small"
+                      sx={{ 
+                        fontWeight: 600,
+                        backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                        color: '#555',
+                      }}
+                    />
+                  </InfoRow>
+
+                  {detailsReservation.ticket === 'place' ? (
+                    <InfoRow label="Nombre de places">
+                        <Typography sx={{ fontWeight: 600 }}>
+                          {detailsReservation.quantity || 1} place{detailsReservation.quantity > 1 ? 's' : ''}
+                        </Typography>
+                    </InfoRow>
+                  ) : (
+                    <InfoRow label="Description du colis">
+                      <Typography sx={{ 
+                        fontStyle: detailsReservation.description ? 'normal' : 'italic',
+                        color: detailsReservation.description ? 'inherit' : '#666',
+                      }}>
+                        {detailsReservation.description || 'Aucune description fournie'}
+                      </Typography>
+                    </InfoRow>
+                  )}
+
+                  <InfoRow label="Prix total">
+                      <Typography sx={{ 
+                        fontWeight: 700, 
+                        color: '#4caf50',
+                        fontSize: '1.1em'
+                      }}>
+                        {detailsReservation.voyage 
+                          ? `${(detailsReservation.voyage.price * (detailsReservation.quantity || 1)).toLocaleString('fr-FR')} FCFA` 
+                          : detailsReservation.bus 
+                            ? `${(detailsReservation.bus.price * (detailsReservation.quantity || 1)).toLocaleString('fr-FR')} FCFA`
+                            : 'Non défini'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#666', ml: 1 }}>
+                        {detailsReservation.voyage 
+                          ? `(${(detailsReservation.voyage.price || 0).toLocaleString('fr-FR')} FCFA × ${detailsReservation.quantity || 1})`
+                          : detailsReservation.bus
+                            ? `(${(detailsReservation.bus.price || 0).toLocaleString('fr-FR')} FCFA × ${detailsReservation.quantity || 1})`
+                            : ''}
+                      </Typography>
+                  </InfoRow>
+
+                  <InfoRow label="Date de réservation">
+                      <Typography>
+                        {new Date(detailsReservation.createdAt).toLocaleString('fr-FR', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </Typography>
+                  </InfoRow>
+                </Box>
+              </Paper>
+
+              {/* Informations du trajet */}
+              <Paper 
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: '12px',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                  <Route sx={{ color: '#ffcc33', fontSize: 28 }} />
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 700,
+                      color: '#1a1a1a',
+                    }}
+                  >
+                    Informations du trajet
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'grid', gap: 2.5, pl: 2 }}>
+                  <InfoRow label="Trajet">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'flex-end', width: '100%' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Box sx={{ 
+                          width: 8, 
+                          height: 8, 
+                          borderRadius: '50%', 
+                          backgroundColor: '#ff5722',
+                          flexShrink: 0
+                        }} />
+                        <Typography sx={{ fontWeight: 600 }}>
+                          {detailsReservation.voyage?.from || detailsReservation.bus?.from || 'Non spécifié'}
+                        </Typography>
+                        <ArrowForward sx={{ color: '#666', mx: 1 }} />
+                        <Box sx={{ 
+                          width: 8, 
+                          height: 8, 
+                          borderRadius: '50%', 
+                          backgroundColor: '#4caf50',
+                          flexShrink: 0
+                        }} />
+                        <Typography sx={{ fontWeight: 600 }}>
+                          {detailsReservation.voyage?.to || detailsReservation.bus?.to || 'Non spécifié'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </InfoRow>
+
+                  <InfoRow label="Date et heure de départ">
+                      <Typography>
+                        {detailsReservation.voyage?.date
+                          ? new Date(detailsReservation.voyage.date).toLocaleString('fr-FR', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : detailsReservation.bus?.departureDate
+                            ? new Date(detailsReservation.bus.departureDate).toLocaleString('fr-FR', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Non spécifiée'}
+                      </Typography>
+                  </InfoRow>
+
+                  {detailsReservation.voyage?.driver ? (
+                    <>
+                      <InfoRow label="Nom du chauffeur">
+                        <Typography sx={{ fontWeight: 500 }}>
+                          {detailsReservation.voyage.driver.name}
+                        </Typography>
+                      </InfoRow>
+                      <InfoRow label="Téléphone du chauffeur">
+                        {detailsReservation.voyage.driver.numero ? (
+                            <Typography variant="body2" >
+                              {detailsReservation.voyage.driver.numero}
+                            </Typography>
+                        ) : (
+                          <Typography variant="body2" color="textSecondary" fontStyle="italic">
+                            Non renseigné
+                          </Typography>
+                        )}
+                      </InfoRow>
+                    </>
+                  ) : detailsReservation.bus ? (
+                    <InfoRow label="Véhicule">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <DirectionsBus sx={{ color: '#666' }} />
+                        <Box>
+                          <Typography sx={{ fontWeight: 500 }}>
+                            {detailsReservation.bus.name} ({detailsReservation.bus.plateNumber})
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#666', mt: 0.5 }}>
+                            {detailsReservation.bus.model} - {detailsReservation.bus.seats} places
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </InfoRow>
+                  ) : null}
+
+                  {detailsReservation.voyage?.vehicle && (
+                    <InfoRow label="Véhicule">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <DirectionsBus sx={{ color: '#666' }} />
+                        <Box>
+                          <Typography sx={{ fontWeight: 500 }}>
+                            {detailsReservation.voyage.vehicle.model} ({detailsReservation.voyage.vehicle.plateNumber})
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#666', mt: 0.5 }}>
+                            {detailsReservation.voyage.vehicle.seats} places • {detailsReservation.voyage.vehicle.type}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </InfoRow>
+                  )}
+                </Box>
+              </Paper>
+            </Box>
+          )}
+        </DialogContent>
+
+        {/* ================= ACTIONS ================= */}
+        <DialogActions
+          sx={{
+            p: 3,
+            backgroundColor: '#f8f9fa',
+            borderTop: '1px solid #e0e0e0',
+            position: 'sticky',
+            bottom: 0,
+            zIndex: 1,
+          }}
+        >
+          <Button
+            onClick={handleCloseDetails}
+            variant="contained"
+            sx={{
+              backgroundColor: '#ffcc33',
+              color: '#1a1a1a',
+              fontWeight: 700,
+              textTransform: 'none',
+              px: 4,
+              py: 1.5,
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(255, 204, 51, 0.3)',
+              '&:hover': {
+                backgroundColor: '#ffb300',
+                boxShadow: '0 4px 12px rgba(255, 179, 0, 0.4)',
+              },
+            }}
+          >
+            Fermer
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

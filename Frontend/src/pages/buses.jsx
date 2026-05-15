@@ -774,9 +774,10 @@ function Buses() {
 
       {/* Table */}
       {filteredBuses.length > 0 ? (
-        <Paper sx={{ 
+        <Paper sx={{
           borderRadius: '12px',
-          overflow: 'hidden',
+          overflowX: 'auto',
+          overflowY: 'hidden',
           boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)'
         }}>
           <Table>
@@ -1011,7 +1012,7 @@ function Buses() {
           p: 0,
           backgroundColor: '#ffffff'
         }}>
-          <Box sx={{ p: 4 }}>
+          <Box sx={{ p: { xs: 2, md: 4 } }}>
             {/* Section Informations du bus */}
             <Box sx={{ mb: 4 }}>
               <Typography variant="h6" sx={{
@@ -1090,7 +1091,7 @@ function Buses() {
                 <LocationIcon sx={{ color: '#ffcc33' }} />
                 Détails du bus
               </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
                 <TextField
                   label="Numéro de plaque"
                   name="plateNumber"
@@ -1474,7 +1475,7 @@ function Buses() {
           </Box>
         </DialogTitle>
 
-        <DialogContent sx={{ p: 4 }}>
+        <DialogContent sx={{ p: { xs: 2, md: 4 } }}>
           {detailsDialog.bus && (
             <Box>
 
@@ -1559,7 +1560,7 @@ function Buses() {
                   <Box
                     sx={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
                       gap: 2
                     }}
                   >
@@ -1656,7 +1657,7 @@ function Buses() {
               <Typography color="text.secondary">Aucune réservation pour ce bus</Typography>
             </Box>
           ) : (
-            <Box>
+            <Box sx={{ overflowX: 'auto' }}>
               <Typography variant="body2" sx={{ mb: 2, color: '#666', fontWeight: 500 }}>
                 {reservationsDialog.reservations.length} réservation(s)
               </Typography>
