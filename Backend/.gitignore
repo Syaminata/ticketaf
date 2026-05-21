@@ -4,5 +4,3 @@ node_modules/
 /build
 /uploads
 OPENAPI_AUDIT.md
-
-firebase-service-account.json

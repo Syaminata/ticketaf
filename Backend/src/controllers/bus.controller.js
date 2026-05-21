@@ -142,6 +142,15 @@ const updateBus = async (req, res) => {
     // Récupérer les réservations confirmées
     const reservations = await Reservation.find({ bus: busId, status: 'confirmé' });
 
+    const dateChanged = updates.departureDate && new Date(updates.departureDate).getTime() !== new Date(bus.departureDate).getTime();
+    const priceChanged = updates.price !== undefined && Number(updates.price) !== Number(bus.price);
+    const fromChanged = updates.from && updates.from !== bus.from;
+    const toChanged = updates.to && updates.to !== bus.to;
+    const totalSeatsChanged = updates.capacity !== undefined && Number(updates.capacity) !== Number(bus.capacity);
+    const availSeatsChanged = updates.availableSeats !== undefined && Number(updates.availableSeats) !== Number(bus.availableSeats);
+    const wifiChanged = updates.wifi !== undefined && updates.wifi !== bus.wifi;
+    const climChanged = updates.climatisation !== undefined && updates.climatisation !== bus.climatisation;
+
     if (reservations.length > 0) {
       const uniqueUserMap = new Map();
       for (const r of reservations) {
@@ -150,21 +159,22 @@ const updateBus = async (req, res) => {
         if (!uniqueUserMap.has(uid)) uniqueUserMap.set(uid, r);
       }
 
-      const dateChanged = updates.departureDate && new Date(updates.departureDate).getTime() !== new Date(bus.departureDate).getTime();
-      const priceChanged = updates.price !== undefined && Number(updates.price) !== Number(bus.price);
-      const fromChanged = updates.from && updates.from !== bus.from;
-      const toChanged = updates.to && updates.to !== bus.to;
-      const seatsChanged = updates.availableSeats !== undefined && Number(updates.availableSeats) !== Number(bus.availableSeats);
-      const wifiChanged = updates.wifi !== undefined && updates.wifi !== bus.wifi;
-      const climChanged = updates.climatisation !== undefined && updates.climatisation !== bus.climatisation;
-
       const clientChanges = [];
       if (dateChanged) {
         const d = new Date(updates.departureDate);
-        clientChanges.push(`horaire : ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+        const dateStr = d.toLocaleDateString('fr-FR');
+        const timeStr = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        clientChanges.push(`nouvel horaire le ${dateStr} à ${timeStr}`);
       }
       if (fromChanged || toChanged) clientChanges.push(`trajet : ${updates.from || bus.from} → ${updates.to || bus.to}`);
-      if (seatsChanged) clientChanges.push(`places disponibles : ${updates.availableSeats}`);
+
+      if (totalSeatsChanged || availSeatsChanged) {
+        const total = updates.capacity !== undefined ? updates.capacity : bus.capacity;
+        const avail = updates.availableSeats !== undefined ? updates.availableSeats : bus.availableSeats;
+        const s = avail > 1 ? 's' : '';
+        clientChanges.push(`places : ${total} totales, ${avail} disponible${s}`);
+      }
+
       if (wifiChanged) clientChanges.push(`WiFi : ${updates.wifi ? 'disponible' : 'indisponible'}`);
       if (climChanged) clientChanges.push(`climatisation : ${updates.climatisation ? 'disponible' : 'indisponible'}`);
 
@@ -181,13 +191,13 @@ const updateBus = async (req, res) => {
         }
       }
 
-      // Autres changements (horaire, trajet, places, wifi, clim)
+      // Autres changements
       if (clientChanges.length > 0) {
         const userIds = [...uniqueUserMap.keys()];
         await sendAndSaveNotification(
           userIds,
           'Bus modifié',
-          `Votre trajet en bus ${bus.from} → ${bus.to} a été modifié : ${clientChanges.join(', ')}.`,
+          `Votre trajet en bus ${bus.name} (${bus.from} → ${bus.to}) a été modifié : ${clientChanges.join(', ')}.`,
           { type: 'info', busId: busId.toString(), screen: 'tickets' }
         );
       }
@@ -198,23 +208,35 @@ const updateBus = async (req, res) => {
     // Notifier le propriétaire (entreprise) de la confirmation de modification
     if (bus.owner) {
       const changesSummary = [];
-      if (updates.departureDate && new Date(updates.departureDate).getTime() !== new Date(bus.departureDate).getTime()) {
+      if (dateChanged) {
         const d = new Date(updates.departureDate);
-        changesSummary.push(`horaire : ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+        const dateStr = d.toLocaleDateString('fr-FR');
+        const timeStr = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        changesSummary.push(`horaire le ${dateStr} à ${timeStr}`);
       }
-      if (updates.price !== undefined && Number(updates.price) !== Number(bus.price)) changesSummary.push(`prix : ${updates.price} FCFA`);
-      if (updates.from && updates.from !== bus.from) changesSummary.push(`départ : ${updates.from}`);
-      if (updates.to && updates.to !== bus.to) changesSummary.push(`destination : ${updates.to}`);
-      if (updates.availableSeats !== undefined && Number(updates.availableSeats) !== Number(bus.availableSeats)) changesSummary.push(`places : ${updates.availableSeats}`);
-      if (updates.wifi !== undefined && updates.wifi !== bus.wifi) changesSummary.push(`WiFi : ${updates.wifi ? 'activé' : 'désactivé'}`);
-      if (updates.climatisation !== undefined && updates.climatisation !== bus.climatisation) changesSummary.push(`clim : ${updates.climatisation ? 'activée' : 'désactivée'}`);
-      const summary = changesSummary.length > 0 ? changesSummary.join(', ') : 'informations mises à jour';
+      if (priceChanged) changesSummary.push(`nouveau prix : ${updates.price} FCFA`);
+      if (fromChanged || toChanged) changesSummary.push(`nouveau trajet : ${updatedBus.from} → ${updatedBus.to}`);
+
+      if (totalSeatsChanged || availSeatsChanged) {
+        const total = updates.capacity !== undefined ? updates.capacity : bus.capacity;
+        const avail = updates.availableSeats !== undefined ? updates.availableSeats : bus.availableSeats;
+        const s = avail > 1 ? 's' : '';
+        changesSummary.push(`places : ${total} totales, ${avail} disponible${s}`);
+      }
+
+      if (wifiChanged) changesSummary.push(`WiFi : ${updates.wifi ? 'activé' : 'désactivé'}`);
+      if (climChanged) changesSummary.push(`climatisation : ${updates.climatisation ? 'activée' : 'désactivée'}`);
+
+      const finalOwnerMsg = changesSummary.length > 0
+        ? `Votre bus ${bus.from} → ${bus.to} a été mis à jour : ${changesSummary.join(', ')}.`
+        : `Votre bus ${bus.from} → ${bus.to} a été mis à jour avec succès.`;
+
       await sendAndSaveNotification(
         bus.owner,
         'Bus modifié ✓',
-        `${bus.from} → ${bus.to} : ${summary}.`,
+        finalOwnerMsg,
         { type: 'info', busId: busId.toString(), screen: 'buses' }
-      );
+      ).catch(err => console.error('Erreur notification entreprise:', err));
     }
 
     res.status(200).json({ message: 'Bus mis à jour', bus: updatedBus });

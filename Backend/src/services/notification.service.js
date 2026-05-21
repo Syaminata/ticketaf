@@ -125,8 +125,13 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
     uniqueRecipients.forEach(u => {
       if (!u.fcmTokens || u.fcmTokens.length === 0) return;
       const notificationId = notifIdByUser[u._id.toString()] || '';
+
+      // Version "propre" pour l'affichage système (sans les **)
+      const cleanTitle = title.replace(/\*\*/g, '');
+      const cleanBody = body.replace(/\*\*/g, '');
+
       const fcmData = stringifyDataValues({
-        title,
+        title, // On garde les ** dans la data pour que l'app puisse les traiter
         body,
         notificationId,
         type: uiType,
@@ -140,8 +145,18 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
           android: { priority: 'high' },
           apns: {
             payload: {
-              aps: { sound: 'default', badge: 1, contentAvailable: true, alert: { title, body } }
+              aps: {
+                sound: 'default',
+                badge: 1,
+                contentAvailable: true,
+                alert: { title: cleanTitle, body: cleanBody }
+              }
             }
+          },
+          // Alerte Android pour un affichage système propre
+          notification: {
+            title: cleanTitle,
+            body: cleanBody
           }
         };
         messages.push(msg);
@@ -248,15 +263,15 @@ async function sendDayJNotifications() {
     const Reservation = require('../models/reservation.model');
 
     const now = new Date();
-    // On définit une fenêtre de tir : les départs prévus dans les 2 prochaines heures
-    const inTwoHours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    // Définir la fin de la journée actuelle (23:59:59) pour couvrir tous les voyages du jour
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
 
     let processedCount = 0;
 
     // --- 1. TRAITEMENT DES VOYAGES (COVOITURAGE) ---
-    // On cherche les voyages prévus bientôt qui n'ont pas encore envoyé la notif
     const voyagesSoon = await Voyage.find({
-      date: { $gte: now, $lte: inTwoHours },
+      date: { $gte: now, $lte: endOfDay },
       notificationDayJSent: { $ne: true },
       status: { $in: ['OPEN', 'FULL', 'CREATED'] }
     }).populate('driver');
@@ -270,8 +285,8 @@ async function sendDayJNotifications() {
         if (reservation.user) {
           await sendAndSaveNotification(
             reservation.user._id,
-            'Rappel : Votre voyage est bientôt',
-            `Départ ${voyage.from} → ${voyage.to} prévu à ${departureTime}. Préparez-vous !`,
+            'Rappel de voyage : C\'est AUJOURD\'HUI !',
+            `Préparez-vous ! Votre voyage **${voyage.from}** → **${voyage.to}** est prévu aujourd'hui à **${departureTime}**. Bonne route !`,
             { type: 'TRIP_REMINDER', voyageId: voyage._id.toString(), screen: 'voyages' }
           );
         }
@@ -282,8 +297,8 @@ async function sendDayJNotifications() {
         const passengerCount = reservations.filter(r => r.user).length;
         await sendAndSaveNotification(
           voyage.driver._id,
-          'Rappel : Départ imminent',
-          `Votre voyage ${voyage.from} → ${voyage.to} est à ${departureTime}. Vous avez ${passengerCount} passager(s) confirmé(s).`,
+          'Rappel : Vos trajets du jour',
+          `Bonjour ! Votre trajet **${voyage.from}** → **${voyage.to}** est prévu aujourd'hui à **${departureTime}**. Vous avez **${passengerCount}** passager(s) confirmé(s).`,
           { type: 'TRIP_REMINDER', voyageId: voyage._id.toString(), screen: 'voyages' }
         );
       }
@@ -295,7 +310,7 @@ async function sendDayJNotifications() {
 
     // --- 2. TRAITEMENT DES BUS (ENTREPRISE) ---
     const busesSoon = await Bus.find({
-      departureDate: { $gte: now, $lte: inTwoHours },
+      departureDate: { $gte: now, $lte: endOfDay },
       isActive: true,
       notificationDayJSent: { $ne: true }
     }).populate('owner');
@@ -309,8 +324,8 @@ async function sendDayJNotifications() {
         if (reservation.user) {
           await sendAndSaveNotification(
             reservation.user._id,
-            'Rappel : Votre bus part bientôt',
-            `Le bus ${bus.name} (${bus.from} → ${bus.to}) part à ${departureTime}.`,
+            'Rappel de voyage : C\'est AUJOURD\'HUI !',
+            `Votre bus **${bus.name}** (**${bus.from}** → **${bus.to}**) part aujourd'hui à **${departureTime}**.`,
             { type: 'TRIP_REMINDER', busId: bus._id.toString(), screen: 'tickets' }
           );
         }
@@ -321,8 +336,8 @@ async function sendDayJNotifications() {
         const passengerCount = reservations.filter(r => r.user).length;
         await sendAndSaveNotification(
           bus.owner._id,
-          'Rappel : Départ de bus imminent',
-          `Le bus ${bus.name} (${bus.from} → ${bus.to}) part à ${departureTime} avec ${passengerCount} passager(s).`,
+          'Rappel : Départ de bus AUJOURD\'HUI',
+          `Le bus **${bus.name}** (**${bus.from}** → **${bus.to}**) part aujourd'hui à **${departureTime}** avec **${passengerCount}** passager(s).`,
           { type: 'TRIP_REMINDER', busId: bus._id.toString(), screen: 'buses' }
         );
       }

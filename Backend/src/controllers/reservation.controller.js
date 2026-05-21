@@ -81,7 +81,7 @@ const createReservation = async (req, res) => {
           await sendAndSaveNotification(
             voyage.driver._id,
             'Nouvelle réservation',
-            `${user.name} a réservé ${quantity} place(s) sur ${voyage.from} → ${voyage.to}`,
+            `**${user.name}** a réservé **${quantity}** place(s) sur **${voyage.from}** → **${voyage.to}**`,
             {
               type: 'alert',
               tripType: 'covoiturage',
@@ -95,7 +95,7 @@ const createReservation = async (req, res) => {
         await sendAndSaveNotification(
           user._id,
           'Réservation confirmée',
-          `Votre place pour ${voyage.from} → ${voyage.to} est confirmée`,
+          `Votre place pour **${voyage.from}** → **${voyage.to}** est confirmée`,
           {
             type: 'success',
             tripType: 'covoiturage',
@@ -118,7 +118,7 @@ const createReservation = async (req, res) => {
         await sendAndSaveNotification(
           user._id,
           'Réservation Bus confirmée',
-          `Votre place dans le bus ${bus.name} pour ${bus.from} → ${bus.to} est confirmée`,
+          `Votre place dans le bus **${bus.name}** pour **${bus.from}** → **${bus.to}** est confirmée`,
           {
             type: 'success',
             tripType: 'bus',
@@ -133,7 +133,7 @@ const createReservation = async (req, res) => {
           await sendAndSaveNotification(
             bus.owner,
             'Nouvelle réservation',
-            `${user.name} a réservé ${quantity} place(s) dans ${bus.name} (${bus.from} → ${bus.to})`,
+            `**${user.name}** a réservé **${quantity}** place(s) dans **${bus.name}** (**${bus.from}** → **${bus.to}**)`,
             { type: 'alert', tripType: 'bus', busId: bus._id.toString(), reservationId: reservation._id.toString() }
           );
         }
@@ -447,13 +447,13 @@ const cancelReservation = async (req, res) => {
 
     const from = reservation.voyage?.from || reservation.bus?.from || '';
     const to = reservation.voyage?.to || reservation.bus?.to || '';
-    const trajet = from && to ? `${from} → ${to}` : 'votre trajet';
+    const trajet = from && to ? `**${from}** → **${to}**` : 'votre trajet';
 
     // Notification utilisateur (in-app + push)
     await sendAndSaveNotification(
       req.user._id,
       'Réservation annulée ✓',
-      `Votre réservation ${trajet} a été annulée. ${reservation.quantity} place(s) libérée(s).`,
+      `Votre réservation ${trajet} a été annulée. **${reservation.quantity}** place(s) libérée(s).`,
       { type: 'info', reservationId: reservation._id.toString(), screen: 'tickets' }
     );
 
@@ -463,7 +463,7 @@ const cancelReservation = async (req, res) => {
       await sendAndSaveNotification(
         driver._id,
         'Annulation de réservation',
-        `${user?.name || 'Un passager'} a annulé ${reservation.quantity} place(s) sur ${trajet}.`,
+        `**${user?.name || 'Un passager'}** a annulé **${reservation.quantity}** place(s) sur ${trajet}.`,
         { type: 'alert', reservationId: reservation._id.toString(), voyageId: reservation.voyage._id.toString() }
       );
     }
@@ -474,7 +474,7 @@ const cancelReservation = async (req, res) => {
       await sendAndSaveNotification(
         ownerId,
         'Annulation de réservation',
-        `${user?.name || 'Un passager'} a annulé ${reservation.quantity} place(s) sur ${trajet}.`,
+        `**${user?.name || 'Un passager'}** a annulé **${reservation.quantity}** place(s) sur ${trajet}.`,
         { type: 'alert', reservationId: reservation._id.toString(), busId: reservation.bus._id.toString() }
       );
     }
@@ -502,6 +502,7 @@ const scanTicket = async (req, res) => {
     const to = reservation.voyage?.to || reservation.bus?.to || '';
     const trajet = from && to ? `${from} → ${to}` : 'votre trajet';
     const passengerName = reservation.user?.name || 'Passager';
+    const passengerDisplay = `**${passengerName}**`;
     const reservationId = reservation._id.toString();
 
     // 0. Vérification de propriété via requête DB directe (fiable même si le populate échoue)
@@ -525,7 +526,7 @@ const scanTicket = async (req, res) => {
       await sendAndSaveNotification(
         driverId,
         'Billet annulé ⚠️',
-        `Le billet de ${passengerName} (${trajet}) a été annulé.`,
+        `Le billet de ${passengerDisplay} (${trajet}) a été annulé.`,
         { type: 'alert', reservationId, screen: 'voyages' }
       );
       return res.status(400).json({ message: 'Billet annulé', reason: 'cancelled' });
@@ -561,7 +562,7 @@ const scanTicket = async (req, res) => {
     await sendAndSaveNotification(
       driverId,
       'Billet valide ✓',
-      `Billet de ${passengerName} — ${trajet} validé avec succès.`,
+      `Billet de ${passengerDisplay} — ${trajet} validé avec succès.`,
       { type: 'success', reservationId, screen: 'voyages' }
     );
 

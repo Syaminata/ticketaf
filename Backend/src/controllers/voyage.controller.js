@@ -271,18 +271,34 @@ const updateVoyage = async (req, res) => {
     const priceChanged = updates.price !== undefined && Number(updates.price) !== Number(voyage.price);
     const fromChanged = updates.from && updates.from !== voyage.from;
     const toChanged = updates.to && updates.to !== voyage.to;
-    const seatsChanged = updates.availableSeats !== undefined && Number(updates.availableSeats) !== Number(voyage.availableSeats);
+    const totalSeatsChanged = updates.totalSeats !== undefined && Number(updates.totalSeats) !== Number(voyage.totalSeats);
+    const availSeatsChanged = updates.availableSeats !== undefined && Number(updates.availableSeats) !== Number(voyage.availableSeats);
     const wifiChanged = updates.wifi !== undefined && updates.wifi !== voyage.wifi;
     const climChanged = updates.climatisation !== undefined && updates.climatisation !== voyage.climatisation;
 
-    // Notifications clients — une seule notification consolidée (sauf prix : message spécial lockedPrice)
-    const clientChanges = [];
+    // Notifications clients — une seule notification consolidée (sauf date et prix : messages spéciaux)
     if (dateChanged) {
-      const d = new Date(updates.date);
-      clientChanges.push(`horaire : ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+      const oldD = new Date(voyage.date);
+      const newD = new Date(updates.date);
+
+      const oldDateStr = oldD.toLocaleDateString('fr-FR');
+      const oldTimeStr = oldD.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const newDateStr = newD.toLocaleDateString('fr-FR');
+      const newTimeStr = newD.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+      const userIds = await getConfirmedUserIds();
+      if (userIds.length > 0) {
+        await sendAndSaveNotification(
+          userIds,
+          'Horaire de voyage modifié',
+          `Votre voyage ${voyage.from} → ${voyage.to} initialement prévu le ${oldDateStr} à ${oldTimeStr} a été modifié. Il aura désormais lieu le ${newDateStr} à ${newTimeStr}. Veuillez nous excuser pour ce changement.`,
+          { type: 'TRIP_MODIFIED', voyageId: voyageId.toString() }
+        );
+      }
     }
+
+    const clientChanges = [];
     if (fromChanged || toChanged) clientChanges.push(`trajet : ${updates.from || voyage.from} → ${updates.to || voyage.to}`);
-    if (seatsChanged) clientChanges.push(`places disponibles : ${updates.availableSeats}`);
     if (wifiChanged) clientChanges.push(`WiFi : ${updates.wifi ? 'disponible' : 'indisponible'}`);
     if (climChanged) clientChanges.push(`climatisation : ${updates.climatisation ? 'disponible' : 'indisponible'}`);
 
@@ -315,22 +331,27 @@ const updateVoyage = async (req, res) => {
       .populate('driver', '-password');
 
     // Notifier le chauffeur de la confirmation de modification
-    const changesSummary = [];
+    const driverChanges = [];
     if (dateChanged) {
-      const d = new Date(updates.date);
-      changesSummary.push(`horaire : ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+      const newD = new Date(updates.date);
+      const dateStr = newD.toLocaleDateString('fr-FR');
+      const timeStr = newD.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      driverChanges.push(`nouvelle date le ${dateStr} à ${timeStr}`);
     }
-    if (priceChanged) changesSummary.push(`prix : ${updates.price} FCFA`);
-    if (fromChanged || toChanged) changesSummary.push(`trajet : ${updates.from || voyage.from} → ${updates.to || voyage.to}`);
-    if (seatsChanged) changesSummary.push(`places : ${updates.availableSeats}`);
-    if (changesSummary.length > 0) {
-      await sendAndSaveNotification(
-        voyage.driver,
-        'Voyage modifié ✓',
-        `${voyage.from} → ${voyage.to} : ${changesSummary.join(', ')}.`,
-        { type: 'info', voyageId: voyageId.toString(), screen: 'voyages' }
-      );
-    }
+    if (priceChanged) driverChanges.push(`nouveau prix : ${updates.price} FCFA`);
+    if (fromChanged || toChanged) driverChanges.push(`nouveau trajet : ${updatedVoyage.from} → ${updatedVoyage.to}`);
+    if (totalSeatsChanged || availSeatsChanged) driverChanges.push(`places mises à jour`);
+
+    const finalMsg = driverChanges.length > 0
+      ? `Votre voyage ${voyage.from} → ${voyage.to} a été mis à jour : ${driverChanges.join(', ')}.`
+      : `Votre voyage ${voyage.from} → ${voyage.to} a été mis à jour avec succès.`;
+
+    await sendAndSaveNotification(
+      voyage.driver,
+      'Modification confirmée ✓',
+      finalMsg,
+      { type: 'info', voyageId: voyageId.toString(), screen: 'voyages' }
+    ).catch(err => console.error('Erreur notification chauffeur:', err));
 
     res.status(200).json({ message: 'Trajet mis à jour', voyage: updatedVoyage });
   } catch (err) {
@@ -461,7 +482,7 @@ const updateMyVoyage = async (req, res) => {
     const updateData = Object.fromEntries(
       Object.entries(req.body).filter(([key]) => allowedFields.includes(key))
     );
-    
+
     if (updateData.climatisation !== undefined) {
       updateData.climatisation = updateData.climatisation === true || updateData.climatisation === 'true';
     }
@@ -474,17 +495,65 @@ const updateMyVoyage = async (req, res) => {
 
     const voyage = await Voyage.findByIdAndUpdate(req.params.id, updateData, { new: true });
 
-    // Notifier les passagers confirmés des changements
+    // Notifier les passagers confirmés des changements (uniquement les champs réellement changés)
     const reservations = await Reservation.find({ voyage: voyage._id, status: 'confirmé' });
     const priceChanged = updateData.price !== undefined && Number(updateData.price) !== Number(oldVoyage.price);
+    const dateChanged = updateData.date && new Date(updateData.date).getTime() !== new Date(oldVoyage.date).getTime();
+    const fromChanged = updateData.from && updateData.from !== oldVoyage.from;
+    const toChanged = updateData.to && updateData.to !== oldVoyage.to;
+    const totalSeatsChanged = updateData.totalSeats !== undefined && Number(updateData.totalSeats) !== Number(oldVoyage.totalSeats);
+    const availSeatsChanged = updateData.availableSeats !== undefined && Number(updateData.availableSeats) !== Number(oldVoyage.availableSeats);
+    const wifiChanged = updateData.wifi !== undefined && updateData.wifi !== oldVoyage.wifi;
+    const climChanged = updateData.climatisation !== undefined && updateData.climatisation !== oldVoyage.climatisation;
 
     if (reservations.length > 0) {
-      const changes = [];
-      if (updateData.date && new Date(updateData.date).getTime() !== new Date(oldVoyage.date).getTime()) {
-        changes.push(`date: ${new Date(updateData.date).toLocaleDateString('fr-FR')}`);
+      const passengerChanges = [];
+
+      // Notification spécifique pour le changement de DATE/HEURE
+      if (dateChanged) {
+        const oldD = new Date(oldVoyage.date);
+        const newD = new Date(updateData.date);
+
+        const oldDateStr = oldD.toLocaleDateString('fr-FR');
+        const oldTimeStr = oldD.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        const newDateStr = newD.toLocaleDateString('fr-FR');
+        const newTimeStr = newD.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+        const userIds = reservations.map(r => r.user).filter(Boolean);
+        if (userIds.length > 0) {
+          await sendAndSaveNotification(
+            userIds,
+            'Horaire de voyage modifié',
+            `Votre voyage ${oldVoyage.from} → ${oldVoyage.to} initialement prévu le ${oldDateStr} à ${oldTimeStr} a été modifié. Il aura désormais lieu le ${newDateStr} à ${newTimeStr}.`,
+            { type: 'TRIP_MODIFIED', voyageId: voyage._id.toString(), screen: 'voyages' }
+          );
+        }
       }
-      if (updateData.from && updateData.from !== oldVoyage.from) changes.push(`départ: ${updateData.from}`);
-      if (updateData.to && updateData.to !== oldVoyage.to) changes.push(`destination: ${updateData.to}`);
+
+      if (fromChanged) passengerChanges.push(`départ : ${updateData.from}`);
+      if (toChanged) passengerChanges.push(`destination : ${updateData.to}`);
+
+      if (totalSeatsChanged || availSeatsChanged) {
+        const total = updateData.totalSeats !== undefined ? updateData.totalSeats : voyage.totalSeats;
+        const avail = updateData.availableSeats !== undefined ? updateData.availableSeats : voyage.availableSeats;
+        const s = avail > 1 ? 's' : '';
+        passengerChanges.push(`places : ${total} totales, ${avail} disponible${s}`);
+      }
+
+      if (wifiChanged) passengerChanges.push(`WiFi : ${updateData.wifi ? 'disponible' : 'indisponible'}`);
+      if (climChanged) passengerChanges.push(`climatisation : ${updateData.climatisation ? 'disponible' : 'indisponible'}`);
+
+      if (passengerChanges.length > 0) {
+        const userIds = reservations.map(r => r.user).filter(Boolean);
+        if (userIds.length > 0) {
+          await sendAndSaveNotification(
+            userIds,
+            'Voyage modifié',
+            `Votre voyage ${oldVoyage.from} → ${oldVoyage.to} a été modifié : ${passengerChanges.join(', ')}.`,
+            { type: 'TRIP_MODIFIED', voyageId: voyage._id.toString(), screen: 'voyages' }
+          );
+        }
+      }
 
       // Prix changé → chaque client est notifié avec son prix verrouillé personnel
       if (priceChanged) {
@@ -494,35 +563,44 @@ const updateMyVoyage = async (req, res) => {
           await sendAndSaveNotification(
             reservation.user,
             'Prix du voyage modifié',
-            `Le nouveau prix du trajet ${oldVoyage.from} → ${oldVoyage.to} est ${updateData.price} FCFA. Votre réservation garde le prix que vous avez payé : ${locked} FCFA.`,
+            `Le nouveau prix du trajet ${oldVoyage.from} → ${oldVoyage.to} est ${updateData.price} FCFA. Votre réservation garde le prix initial de ${locked} FCFA.`,
             { type: 'info', voyageId: voyage._id.toString(), screen: 'voyages' }
           );
         }
       }
-
-      // Autres changements (date, trajet, places, équipements) → notification groupée
-      if (updateData.totalSeats !== undefined && Number(updateData.totalSeats) !== Number(oldVoyage.totalSeats)) {
-        changes.push(`nombre de places : ${updateData.totalSeats}`);
-      }
-      if (updateData.wifi !== undefined && updateData.wifi !== oldVoyage.wifi) {
-        changes.push(`WiFi : ${updateData.wifi ? 'disponible' : 'indisponible'}`);
-      }
-      if (updateData.climatisation !== undefined && updateData.climatisation !== oldVoyage.climatisation) {
-        changes.push(`climatisation : ${updateData.climatisation ? 'disponible' : 'indisponible'}`);
-      }
-
-      if (changes.length > 0) {
-        const userIds = reservations.map(r => r.user).filter(Boolean);
-        if (userIds.length > 0) {
-          await sendAndSaveNotification(
-            userIds,
-            'Voyage modifié',
-            `Votre voyage ${oldVoyage.from} → ${oldVoyage.to} a été modifié : ${changes.join(', ')}.`,
-            { type: 'TRIP_MODIFIED', voyageId: voyage._id.toString(), screen: 'voyages' }
-          );
-        }
-      }
     }
+
+    // Notifier le chauffeur lui-même de sa modification
+    const driverSummary = [];
+    if (dateChanged) {
+      const newD = new Date(updateData.date);
+      const dateStr = newD.toLocaleDateString('fr-FR');
+      const timeStr = newD.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      driverSummary.push(`date le ${dateStr} à ${timeStr}`);
+    }
+    if (priceChanged) driverSummary.push(`nouveau prix : ${updateData.price} FCFA`);
+    if (fromChanged || toChanged) driverSummary.push(`trajet : ${voyage.from} → ${voyage.to}`);
+
+    if (totalSeatsChanged || availSeatsChanged) {
+      const total = updateData.totalSeats !== undefined ? updateData.totalSeats : voyage.totalSeats;
+      const avail = updateData.availableSeats !== undefined ? updateData.availableSeats : voyage.availableSeats;
+      const s = avail > 1 ? 's' : '';
+      driverSummary.push(`places : ${total} totales, ${avail} disponible${s}`);
+    }
+
+    if (wifiChanged) driverSummary.push(`WiFi : ${updateData.wifi ? 'activé' : 'désactivé'}`);
+    if (climChanged) driverSummary.push(`climatisation : ${updateData.climatisation ? 'activée' : 'désactivée'}`);
+
+    const finalDriverMsg = driverSummary.length > 0
+      ? `Votre trajet ${oldVoyage.from} → ${oldVoyage.to} a été mis à jour : ${driverSummary.join(', ')}.`
+      : `Votre trajet ${oldVoyage.from} → ${oldVoyage.to} a été mis à jour avec succès.`;
+
+    await sendAndSaveNotification(
+      req.user._id,
+      'Modification enregistrée ✓',
+      finalDriverMsg,
+      { type: 'info', voyageId: voyage._id.toString(), screen: 'voyages' }
+    ).catch(err => console.error('Erreur notification chauffeur (me):', err));
 
     res.status(200).json({ message: 'Succès', voyage });
   } catch (err) {
