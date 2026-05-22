@@ -3,7 +3,8 @@ const User = require('../models/user.model');
 const Driver = require('../models/driver.model');
 
 
-const JWT_SECRET = process.env.JWT_SECRET || 'ticketaf_secret_key_2024_local_dev';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET manquant !');
 
 const auth = async (req, res, next) => {
   try {

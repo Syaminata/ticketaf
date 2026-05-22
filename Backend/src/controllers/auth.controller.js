@@ -112,7 +112,7 @@ const login = async (req, res) => {
 
     const token = jwt.sign(
       { id: user._id, role: user.role, name: user.name },
-      process.env.JWT_SECRET || 'ticketaf_secret_key_2024_local_dev',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 

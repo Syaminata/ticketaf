@@ -48,7 +48,7 @@ const loginDriver = async (req, res) => {
         role: 'conducteur',
         name: user.name
       },
-      process.env.JWT_SECRET || 'ticketaf_secret_key_2024_local_dev',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
