@@ -178,8 +178,10 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
       for (let i = 0; i < messages.length; i += BATCH) {
         const chunk = messages.slice(i, i + BATCH);
         const response = await admin.messaging().sendEach(chunk);
+        console.log(`📨 FCM: ${response.successCount} succès, ${response.failureCount} échecs sur ${chunk.length}`);
         response.responses.forEach((r, j) => {
           if (!r.success) {
+            console.log(`❌ FCM Error [${chunk[j].token.slice(0,20)}...]:`, r.error?.code, r.error?.message);
             const code = r.error?.code;
             if (
               code === 'messaging/registration-token-not-registered' ||
