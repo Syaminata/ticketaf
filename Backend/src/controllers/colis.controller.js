@@ -58,17 +58,20 @@ const createColis = async (req, res) => {
 
     const colis = await Colis.create(colisData);
 
-    // Notification push + in-app pour l'expéditeur
-    await sendAndSaveNotification(
-      req.user._id,
-      'Colis enregistré',
-      `Votre colis de ${villeDepart} vers ${destination} est en attente de validation`,
-      {
-        type: 'info',
-        tripType: 'colis',
-        colisId: colis._id.toString(),
-      }
-    );
+    // Notification push désactivée ici pour éviter doublon avec reservation.controller
+    // Sauf si création directe sans réservation (rare)
+    if (!voyageId) {
+      await sendAndSaveNotification(
+        req.user._id,
+        'Colis enregistré',
+        `Votre colis de ${villeDepart} vers ${destination} est en attente de validation`,
+        {
+          type: 'info',
+          tripType: 'colis',
+          colisId: colis._id.toString(),
+        }
+      );
+    }
 
     res.status(201).json({ message: 'Colis créé', colis });
   } catch (error) {

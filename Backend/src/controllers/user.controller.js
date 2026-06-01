@@ -407,6 +407,8 @@ const updateProfile = async (req, res) => {
     // Détecter ce qui a changé avant la mise à jour
     const nameChanged = name && name !== user.name;
     const numeroChanged = numero && numero !== user.numero;
+    const emailChanged = email && email !== user.email;
+    const addressChanged = address && address !== user.address;
 
     // Mettre à jour l'utilisateur
     const updatedUser = await Model.findByIdAndUpdate(
@@ -416,29 +418,19 @@ const updateProfile = async (req, res) => {
     ).select('-password');
 
     // Envoyer les notifications selon ce qui a changé (non bloquant)
-    if (nameChanged || numeroChanged) {
-      const notifications = [];
-      if (nameChanged) {
-        notifications.push(
-          sendAndSaveNotification(
-            userId,
-            'Nom mis à jour',
-            `Votre nom a été modifié en "${name}" avec succès.`,
-            { type: 'info', screen: 'profile' }
-          )
-        );
-      }
-      if (numeroChanged) {
-        notifications.push(
-          sendAndSaveNotification(
-            userId,
-            'Numéro modifié',
-            `Votre numéro de téléphone a été modifié en "${numero}" avec succès.`,
-            { type: 'info', screen: 'profile' }
-          )
-        );
-      }
-      Promise.all(notifications).catch(e => console.warn('⚠️ Notif updateProfile:', e.message));
+    if (nameChanged || numeroChanged || emailChanged || addressChanged) {
+      const changes = [];
+      if (nameChanged) changes.push('nom');
+      if (numeroChanged) changes.push('numéro');
+      if (emailChanged) changes.push('email');
+      if (addressChanged) changes.push('adresse');
+
+      await sendAndSaveNotification(
+        userId,
+        'Profil mis à jour ✓',
+        `Vos informations (${changes.join(', ')}) ont été modifiées avec succès.`,
+        { type: 'info', screen: 'profile' }
+      ).catch(e => console.warn('⚠️ Notif updateProfile:', e.message));
     }
 
     res.status(200).json({

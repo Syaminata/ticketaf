@@ -148,15 +148,18 @@ const createReservation = async (req, res) => {
       }
       colisDoc = await Colis.create({
         reservation: reservation._id,
+        expediteur: user._id, // Assurer le lien expéditeur
         description,
         status: 'en attente'
       });
 
+      // Une seule notification via colis.controller ou ici
+      // On la laisse ici pour confirmation immédiate
       await sendAndSaveNotification(
         user._id,
         'Colis enregistré',
         'Votre demande d\'envoi de colis est en attente de validation',
-        { type: 'info' }
+        { type: 'info', tripType: 'colis', reservationId: reservation._id.toString() }
       );
     }
 
@@ -181,25 +184,54 @@ const createReservation = async (req, res) => {
 
 const getAllReservations = async (req, res) => {
   try {
-    console.log('🔍 Backend getAllReservations appelé - req.query:', req.query);
+    console.log('🔍 Backend getAllReservations - req.query:', req.query);
     
     const page   = Math.max(1, parseInt(req.query.page) || 1);
     const limit  = Math.min(50, parseInt(req.query.limit) || 10);
     const skip   = (page - 1) * limit;
+    const { status, search, ticket } = req.query;
 
-    // Récupérer les réservations avec populate de base
-    const reservations = await Reservation.find({})
-      .populate('user', '-password')
-      .populate('voyage')
+    let query = {};
+
+    // Filtre par statut (en attente, payé, confirmé, annulé)
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    // Filtre par type de ticket (place, colis)
+    if (ticket && ticket !== 'all') {
+      query.ticket = ticket;
+    }
+
+    // Recherche par nom d'utilisateur ou numéro (nécessite populate ou recherche d'IDs d'abord)
+    if (search && search.trim() !== '') {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      const matchedUsers = await User.find({
+        $or: [
+          { name: searchRegex },
+          { numero: searchRegex }
+        ]
+      }).select('_id');
+
+      const userIds = matchedUsers.map(u => u._id);
+      query.user = { $in: userIds };
+    }
+
+    // Récupérer les réservations filtrées
+    const reservations = await Reservation.find(query)
+      .populate('user', 'name numero email')
+      .populate({
+        path: 'voyage',
+        populate: { path: 'driver', select: 'name numero' }
+      })
       .populate('bus')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    // Compter le total
-    const total = await Reservation.countDocuments({});
+    const total = await Reservation.countDocuments(query);
 
-    console.log('📈 Résultats Reservations - reservations.length:', reservations.length, 'total:', total);
+    console.log(`📈 Résultats Reservations - trouvés: ${reservations.length}, total: ${total}`);
 
     res.status(200).json({
       reservations: reservations,
@@ -211,13 +243,8 @@ const getAllReservations = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Erreur lors de la récupération des réservations:', error);
-    console.error('Stack trace:', error.stack);
-    res.status(500).json({ 
-      message: 'Erreur serveur interne', 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    console.error('Erreur getAllReservations:', error);
+    res.status(500).json({ message: 'Erreur serveur interne' });
   }
 };
 

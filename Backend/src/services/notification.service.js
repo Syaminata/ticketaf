@@ -178,10 +178,8 @@ async function sendAndSaveNotification(userIds, title, body, data = {}, options 
       for (let i = 0; i < messages.length; i += BATCH) {
         const chunk = messages.slice(i, i + BATCH);
         const response = await admin.messaging().sendEach(chunk);
-        console.log(`📨 FCM: ${response.successCount} succès, ${response.failureCount} échecs sur ${chunk.length}`);
         response.responses.forEach((r, j) => {
           if (!r.success) {
-            console.log(`❌ FCM Error [${chunk[j].token.slice(0,20)}...]:`, r.error?.code, r.error?.message);
             const code = r.error?.code;
             if (
               code === 'messaging/registration-token-not-registered' ||
@@ -282,25 +280,26 @@ async function sendDayJNotifications() {
       const reservations = await Reservation.find({ voyage: voyage._id, status: 'confirmé', ticket: 'place' }).populate('user');
       const departureTime = new Date(voyage.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-      // Notifier chaque client confirmé
-      for (const reservation of reservations) {
-        if (reservation.user) {
-          await sendAndSaveNotification(
-            reservation.user._id,
-            'Rappel de voyage : C\'est AUJOURD\'HUI !',
-            `Préparez-vous ! Votre voyage **${voyage.from}** → **${voyage.to}** est prévu aujourd'hui à **${departureTime}**. Bonne route !`,
-            { type: 'TRIP_REMINDER', voyageId: voyage._id.toString(), screen: 'voyages' }
-          );
-        }
+      // Récupérer tous les IDs des passagers confirmés (uniques)
+      const passengerIds = [...new Set(reservations.map(r => r.user?._id?.toString()).filter(Boolean))];
+
+      // Notifier chaque passager (une seule fois par personne)
+      for (const pId of passengerIds) {
+        await sendAndSaveNotification(
+          pId,
+          'Rappel de voyage : C\'est AUJOURD\'HUI !',
+          `Préparez-vous ! Votre voyage ${voyage.from} → ${voyage.to} est prévu aujourd'hui à ${departureTime}. Bonne route !`,
+          { type: 'TRIP_REMINDER', voyageId: voyage._id.toString(), screen: 'voyages' }
+        );
       }
 
-      // Notifier le chauffeur
-      if (voyage.driver) {
+      // Notifier le chauffeur (seulement s'il n'est pas déjà dans les passagers notifiés)
+      if (voyage.driver && !passengerIds.includes(voyage.driver._id.toString())) {
         const passengerCount = reservations.filter(r => r.user).length;
         await sendAndSaveNotification(
           voyage.driver._id,
           'Rappel : Vos trajets du jour',
-          `Bonjour ! Votre trajet **${voyage.from}** → **${voyage.to}** est prévu aujourd'hui à **${departureTime}**. Vous avez **${passengerCount}** passager(s) confirmé(s).`,
+          `Bonjour ! Votre trajet ${voyage.from} → ${voyage.to} est prévu aujourd'hui à ${departureTime}. Vous avez ${passengerCount} passager(s) confirmé(s).`,
           { type: 'TRIP_REMINDER', voyageId: voyage._id.toString(), screen: 'voyages' }
         );
       }
@@ -321,25 +320,25 @@ async function sendDayJNotifications() {
       const reservations = await Reservation.find({ bus: bus._id, status: 'confirmé', ticket: 'place' }).populate('user');
       const departureTime = new Date(bus.departureDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-      // Notifier chaque client confirmé
-      for (const reservation of reservations) {
-        if (reservation.user) {
-          await sendAndSaveNotification(
-            reservation.user._id,
-            'Rappel de voyage : C\'est AUJOURD\'HUI !',
-            `Votre bus **${bus.name}** (**${bus.from}** → **${bus.to}**) part aujourd'hui à **${departureTime}**.`,
-            { type: 'TRIP_REMINDER', busId: bus._id.toString(), screen: 'tickets' }
-          );
-        }
+      // Récupérer tous les IDs des passagers confirmés (uniques)
+      const passengerIds = [...new Set(reservations.map(r => r.user?._id?.toString()).filter(Boolean))];
+
+      for (const pId of passengerIds) {
+        await sendAndSaveNotification(
+          pId,
+          'Rappel de voyage : C\'est AUJOURD\'HUI !',
+          `Votre bus ${bus.name} (${bus.from} → ${bus.to}) part aujourd'hui à ${departureTime}.`,
+          { type: 'TRIP_REMINDER', busId: bus._id.toString(), screen: 'tickets' }
+        );
       }
 
-      // Notifier l'entreprise/propriétaire
-      if (bus.owner) {
+      // Notifier l'entreprise (si pas déjà notifiée en passager)
+      if (bus.owner && !passengerIds.includes(bus.owner._id.toString())) {
         const passengerCount = reservations.filter(r => r.user).length;
         await sendAndSaveNotification(
           bus.owner._id,
           'Rappel : Départ de bus AUJOURD\'HUI',
-          `Le bus **${bus.name}** (**${bus.from}** → **${bus.to}**) part aujourd'hui à **${departureTime}** avec **${passengerCount}** passager(s).`,
+          `Le bus ${bus.name} (${bus.from} → ${bus.to}) part aujourd'hui à ${departureTime} avec ${passengerCount} passager(s).`,
           { type: 'TRIP_REMINDER', busId: bus._id.toString(), screen: 'buses' }
         );
       }
