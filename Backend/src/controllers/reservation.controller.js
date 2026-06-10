@@ -198,18 +198,17 @@ const getAllReservations = async (req, res) => {
       showPast
     } = req.query;
 
+    const hasVoyageRouteFilter = !!(routeFrom && routeTo);
+    const hasBusRouteFilter = !!(busRouteFrom && busRouteTo);
+
     let query = {};
     if (!status || status === 'all') {
       query.status = { $ne: 'annulé' };
     }
 
-    // ── Statut ───────────────────────────────────────────────────────────────
     if (status && status !== 'all') query.status = status;
-
-    // ── Type de ticket ───────────────────────────────────────────────────────
     if (ticket && ticket !== 'all') query.ticket = ticket;
 
-    // ── Recherche par nom / numéro utilisateur ───────────────────────────────
     if (search && search.trim() !== '') {
       const searchRegex = new RegExp(search.trim(), 'i');
       const matchedUsers = await User.find({
@@ -218,57 +217,68 @@ const getAllReservations = async (req, res) => {
       query.user = { $in: matchedUsers.map(u => u._id) };
     }
 
-    // ── Filtre temporel : futur (réservations) ou passé (historique) ─────────
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // minuit aujourd'hui
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Les dates manuelles (startDate/endDate) priment sur showPast
     const temporalFilter = startDate || endDate
       ? {
         ...(startDate ? { $gte: new Date(startDate) } : {}),
         ...(endDate ? { $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) } : {})
       }
       : showPast === 'true'
-        ? { $lt: todayStart }    // historique → date passée
-        : { $gte: todayStart };  // réservations → date future ou aujourd'hui
+        ? { $lt: todayStart }
+        : { $gte: todayStart };
 
-    // ── Voyages correspondants (itinéraire + filtre temporel) ────────────────
+    // ── Filtre voyage ─────────────────────────────────────────────────────────
     const voyageFilter = {
       date: temporalFilter,
-      ...(routeFrom && routeTo ? {
+      ...(hasVoyageRouteFilter ? {
         from: new RegExp(`^${routeFrom}$`, 'i'),
         to: new RegExp(`^${routeTo}$`, 'i')
       } : {})
     };
 
-    // ── Bus correspondants (itinéraire + filtre temporel) ────────────────────
-    const busFilter = {
-      departureDate: temporalFilter,
-      ...(busRouteFrom && busRouteTo ? {
+    // ── Filtre bus ────────────────────────────────────────────────────────────
+    const busFilter = hasBusRouteFilter
+      ? {
+        departureDate: temporalFilter,
         from: new RegExp(`^${busRouteFrom}$`, 'i'),
         to: new RegExp(`^${busRouteTo}$`, 'i')
-      } : {})
-    };
+      }
+      : hasVoyageRouteFilter
+        ? null  // filtre covoiturage actif → exclure tous les bus
+        : { departureDate: temporalFilter };
 
+    // ── Requêtes parallèles ───────────────────────────────────────────────────
     const [matchedVoyages, matchedBuses] = await Promise.all([
-      Voyage.find(voyageFilter).select('_id'),
-      Bus.find(busFilter).select('_id')
+      hasBusRouteFilter
+        ? Promise.resolve([])  // filtre bus actif → exclure tous les voyages
+        : Voyage.find(voyageFilter).select('_id'),
+      busFilter
+        ? Bus.find(busFilter).select('_id')
+        : Promise.resolve([])
     ]);
 
     const voyageIds = matchedVoyages.map(v => v._id);
     const busIds = matchedBuses.map(b => b._id);
 
-    // ── Condition $or voyage/bus dans la query principale ────────────────────
-    const orConditions = [
-      { voyage: { $in: voyageIds } },
-      { bus: { $in: busIds } }
-    ];
+    // ── Si filtre actif mais aucun résultat → retourner vide immédiatement ────
+    if ((hasVoyageRouteFilter || hasBusRouteFilter) && voyageIds.length === 0 && busIds.length === 0) {
+      return res.status(200).json({
+        reservations: [],
+        pagination: { current: page, pageSize: limit, total: 0, totalPages: 0 }
+      });
+    }
+
+    // ── Construire le $or uniquement avec ce qui est pertinent ────────────────
+    const orConditions = [];
+    if (!hasBusRouteFilter) orConditions.push({ voyage: { $in: voyageIds } });
+    if (!hasVoyageRouteFilter) orConditions.push({ bus: { $in: busIds } });
 
     if (query.user) {
-      // search est actif → combiner avec $and pour ne pas écraser
       query = {
         $and: [{ user: query.user }, { $or: orConditions }],
-        ...(query.status && typeof query.status === 'string' ? { status: query.status } : query.status ? { status: query.status } : {}),
+        ...(query.status ? { status: query.status } : {}),
         ...(query.ticket ? { ticket: query.ticket } : {})
       };
     } else {
@@ -277,7 +287,6 @@ const getAllReservations = async (req, res) => {
 
     console.log('📋 Query finale:', JSON.stringify(query, null, 2));
 
-    // ── Exécution ────────────────────────────────────────────────────────────
     const [reservations, total] = await Promise.all([
       Reservation.find(query)
         .populate('user', 'name numero email')

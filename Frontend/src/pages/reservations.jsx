@@ -79,7 +79,6 @@ export default function Reservations() {
   const [totalReservations, setTotalReservations] = useState(0);
   const [statusFilter, setStatusFilter] = useState('all');
   const [routeFilter, setRouteFilter] = useState('');
-  const [routeBusFilter, setRouteBusFilter] = useState('');
   const [dateRange, setDateRange] = useState({
     startDate: null,
     endDate: null
@@ -127,20 +126,16 @@ export default function Reservations() {
   const fetchReservations = async (currentPage = page, currentLimit = rowsPerPage, search = searchTerm) => {
     setLoading(true);
     try {
-      console.log('🔍 Filtres frontend - statusFilter:', statusFilter, 'routeFilter:', routeFilter, 'routeBusFilter:', routeBusFilter, 'dateRange:', dateRange);
-      const [routeFrom, routeTo] = routeFilter ? routeFilter.split('|') : [null, null];
-      const [busRouteFrom, busRouteTo] = routeBusFilter ? routeBusFilter.split('|') : [null, null];
-      // Si un filtre itinéraire covoiturage est actif, ignorer le filtre bus, et vice versa
-      const hasRouteFilter = routeFrom && routeTo;
-      const hasBusRouteFilter = !hasRouteFilter && busRouteFrom && busRouteTo;
+      console.log('🔍 Filtres frontend - statusFilter:', statusFilter, 'routeFilter:', routeFilter, 'dateRange:', dateRange);
+      const [type, from, to] = routeFilter ? routeFilter.split('|') : [];
       const params = new URLSearchParams({
         page: currentPage + 1,
         limit: currentLimit,
         showPast: 'false',
         ...(search && { search }),
         ...(statusFilter && statusFilter !== 'all' && { status: statusFilter }),
-        ...(hasRouteFilter && routeFrom && routeTo && { routeFrom, routeTo }),
-        ...(hasBusRouteFilter && busRouteFrom && busRouteTo && { busRouteFrom, busRouteTo }),
+        ...(type === 'voyage' && from && to && { routeFrom: from, routeTo: to }),
+        ...(type === 'bus' && from && to && { busRouteFrom: from, busRouteTo: to }),
         ...(dateRange.startDate && { startDate: dateRange.startDate }),
         ...(dateRange.endDate && { endDate: dateRange.endDate }),
       });
@@ -179,6 +174,28 @@ export default function Reservations() {
       setLoading(false);
     }
   };
+  const allRouteOptions = useMemo(() => {
+    const seen = new Set();
+    const opts = [];
+
+    (voyages || []).forEach(v => {
+      const key = `voyage|${v.from}|${v.to}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        opts.push({ value: key, label: `${v.from} → ${v.to}`, type: 'voyage' });
+      }
+    });
+
+    (buses || []).forEach(b => {
+      const key = `bus|${b.from}|${b.to}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        opts.push({ value: key, label: `${b.from} → ${b.to}`, type: 'bus' });
+      }
+    });
+
+    return opts;
+  }, [voyages, buses]);
 
   const handleOpenDetails = (reservation) => {
     setDetailsReservation(reservation);
@@ -298,26 +315,6 @@ export default function Reservations() {
     }
   };
 
-  const uniqueRoutes = useMemo(() => {
-    const seen = new Set();
-    return (voyages || []).filter(v => {
-      const key = `${v.from}|${v.to}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [voyages]);
-
-  const uniqueBusRoutes = useMemo(() => {
-    const seen = new Set();
-    return (buses || []).filter(b => {
-      const key = `${b.from}|${b.to}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [buses]);
-
   // Debounce sur la recherche
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -330,12 +327,11 @@ export default function Reservations() {
   // Changement de page ou de limite
   useEffect(() => {
     fetchReservations(page, rowsPerPage, searchTerm);
-  }, [page, rowsPerPage, searchTerm, statusFilter, routeFilter, routeBusFilter, dateRange]);
+  }, [page, rowsPerPage, searchTerm, statusFilter, routeFilter, dateRange]);
 
-  // Changement de filtres
   useEffect(() => {
     setPage(0);
-  }, [statusFilter, routeFilter, routeBusFilter, dateRange]);
+  }, [statusFilter, routeFilter, dateRange]);
 
   useEffect(() => {
     fetchReservations();
@@ -350,7 +346,7 @@ export default function Reservations() {
 
   useEffect(() => {
     fetchBuses(0, 10, '');
-  }, [statusFilter, routeFilter, routeBusFilter]);
+  }, [statusFilter, routeFilter]);
 
   // ----- Dialog -----
   const handleOpen = (reservation = null) => {
@@ -847,64 +843,20 @@ export default function Reservations() {
               <MenuItem value="terminé">Terminé</MenuItem>
             </TextField>
             <TextField
-              select
-              label="Itinéraire covoiturage"
+              select label="Filtrer par itinéraire"
               value={routeFilter}
               onChange={(e) => setRouteFilter(e.target.value)}
-              disabled={!!routeBusFilter} // griser si filtre bus actif
-              size="small"
-              sx={{
-                width: 200,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '8px',
-                  '&:hover fieldset': {
-                    borderColor: '#ffcc33',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#ffcc33',
-                    borderWidth: 2,
-                  },
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#ffcc33',
-                },
-              }}
             >
               <MenuItem value="">Tous</MenuItem>
-              {uniqueRoutes.map(voyage => (
-                <MenuItem key={`${voyage.from}|${voyage.to}`} value={`${voyage.from}|${voyage.to}`}>
-                  {voyage.from} → {voyage.to}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              label="Itinéraire bus"
-              value={routeBusFilter}
-              onChange={(e) => setRouteBusFilter(e.target.value)}
-              disabled={!!routeFilter} // griser si filtre covoiturage actif
-              size="small"
-              sx={{
-                width: 200,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '8px',
-                  '&:hover fieldset': {
-                    borderColor: '#ffcc33',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#ffcc33',
-                    borderWidth: 2,
-                  },
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#ffcc33',
-                },
-              }}
-            >
-              <MenuItem value="">Tous</MenuItem>
-              {uniqueBusRoutes.map(bus => (
-                <MenuItem key={`${bus.from}|${bus.to}`} value={`${bus.from}|${bus.to}`}>
-                  {bus.from} → {bus.to}
+              {allRouteOptions.map(opt => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <Chip size="small" label={opt.type === 'voyage' ? 'Covoiturage' : 'Bus'}
+                      icon={opt.type === 'voyage' ? <DirectionsCar /> : <DirectionsBus />}
+                      color={opt.type === 'voyage' ? 'warning' : 'info'}
+                      sx={{ fontSize: '10px' }} />
+                    {opt.label}
+                  </Box>
                 </MenuItem>
               ))}
             </TextField>
@@ -1105,18 +1057,25 @@ export default function Reservations() {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Box>
-                        <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                          {isReservationCanceled(reservation)
-                            ? 'Trajet annulé'
-                            : reservation.voyage
-                              ? `${reservation.voyage.from} → ${reservation.voyage.to}`
-                              : reservation.bus
-                                ? `${reservation.bus.from} → ${reservation.bus.to}`
-                                : 'Non défini'}
-                        </Typography>
-                      </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      {reservation.voyage ? (
+                        <Tooltip title="Covoiturage">
+                          <DirectionsCar sx={{ color: '#ff9800', fontSize: 20, flexShrink: 0 }} />
+                        </Tooltip>
+                      ) : reservation.bus ? (
+                        <Tooltip title="Bus / Minibus">
+                          <DirectionsBus sx={{ color: '#1976d2', fontSize: 20, flexShrink: 0 }} />
+                        </Tooltip>
+                      ) : null}
+                      <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                        {isReservationCanceled(reservation)
+                          ? 'Trajet annulé'
+                          : reservation.voyage
+                            ? `${reservation.voyage.from} → ${reservation.voyage.to}`
+                            : reservation.bus
+                              ? `${reservation.bus.from} → ${reservation.bus.to}`
+                              : 'Non défini'}
+                      </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
