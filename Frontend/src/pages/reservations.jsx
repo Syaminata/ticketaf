@@ -32,11 +32,11 @@ import {
   Paper,
   Tooltip
 } from '@mui/material';
-import { 
-  Edit, 
-  Delete, 
+import {
+  Edit,
+  Delete,
   Add,
-  Person, 
+  Person,
   DirectionsBus,
   DirectionsCar,
   EventSeat,
@@ -143,8 +143,8 @@ export default function Reservations() {
 
       console.log('🌐 URL Reservations appelée:', `/reservations?${params}`);
 
-      const res = await axios.get(`/reservations?${params}`, { 
-        headers: { Authorization: `Bearer ${sessionStorage.getItem('token')}` } 
+      const res = await axios.get(`/reservations?${params}`, {
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('token')}` }
       });
 
       console.log('📊 Réponse API Reservations:', res.data);
@@ -158,7 +158,7 @@ export default function Reservations() {
       setReservations(reservationsArray);
       setTotalReservations(totalCount);
       setError('');
-      
+
       console.log('📊 totalReservations après set:', totalCount);
       console.log('📊 reservations.length:', reservationsArray.length);
     } catch (err) {
@@ -191,14 +191,14 @@ export default function Reservations() {
       console.log(' Récupération des voyages...');
       const token = sessionStorage.getItem('token');
       console.log('Token:', token ? 'Présent' : 'Absent');
-      
+
       const response = await fetch('https://ticket-taf.itea.africa/api/voyages', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       console.log('Response status:', response.status);
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-      
+
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Token d\'authentification expiré. Veuillez vous reconnecter.');
@@ -228,14 +228,14 @@ export default function Reservations() {
       console.log('🔍 Récupération des utilisateurs...');
       const token = sessionStorage.getItem('token');
       console.log('Token:', token ? 'Présent' : 'Absent');
-      
+
       const response = await fetch('https://ticket-taf.itea.africa/api/users?role=client&all=true', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       console.log('Response status:', response.status);
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-      
+
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Token d\'authentification expiré. Veuillez vous reconnecter.');
@@ -259,11 +259,11 @@ export default function Reservations() {
       setLoadingBuses(true);
       console.log('Récupération des bus...');
       const token = sessionStorage.getItem('token');
-      
+
       if (!token) {
         throw new Error('Aucun token d\'authentification trouvé');
       }
-      
+
       const params = new URLSearchParams({
         page: currentPage + 1,
         limit: currentLimit,
@@ -275,11 +275,11 @@ export default function Reservations() {
       const response = await fetch(`https://ticket-taf.itea.africa/api/buses?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (!response.ok) {
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
-      
+
       const data = await response.json();
       // Gérer la nouvelle réponse structurée avec pagination
       const busesData = data.buses || data;
@@ -352,7 +352,7 @@ export default function Reservations() {
   const handleOpen = (reservation = null) => {
     setError('');
     setSuccess('');
-    
+
     // Réinitialiser les données
     setFormData({
       userId: null,
@@ -363,7 +363,7 @@ export default function Reservations() {
       quantity: 1,
       description: ''
     });
-    
+
     setEditReservation(reservation);
     if (reservation) {
       // Déterminer le mode de transport basé sur les données existantes
@@ -384,12 +384,12 @@ export default function Reservations() {
   const handleClose = () => {
     setOpen(false);
     setEditReservation(null);
-    setFormData({ 
-      userId: null, 
-      transportMode: '', 
-      voyageId: null, 
-      busId: null, 
-      ticket: 'place', 
+    setFormData({
+      userId: null,
+      transportMode: '',
+      voyageId: null,
+      busId: null,
+      ticket: 'place',
       quantity: 1,
       description: ''
     });
@@ -408,7 +408,7 @@ export default function Reservations() {
   const handleCreateUser = async () => {
     setError('');
     setSuccess('');
-    
+
     // Validation
     if (!newUserData.name || !newUserData.numero || !newUserData.password) {
       setNewUserError('Le nom, le numéro et le mot de passe sont requis');
@@ -448,23 +448,23 @@ export default function Reservations() {
   const handleSubmit = async () => {
     setError('');
     setSuccess('');
-    
+
     // Validation
     if (!formData.userId) {
       setError('Veuillez sélectionner un utilisateur');
       return;
     }
-    
+
     if (!formData.transportMode) {
       setError('Veuillez choisir un mode de transport');
       return;
     }
-    
+
     if (formData.transportMode === 'voyage' && !formData.voyageId) {
       setError('Veuillez sélectionner un voyage');
       return;
     }
-    
+
     if (formData.transportMode === 'bus' && !formData.busId) {
       setError('Veuillez sélectionner un bus');
       return;
@@ -486,13 +486,13 @@ export default function Reservations() {
         return;
       }
     }
-    
+
     // Validation plus stricte
     if (!formData.userId || !formData.userId._id) {
       setError('Utilisateur invalide');
       return;
     }
-    
+
     if (formData.transportMode === 'voyage' && (!formData.voyageId || !formData.voyageId._id)) {
       setError('Voyage invalide');
       return;
@@ -507,7 +507,7 @@ export default function Reservations() {
       setError('Veuillez saisir la description du colis');
       return;
     }
-    
+
     setLoading(true);
 
     try {
@@ -528,9 +528,9 @@ export default function Reservations() {
       if (formData.ticket === 'colis') {
         reservationData.description = formData.description;
       }
-      
+
       console.log('Données à envoyer:', reservationData); // Debug
-      
+
       if (editReservation) {
         await reservationsAPI.updateReservation(editReservation._id, reservationData);
         setSuccess('Réservation mise à jour avec succès');
@@ -538,7 +538,7 @@ export default function Reservations() {
         await reservationsAPI.createReservation(reservationData);
         setSuccess('Réservation créée avec succès');
       }
-      
+
       await fetchReservations();
       handleClose();
     } catch (err) {
@@ -550,47 +550,46 @@ export default function Reservations() {
   };
 
   const handleDelete = (id) => {
-  const reservation = reservations.find(r => r._id === id);
-  const info = reservation
-    ? `${reservation.user?.name || 'Client'} - ${
-        reservation.voyage
-          ? `${reservation.voyage.from} → ${reservation.voyage.to}`
-          : reservation.bus
+    const reservation = reservations.find(r => r._id === id);
+    const info = reservation
+      ? `${reservation.user?.name || 'Client'} - ${reservation.voyage
+        ? `${reservation.voyage.from} → ${reservation.voyage.to}`
+        : reservation.bus
           ? `${reservation.bus.from} → ${reservation.bus.to}`
           : 'Trajet non défini'
       }`
-    : 'cette réservation';
+      : 'cette réservation';
 
-  setConfirmDialog({
-    open: true,
-    title: 'Supprimer la réservation',
-    message: `Êtes-vous sûr de vouloir supprimer définitivement ${info} ?`,
-    onConfirm: () => confirmDelete(id),
-    loading: false
-  });
-};
+    setConfirmDialog({
+      open: true,
+      title: 'Supprimer la réservation',
+      message: `Êtes-vous sûr de vouloir supprimer définitivement ${info} ?`,
+      onConfirm: () => confirmDelete(id),
+      loading: false
+    });
+  };
 
-const confirmDelete = async (id) => {
-  setConfirmDialog(prev => ({ ...prev, loading: true }));
+  const confirmDelete = async (id) => {
+    setConfirmDialog(prev => ({ ...prev, loading: true }));
 
-  try {
-    await reservationsAPI.deleteReservation(id);
-    setSuccess('Réservation supprimée avec succès');
-    await fetchReservations();
-    setConfirmDialog(prev => ({ ...prev, open: false }));
-  } catch (err) {
-    console.error(err);
-    setError('Erreur lors de la suppression.');
-    setConfirmDialog(prev => ({ ...prev, loading: false }));
-  }
-};
+    try {
+      await reservationsAPI.deleteReservation(id);
+      setSuccess('Réservation supprimée avec succès');
+      await fetchReservations();
+      setConfirmDialog(prev => ({ ...prev, open: false }));
+    } catch (err) {
+      console.error(err);
+      setError('Erreur lors de la suppression.');
+      setConfirmDialog(prev => ({ ...prev, loading: false }));
+    }
+  };
   // ----- Helpers -----
   const getStatusColor = (dateString) => {
     const voyageDate = new Date(dateString);
     const now = new Date();
     const diffTime = voyageDate - now;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) return 'error';
     if (diffDays === 0) return 'warning';
     if (diffDays <= 7) return 'info';
@@ -602,7 +601,7 @@ const confirmDelete = async (id) => {
     const now = new Date();
     const diffTime = voyageDate - now;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) return 'Terminé';
     if (diffDays === 0) return 'Aujourd\'hui';
     if (diffDays <= 7) return `Dans ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
@@ -647,12 +646,12 @@ const confirmDelete = async (id) => {
   const isReservationPast = (reservation) => {
     const dateStr = reservation?.voyage?.date || reservation?.bus?.departureDate;
     if (!dateStr) return false;
-    
+
     try {
       // Créer les dates en format YYYY-MM-DD pour une comparaison simple
       const reservationDate = new Date(dateStr);
       const today = new Date();
-      
+
       // Formater les dates en YYYY-MM-DD pour une comparaison précise
       const formatDate = (date) => {
         const d = new Date(date);
@@ -661,12 +660,12 @@ const confirmDelete = async (id) => {
         const day = String(d.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
       };
-      
+
       const resDateStr = formatDate(reservationDate);
       const todayStr = formatDate(today);
-      
+
       console.log('Comparing dates - Reservation:', resDateStr, 'Today:', todayStr);
-      
+
       // Comparer les chaînes de date formatées
       return resDateStr < todayStr;
     } catch (error) {
@@ -690,7 +689,7 @@ const confirmDelete = async (id) => {
     console.log('Reservation:', r?._id, 'isPast:', isPast, 'isCanceled:', isCanceled);
     return !isPast && !isCanceled;
   });
-  
+
   console.log('Total reservations:', reservations?.length, 'Visible reservations:', visibleReservations.length);
 
   // Les reservations sont déjà filtrées et triées par le backend
@@ -713,7 +712,7 @@ const confirmDelete = async (id) => {
     setRowsPerPageBuses(parseInt(event.target.value, 10));
     setPageBuses(0);
   };
-  
+
   // Gérer le changement de type de transport
   const handleTransportModeChange = (event) => {
     const mode = event.target.value;
@@ -757,13 +756,13 @@ const confirmDelete = async (id) => {
           <Typography variant="body1" sx={{ color: '#666666', fontSize: '16px' }}>
             Gérez les réservations de vos clients ({visibleReservations.length} réservation{visibleReservations.length > 1 ? 's' : ''})
           </Typography>
-          
+
         </Box>
-        <Button 
-          variant="outlined" 
-          onClick={() => handleOpen()} 
+        <Button
+          variant="outlined"
+          onClick={() => handleOpen()}
           startIcon={<Add />}
-          sx={{ 
+          sx={{
             backgroundColor: 'transparrent',
             border: '2px solid #ffcc33',
             color: '#b6660abd',
@@ -850,7 +849,7 @@ const confirmDelete = async (id) => {
               <MenuItem value="all">Tous</MenuItem>
               <MenuItem value="confirmé">Confirmé</MenuItem>
               <MenuItem value="annulé">Annulé</MenuItem>
-              <MenuItem value="en attente">En attente</MenuItem>
+              <MenuItem value="terminé">Terminé</MenuItem>
             </TextField>
             <TextField
               select
@@ -929,13 +928,13 @@ const confirmDelete = async (id) => {
             >
               Filtre par date
             </Button>
-            
+
             {showDateFilter && (
-              <Box sx={{ 
-                display: 'flex', 
-                gap: 2, 
+              <Box sx={{
+                display: 'flex',
+                gap: 2,
                 alignItems: 'center',
-                p: 2, 
+                p: 2,
                 bgcolor: 'background.paper',
                 borderRadius: '12px',
                 mt: 1,
@@ -947,7 +946,7 @@ const confirmDelete = async (id) => {
                   type="date"
                   size="small"
                   value={dateRange.startDate || ''}
-                  onChange={(e) => setDateRange({...dateRange, startDate: e.target.value})}
+                  onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
                   InputLabelProps={{
                     shrink: true,
                   }}
@@ -973,7 +972,7 @@ const confirmDelete = async (id) => {
                   type="date"
                   size="small"
                   value={dateRange.endDate || ''}
-                  onChange={(e) => setDateRange({...dateRange, endDate: e.target.value})}
+                  onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
                   InputLabelProps={{
                     shrink: true,
                   }}
@@ -1014,14 +1013,14 @@ const confirmDelete = async (id) => {
       </Box>
       {/* Alerts */}
       {error && (
-        <Alert 
-          severity="error" 
+        <Alert
+          severity="error"
           sx={{ mb: 3, borderRadius: '8px' }}
           action={
             error.includes('Token d\'authentification expiré') ? (
-              <Button 
-                color="inherit" 
-                size="small" 
+              <Button
+                color="inherit"
+                size="small"
                 onClick={() => {
                   sessionStorage.removeItem('token');
                   window.location.href = '/login';
@@ -1057,7 +1056,7 @@ const confirmDelete = async (id) => {
           boxShadow: '0 4px 12px rgba(206, 204, 204, 0.43)'
         }}>
           <Table>
-            <TableHead sx={{ 
+            <TableHead sx={{
               borderBottom: '3px solid #ffcc33',
               '& .MuiTableCell-root': {
                 borderBottom: '3px solid #ffcc33',
@@ -1078,9 +1077,9 @@ const confirmDelete = async (id) => {
             </TableHead>
             <TableBody>
               {displayedReservations.map((reservation) => (
-                <TableRow 
+                <TableRow
                   key={reservation._id}
-                  sx={{ 
+                  sx={{
                     '&:nth-of-type(odd)': { backgroundColor: '#f8f9fa' },
                     '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' },
                     '& td': {
@@ -1115,10 +1114,10 @@ const confirmDelete = async (id) => {
                           {isReservationCanceled(reservation)
                             ? 'Trajet annulé'
                             : reservation.voyage
-                            ? `${reservation.voyage.from} → ${reservation.voyage.to}`
-                            : reservation.bus
-                            ? `${reservation.bus.from} → ${reservation.bus.to}`
-                            : 'Non défini'}
+                              ? `${reservation.voyage.from} → ${reservation.voyage.to}`
+                              : reservation.bus
+                                ? `${reservation.bus.from} → ${reservation.bus.to}`
+                                : 'Non défini'}
                         </Typography>
                       </Box>
                     </Box>
@@ -1133,19 +1132,19 @@ const confirmDelete = async (id) => {
                   </TableCell>
                   <TableCell>
                     <Typography sx={{ fontWeight: 600, color: '#4caf50' }}>
-                      {reservation.voyage 
-                        ? `${(reservation.voyage.price * (reservation.quantity || 1)).toLocaleString('fr-FR')} FCFA` 
-                        : reservation.bus 
-                          ? `${(reservation.bus.price * (reservation.quantity || 1)).toLocaleString('fr-FR')} FCFA` 
+                      {reservation.voyage
+                        ? `${(reservation.voyage.price * (reservation.quantity || 1)).toLocaleString('fr-FR')} FCFA`
+                        : reservation.bus
+                          ? `${(reservation.bus.price * (reservation.quantity || 1)).toLocaleString('fr-FR')} FCFA`
                           : '-'}
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ textAlign: 'center' }}>
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
                       <Tooltip title="Voir les détails">
-                        <IconButton 
+                        <IconButton
                           onClick={() => handleOpenDetails(reservation)}
-                          sx={{ 
+                          sx={{
                             color: '#21740cff',
                             '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)', color: '#4F4F4F' }
                           }}
@@ -1154,9 +1153,9 @@ const confirmDelete = async (id) => {
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Modifier">
-                        <IconButton 
+                        <IconButton
                           onClick={() => handleOpen(reservation)}
-                          sx={{ 
+                          sx={{
                             color: '#ffcc33',
                             '&:hover': { backgroundColor: 'rgba(255, 204, 51, 0.1)' }
                           }}
@@ -1165,9 +1164,9 @@ const confirmDelete = async (id) => {
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Supprimer">
-                        <IconButton 
+                        <IconButton
                           onClick={() => handleDelete(reservation._id)}
-                          sx={{ 
+                          sx={{
                             color: '#f44336',
                             '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' }
                           }}
@@ -1181,7 +1180,7 @@ const confirmDelete = async (id) => {
               ))}
             </TableBody>
           </Table>
-          
+
           {/* Pagination */}
           <TablePagination
             component="div"
@@ -1230,8 +1229,8 @@ const confirmDelete = async (id) => {
           />
         </Paper>
       ) : (
-        <Box sx={{ 
-          textAlign: 'center', 
+        <Box sx={{
+          textAlign: 'center',
           py: 8,
           backgroundColor: '#ffffff',
           borderRadius: '16px',
@@ -1255,8 +1254,8 @@ const confirmDelete = async (id) => {
       )}
 
       {/* Dialog pour créer/modifier une réservation */}
-      <Dialog 
-        open={open} 
+      <Dialog
+        open={open}
         onClose={handleClose}
         maxWidth="md"
         fullWidth
@@ -1268,7 +1267,7 @@ const confirmDelete = async (id) => {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle sx={{
           borderBottom: '3px solid #ffcc33',
           color: '#1a1a1a',
           fontWeight: 700,
@@ -1281,8 +1280,8 @@ const confirmDelete = async (id) => {
             {editReservation ? 'Modifier la réservation' : 'Nouvelle réservation'}
           </Box>
         </DialogTitle>
-        
-        <DialogContent sx={{ 
+
+        <DialogContent sx={{
           p: 0,
           backgroundColor: '#ffffff'
         }}>
@@ -1290,9 +1289,9 @@ const confirmDelete = async (id) => {
             {/* Section Utilisateur */}
             <Box sx={{ mb: 4 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6" sx={{ 
-                  color: '#1a1a1a', 
-                  fontWeight: 600, 
+                <Typography variant="h6" sx={{
+                  color: '#1a1a1a',
+                  fontWeight: 600,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1
@@ -1305,7 +1304,7 @@ const confirmDelete = async (id) => {
                     </Typography>
                   )}
                 </Typography>
-                <Button 
+                <Button
                   variant="outlined"
                   onClick={openNewUser}
                   sx={{
@@ -1335,10 +1334,10 @@ const confirmDelete = async (id) => {
                   }
                 }}
                 renderInput={(params) => (
-                  <TextField 
-                    {...params} 
-                    label="Utilisateur" 
-                    required 
+                  <TextField
+                    {...params}
+                    label="Utilisateur"
+                    required
                     helperText={users?.length === 0 ? "Aucun utilisateur disponible" : `${users?.length || 0} utilisateur(s) disponible(s)`}
                     sx={{
                       '& .MuiOutlinedInput-root': {
@@ -1362,9 +1361,9 @@ const confirmDelete = async (id) => {
 
             {/* Section Mode de Transport */}
             <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ 
-                color: '#1a1a1a', 
-                fontWeight: 600, 
+              <Typography variant="h6" sx={{
+                color: '#1a1a1a',
+                fontWeight: 600,
                 mb: 2,
                 display: 'flex',
                 alignItems: 'center',
@@ -1373,7 +1372,7 @@ const confirmDelete = async (id) => {
                 <DirectionsBus sx={{ color: '#ffcc33' }} />
                 Mode de transport
               </Typography>
-              
+
               <TextField
                 select
                 label="Choisissez votre mode de transport"
@@ -1407,9 +1406,9 @@ const confirmDelete = async (id) => {
             {/* Section Voyage */}
             {formData.transportMode === 'voyage' && (
               <Box sx={{ mb: 4 }}>
-                <Typography variant="h6" sx={{ 
-                  color: '#1a1a1a', 
-                  fontWeight: 600, 
+                <Typography variant="h6" sx={{
+                  color: '#1a1a1a',
+                  fontWeight: 600,
                   mb: 2,
                   display: 'flex',
                   alignItems: 'center',
@@ -1446,9 +1445,9 @@ const confirmDelete = async (id) => {
                           <Typography variant="body1">
                             {option.from} → {option.to}
                           </Typography>
-                          <Chip 
-                            label={`${option.availableSeats || 0} places`} 
-                            size="small" 
+                          <Chip
+                            label={`${option.availableSeats || 0} places`}
+                            size="small"
                             color={option.availableSeats > 0 ? 'success' : 'error'}
                             variant="outlined"
                           />
@@ -1465,9 +1464,9 @@ const confirmDelete = async (id) => {
                     </li>
                   )}
                   renderInput={(params) => (
-                    <TextField 
-                      {...params} 
-                      label="Voyage" 
+                    <TextField
+                      {...params}
+                      label="Voyage"
                       required
                       helperText={voyages?.length === 0 ? "Aucun voyage disponible" : `${voyages?.length || 0} voyage(s) disponible(s)`}
                       sx={{
@@ -1494,9 +1493,9 @@ const confirmDelete = async (id) => {
             {/* Section Bus */}
             {(formData.transportMode === 'bus' || formData.transportMode === 'minibus') && (
               <Box sx={{ mb: 4 }}>
-                <Typography variant="h6" sx={{ 
-                  color: '#1a1a1a', 
-                  fontWeight: 600, 
+                <Typography variant="h6" sx={{
+                  color: '#1a1a1a',
+                  fontWeight: 600,
                   mb: 2,
                   display: 'flex',
                   alignItems: 'center',
@@ -1505,13 +1504,13 @@ const confirmDelete = async (id) => {
                   <DirectionsBus sx={{ color: '#ffcc33' }} />
                   {formData.transportMode === 'minibus' ? 'Sélection du Minibus' : 'Sélection du Bus'}
                 </Typography>
-                
+
                 <TextField
                   select
                   fullWidth
                   label={`Sélectionner un ${formData.transportMode === 'minibus' ? 'minibus' : 'bus'}`}
                   value={formData.busId || ''}
-                  onChange={(e) => setFormData({...formData, busId: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, busId: e.target.value })}
                   margin="normal"
                   required
                   disabled={loadingBuses}
@@ -1627,9 +1626,9 @@ const confirmDelete = async (id) => {
 
             {/* Section Quantité */}
             <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ 
-                color: '#1a1a1a', 
-                fontWeight: 600, 
+              <Typography variant="h6" sx={{
+                color: '#1a1a1a',
+                fontWeight: 600,
                 mb: 2,
                 display: 'flex',
                 alignItems: 'center',
@@ -1639,31 +1638,14 @@ const confirmDelete = async (id) => {
                 Détails de la réservation
               </Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-              {/* Nombre de ticket ou description */}
-              {formData.ticket === 'place' ? (
-                <TextField
-                  label="Nombre de ticket"
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-                  inputProps={{ min: 1 }}
-                  required
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '12px',
-                      '&:hover fieldset': { borderColor: '#ffcc33' },
-                      '&.Mui-focused fieldset': { borderColor: '#ffcc33', borderWidth: 2 },
-                    },
-                    '& .MuiInputLabel-root.Mui-focused': { color: '#ffcc33' },
-                  }}
-                />
-              ) : (
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
+                {/* Nombre de ticket ou description */}
+                {formData.ticket === 'place' ? (
                   <TextField
-                    label="Description du colis"
-                    type="text"
-                    value={formData.description || ''}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    label="Nombre de ticket"
+                    type="number"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                    inputProps={{ min: 1 }}
                     required
                     sx={{
                       '& .MuiOutlinedInput-root': {
@@ -1674,24 +1656,41 @@ const confirmDelete = async (id) => {
                       '& .MuiInputLabel-root.Mui-focused': { color: '#ffcc33' },
                     }}
                   />
-                </Box>
-              )}
-            </Box>
+                ) : (
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
+                    <TextField
+                      label="Description du colis"
+                      type="text"
+                      value={formData.description || ''}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      required
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          '&:hover fieldset': { borderColor: '#ffcc33' },
+                          '&.Mui-focused fieldset': { borderColor: '#ffcc33', borderWidth: 2 },
+                        },
+                        '& .MuiInputLabel-root.Mui-focused': { color: '#ffcc33' },
+                      }}
+                    />
+                  </Box>
+                )}
+              </Box>
 
             </Box>
 
             {/* Résumé de la réservation */}
             {formData.userId && formData.transportMode && formData.ticket && (formData.ticket === 'colis' ? true : formData.quantity) && (
-              <Box sx={{ 
-                p: 3, 
-                backgroundColor: '#f8f9fa', 
+              <Box sx={{
+                p: 3,
+                backgroundColor: '#f8f9fa',
                 borderRadius: '12px',
                 border: '2px solid #ffcc33',
                 mb: 3
               }}>
-                <Typography variant="h6" sx={{ 
-                  color: '#1a1a1a', 
-                  fontWeight: 600, 
+                <Typography variant="h6" sx={{
+                  color: '#1a1a1a',
+                  fontWeight: 600,
                   mb: 2,
                   display: 'flex',
                   alignItems: 'center',
@@ -1717,8 +1716,8 @@ const confirmDelete = async (id) => {
                     <Box>
                       <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Voyage</Typography>
                       <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                        {voyages.find(v => v._id === formData.voyageId?._id) ? 
-                          `${voyages.find(v => v._id === formData.voyageId._id).from} → ${voyages.find(v => v._id === formData.voyageId._id).to}` : 
+                        {voyages.find(v => v._id === formData.voyageId?._id) ?
+                          `${voyages.find(v => v._id === formData.voyageId._id).from} → ${voyages.find(v => v._id === formData.voyageId._id).to}` :
                           'Non sélectionné'
                         }
                       </Typography>
@@ -1728,8 +1727,8 @@ const confirmDelete = async (id) => {
                     <Box>
                       <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Prix</Typography>
                       <Typography sx={{ fontWeight: 600, color: '#4caf50' }}>
-                        {voyages.find(v => v._id === formData.voyageId?._id) ? 
-                          `${voyages.find(v => v._id === formData.voyageId._id).price} FCFA` : 
+                        {voyages.find(v => v._id === formData.voyageId?._id) ?
+                          `${voyages.find(v => v._id === formData.voyageId._id).price} FCFA` :
                           'Non défini'
                         }
                       </Typography>
@@ -1739,8 +1738,8 @@ const confirmDelete = async (id) => {
                     <Box>
                       <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Bus</Typography>
                       <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                        {Array.isArray(buses) ? (buses.find(b => b._id === formData.busId?._id) ? 
-                          `${buses.find(b => b._id === formData.busId._id).name} (${buses.find(b => b._id === formData.busId._id).plateNumber})` : 
+                        {Array.isArray(buses) ? (buses.find(b => b._id === formData.busId?._id) ?
+                          `${buses.find(b => b._id === formData.busId._id).name} (${buses.find(b => b._id === formData.busId._id).plateNumber})` :
                           'Non sélectionné'
                         ) : 'Non sélectionné'
                         }
@@ -1751,8 +1750,8 @@ const confirmDelete = async (id) => {
                     <Box>
                       <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Trajet</Typography>
                       <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>
-                        {Array.isArray(buses) ? (buses.find(b => b._id === formData.busId?._id) ? 
-                          `${buses.find(b => b._id === formData.busId._id).from} → ${buses.find(b => b._id === formData.busId._id).to}` : 
+                        {Array.isArray(buses) ? (buses.find(b => b._id === formData.busId?._id) ?
+                          `${buses.find(b => b._id === formData.busId._id).from} → ${buses.find(b => b._id === formData.busId._id).to}` :
                           'Non défini'
                         ) : 'Non défini'
                         }
@@ -1763,8 +1762,8 @@ const confirmDelete = async (id) => {
                     <Box>
                       <Typography variant="body2" sx={{ color: '#666666', fontWeight: 500 }}>Prix</Typography>
                       <Typography sx={{ fontWeight: 600, color: '#4caf50' }}>
-                        {Array.isArray(buses) ? (buses.find(b => b._id === formData.busId?._id) ? 
-                          `${buses.find(b => b._id === formData.busId._id).price} FCFA` : 
+                        {Array.isArray(buses) ? (buses.find(b => b._id === formData.busId?._id) ?
+                          `${buses.find(b => b._id === formData.busId._id).price} FCFA` :
                           'Non défini'
                         ) : 'Non défini'
                         }
@@ -1799,9 +1798,9 @@ const confirmDelete = async (id) => {
             )}
 
             {error && (
-              <Box sx={{ 
-                p: 3, 
-                backgroundColor: '#ffebee', 
+              <Box sx={{
+                p: 3,
+                backgroundColor: '#ffebee',
                 borderRadius: '12px',
                 border: '2px solid #f44336',
                 mb: 3
@@ -1813,14 +1812,14 @@ const confirmDelete = async (id) => {
             )}
           </Box>
         </DialogContent>
-        
-        <DialogActions sx={{ 
-          p: 2, 
+
+        <DialogActions sx={{
+          p: 2,
           backgroundColor: '#f8f9fa',
           gap: 2,
           borderTop: '1px solid #e0e0e0'
         }}>
-          <Button 
+          <Button
             onClick={handleClose}
             variant="outlined"
             sx={{
@@ -1839,8 +1838,8 @@ const confirmDelete = async (id) => {
           >
             Annuler
           </Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             variant="contained"
             disabled={loading}
             sx={{
@@ -1924,8 +1923,8 @@ const confirmDelete = async (id) => {
         </DialogTitle>
 
         {/* ================= CONTENT ================= */}
-        <DialogContent 
-          sx={{ 
+        <DialogContent
+          sx={{
             p: 0,
             backgroundColor: '#f8f9fa',
             flex: '1 1 auto',
@@ -1949,7 +1948,7 @@ const confirmDelete = async (id) => {
           {detailsReservation && (
             <Box sx={{ p: { xs: 2, md: 4 }, display: 'flex', flexDirection: 'column', gap: 4 }}>
               {/* Infos Client */}
-              <Paper 
+              <Paper
                 elevation={0}
                 sx={{
                   p: 3,
@@ -1977,17 +1976,17 @@ const confirmDelete = async (id) => {
                       {detailsReservation.user?.name || 'Non spécifié'}
                     </Typography>
                   </InfoRow>
-                  
+
                   <InfoRow label="Téléphone">
-                      <Typography sx={{ fontWeight: 500 }}>
-                        {detailsReservation.user?.numero || 'Non spécifié'}
-                      </Typography>
+                    <Typography sx={{ fontWeight: 500 }}>
+                      {detailsReservation.user?.numero || 'Non spécifié'}
+                    </Typography>
                   </InfoRow>
                 </Box>
               </Paper>
 
               {/* Détails de la réservation */}
-              <Paper 
+              <Paper
                 elevation={0}
                 sx={{
                   p: 3,
@@ -2011,10 +2010,10 @@ const confirmDelete = async (id) => {
 
                 <Box sx={{ display: 'grid', gap: 2.5, pl: 2 }}>
                   <InfoRow label="Référence">
-                    <Chip 
-                      label={`#${detailsReservation._id?.substring(0, 6).toUpperCase() || 'N/A'}`} 
+                    <Chip
+                      label={`#${detailsReservation._id?.substring(0, 6).toUpperCase() || 'N/A'}`}
                       size="small"
-                      sx={{ 
+                      sx={{
                         fontWeight: 600,
                         backgroundColor: 'rgba(0, 0, 0, 0.05)',
                         color: '#555',
@@ -2024,13 +2023,13 @@ const confirmDelete = async (id) => {
 
                   {detailsReservation.ticket === 'place' ? (
                     <InfoRow label="Nombre de places">
-                        <Typography sx={{ fontWeight: 600 }}>
-                          {detailsReservation.quantity || 1} place{detailsReservation.quantity > 1 ? 's' : ''}
-                        </Typography>
+                      <Typography sx={{ fontWeight: 600 }}>
+                        {detailsReservation.quantity || 1} place{detailsReservation.quantity > 1 ? 's' : ''}
+                      </Typography>
                     </InfoRow>
                   ) : (
                     <InfoRow label="Description du colis">
-                      <Typography sx={{ 
+                      <Typography sx={{
                         fontStyle: detailsReservation.description ? 'normal' : 'italic',
                         color: detailsReservation.description ? 'inherit' : '#666',
                       }}>
@@ -2040,42 +2039,42 @@ const confirmDelete = async (id) => {
                   )}
 
                   <InfoRow label="Prix total">
-                      <Typography sx={{ 
-                        fontWeight: 700, 
-                        color: '#4caf50',
-                        fontSize: '1.1em'
-                      }}>
-                        {detailsReservation.voyage 
-                          ? `${(detailsReservation.voyage.price * (detailsReservation.quantity || 1)).toLocaleString('fr-FR')} FCFA` 
-                          : detailsReservation.bus 
-                            ? `${(detailsReservation.bus.price * (detailsReservation.quantity || 1)).toLocaleString('fr-FR')} FCFA`
-                            : 'Non défini'}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: '#666', ml: 1 }}>
-                        {detailsReservation.voyage 
-                          ? `(${(detailsReservation.voyage.price || 0).toLocaleString('fr-FR')} FCFA × ${detailsReservation.quantity || 1})`
-                          : detailsReservation.bus
-                            ? `(${(detailsReservation.bus.price || 0).toLocaleString('fr-FR')} FCFA × ${detailsReservation.quantity || 1})`
-                            : ''}
-                      </Typography>
+                    <Typography sx={{
+                      fontWeight: 700,
+                      color: '#4caf50',
+                      fontSize: '1.1em'
+                    }}>
+                      {detailsReservation.voyage
+                        ? `${(detailsReservation.voyage.price * (detailsReservation.quantity || 1)).toLocaleString('fr-FR')} FCFA`
+                        : detailsReservation.bus
+                          ? `${(detailsReservation.bus.price * (detailsReservation.quantity || 1)).toLocaleString('fr-FR')} FCFA`
+                          : 'Non défini'}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#666', ml: 1 }}>
+                      {detailsReservation.voyage
+                        ? `(${(detailsReservation.voyage.price || 0).toLocaleString('fr-FR')} FCFA × ${detailsReservation.quantity || 1})`
+                        : detailsReservation.bus
+                          ? `(${(detailsReservation.bus.price || 0).toLocaleString('fr-FR')} FCFA × ${detailsReservation.quantity || 1})`
+                          : ''}
+                    </Typography>
                   </InfoRow>
 
                   <InfoRow label="Date de réservation">
-                      <Typography>
-                        {new Date(detailsReservation.createdAt).toLocaleString('fr-FR', {
-                          day: '2-digit',
-                          month: 'long',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </Typography>
+                    <Typography>
+                      {new Date(detailsReservation.createdAt).toLocaleString('fr-FR', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </Typography>
                   </InfoRow>
                 </Box>
               </Paper>
 
               {/* Informations du trajet */}
-              <Paper 
+              <Paper
                 elevation={0}
                 sx={{
                   p: 3,
@@ -2101,10 +2100,10 @@ const confirmDelete = async (id) => {
                   <InfoRow label="Trajet">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'flex-end', width: '100%' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Box sx={{ 
-                          width: 8, 
-                          height: 8, 
-                          borderRadius: '50%', 
+                        <Box sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
                           backgroundColor: '#ff5722',
                           flexShrink: 0
                         }} />
@@ -2112,10 +2111,10 @@ const confirmDelete = async (id) => {
                           {detailsReservation.voyage?.from || detailsReservation.bus?.from || 'Non spécifié'}
                         </Typography>
                         <ArrowForward sx={{ color: '#666', mx: 1 }} />
-                        <Box sx={{ 
-                          width: 8, 
-                          height: 8, 
-                          borderRadius: '50%', 
+                        <Box sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
                           backgroundColor: '#4caf50',
                           flexShrink: 0
                         }} />
@@ -2127,25 +2126,25 @@ const confirmDelete = async (id) => {
                   </InfoRow>
 
                   <InfoRow label="Date et heure de départ">
-                      <Typography>
-                        {detailsReservation.voyage?.date
-                          ? new Date(detailsReservation.voyage.date).toLocaleString('fr-FR', {
-                              day: 'numeric',
-                              month: 'long',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })
-                          : detailsReservation.bus?.departureDate
-                            ? new Date(detailsReservation.bus.departureDate).toLocaleString('fr-FR', {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                            : 'Non spécifiée'}
-                      </Typography>
+                    <Typography>
+                      {detailsReservation.voyage?.date
+                        ? new Date(detailsReservation.voyage.date).toLocaleString('fr-FR', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                        : detailsReservation.bus?.departureDate
+                          ? new Date(detailsReservation.bus.departureDate).toLocaleString('fr-FR', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                          : 'Non spécifiée'}
+                    </Typography>
                   </InfoRow>
 
                   {detailsReservation.voyage?.driver ? (
@@ -2157,9 +2156,9 @@ const confirmDelete = async (id) => {
                       </InfoRow>
                       <InfoRow label="Téléphone du chauffeur">
                         {detailsReservation.voyage.driver.numero ? (
-                            <Typography variant="body2" >
-                              {detailsReservation.voyage.driver.numero}
-                            </Typography>
+                          <Typography variant="body2" >
+                            {detailsReservation.voyage.driver.numero}
+                          </Typography>
                         ) : (
                           <Typography variant="body2" color="textSecondary" fontStyle="italic">
                             Non renseigné
