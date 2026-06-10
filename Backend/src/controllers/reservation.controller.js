@@ -190,19 +190,21 @@ const getAllReservations = async (req, res) => {
     const limit = Math.min(50, parseInt(req.query.limit) || 10);
     const skip = (page - 1) * limit;
 
-    const { status, search, ticket, routeFrom, routeTo, busRouteFrom, busRouteTo, startDate, endDate } = req.query;
+    const {
+      status, search, ticket,
+      routeFrom, routeTo,
+      busRouteFrom, busRouteTo,
+      startDate, endDate,
+      showPast
+    } = req.query;
 
     let query = {};
 
-    // ── Statut ──────────────────────────────────────────────────────────────
-    if (status && status !== 'all') {
-      query.status = status;
-    }
+    // ── Statut ───────────────────────────────────────────────────────────────
+    if (status && status !== 'all') query.status = status;
 
     // ── Type de ticket ───────────────────────────────────────────────────────
-    if (ticket && ticket !== 'all') {
-      query.ticket = ticket;
-    }
+    if (ticket && ticket !== 'all') query.ticket = ticket;
 
     // ── Recherche par nom / numéro utilisateur ───────────────────────────────
     if (search && search.trim() !== '') {
@@ -210,77 +212,64 @@ const getAllReservations = async (req, res) => {
       const matchedUsers = await User.find({
         $or: [{ name: searchRegex }, { numero: searchRegex }]
       }).select('_id');
-
       query.user = { $in: matchedUsers.map(u => u._id) };
     }
 
-    // ── Filtre itinéraire voyage (routeFrom / routeTo) ───────────────────────
-    let voyageIds = null;
-    if (routeFrom && routeTo) {
-      const matchedVoyages = await Voyage.find({
-        from: new RegExp(`^${routeFrom}$`, 'i'),
-        to: new RegExp(`^${routeTo}$`, 'i'),
-        // Filtre date de départ si fourni
-        ...(startDate || endDate ? {
-          date: {
-            ...(startDate ? { $gte: new Date(startDate) } : {}),
-            ...(endDate ? { $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) } : {})
-          }
-        } : {})
-      }).select('_id');
+    // ── Filtre temporel : futur (réservations) ou passé (historique) ─────────
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // minuit aujourd'hui
 
-      voyageIds = matchedVoyages.map(v => v._id);
-    }
-
-    // ── Filtre itinéraire bus (busRouteFrom / busRouteTo) ────────────────────
-    let busIds = null;
-    if (busRouteFrom && busRouteTo) {
-      const matchedBuses = await Bus.find({
-        from: new RegExp(`^${busRouteFrom}$`, 'i'),
-        to: new RegExp(`^${busRouteTo}$`, 'i'),
-        ...(startDate || endDate ? {
-          departureDate: {
-            ...(startDate ? { $gte: new Date(startDate) } : {}),
-            ...(endDate ? { $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) } : {})
-          }
-        } : {})
-      }).select('_id');
-
-      busIds = matchedBuses.map(b => b._id);
-    }
-
-    // ── Filtre date seule (sans filtre d'itinéraire) ─────────────────────────
-    // Si date fournie mais pas de filtre de route → filtrer via les voyages/bus directement
-    if ((startDate || endDate) && !voyageIds && !busIds) {
-      const dateFilter = {
+    // Les dates manuelles (startDate/endDate) priment sur showPast
+    const temporalFilter = startDate || endDate
+      ? {
         ...(startDate ? { $gte: new Date(startDate) } : {}),
         ...(endDate ? { $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) } : {})
-      };
-
-      const [vIds, bIds] = await Promise.all([
-        Voyage.find({ date: dateFilter }).select('_id'),
-        Bus.find({ departureDate: dateFilter }).select('_id')
-      ]);
-
-      voyageIds = vIds.map(v => v._id);
-      busIds = bIds.map(b => b._id);
-    }
-
-    // ── Construire la condition voyage/bus dans la query ─────────────────────
-    if (voyageIds !== null || busIds !== null) {
-      const orConditions = [];
-
-      if (voyageIds !== null) orConditions.push({ voyage: { $in: voyageIds } });
-      if (busIds !== null) orConditions.push({ bus: { $in: busIds } });
-
-      // Combiner avec un éventuel filtre existant sur query
-      if (query.$or) {
-        // Déjà un $or (ex: search) → utiliser $and pour combiner
-        query = { $and: [{ $or: query.$or }, { $or: orConditions }], ...query };
-        delete query.$or;
-      } else {
-        query.$or = orConditions;
       }
+      : showPast === 'true'
+        ? { $lt: todayStart }    // historique → date passée
+        : { $gte: todayStart };  // réservations → date future ou aujourd'hui
+
+    // ── Voyages correspondants (itinéraire + filtre temporel) ────────────────
+    const voyageFilter = {
+      date: temporalFilter,
+      ...(routeFrom && routeTo ? {
+        from: new RegExp(`^${routeFrom}$`, 'i'),
+        to: new RegExp(`^${routeTo}$`, 'i')
+      } : {})
+    };
+
+    // ── Bus correspondants (itinéraire + filtre temporel) ────────────────────
+    const busFilter = {
+      departureDate: temporalFilter,
+      ...(busRouteFrom && busRouteTo ? {
+        from: new RegExp(`^${busRouteFrom}$`, 'i'),
+        to: new RegExp(`^${busRouteTo}$`, 'i')
+      } : {})
+    };
+
+    const [matchedVoyages, matchedBuses] = await Promise.all([
+      Voyage.find(voyageFilter).select('_id'),
+      Bus.find(busFilter).select('_id')
+    ]);
+
+    const voyageIds = matchedVoyages.map(v => v._id);
+    const busIds = matchedBuses.map(b => b._id);
+
+    // ── Condition $or voyage/bus dans la query principale ────────────────────
+    const orConditions = [
+      { voyage: { $in: voyageIds } },
+      { bus: { $in: busIds } }
+    ];
+
+    if (query.user) {
+      // search est actif → combiner avec $and pour ne pas écraser
+      query = {
+        $and: [{ user: query.user }, { $or: orConditions }],
+        ...(query.status ? { status: query.status } : {}),
+        ...(query.ticket ? { ticket: query.ticket } : {})
+      };
+    } else {
+      query.$or = orConditions;
     }
 
     console.log('📋 Query finale:', JSON.stringify(query, null, 2));

@@ -133,6 +133,7 @@ export default function Reservations() {
       const params = new URLSearchParams({
         page: currentPage + 1,
         limit: currentLimit,
+        showPast: 'false',
         ...(search && { search }),
         ...(statusFilter && statusFilter !== 'all' && { status: statusFilter }),
         ...(routeFrom && routeTo && { routeFrom, routeTo }),
@@ -683,15 +684,6 @@ export default function Reservations() {
     return Boolean(voyageMissing || busMissing);
   };
 
-  const visibleReservations = (reservations || []).filter(r => {
-    const isPast = isReservationPast(r);
-    const isCanceled = isReservationCanceled(r);
-    console.log('Reservation:', r?._id, 'isPast:', isPast, 'isCanceled:', isCanceled);
-    return !isPast && !isCanceled;
-  });
-
-  console.log('Total reservations:', reservations?.length, 'Visible reservations:', visibleReservations.length);
-
   // Les reservations sont déjà filtrées et triées par le backend
   const displayedReservations = reservations;
 
@@ -754,7 +746,7 @@ export default function Reservations() {
             Liste des Réservations
           </Typography>
           <Typography variant="body1" sx={{ color: '#666666', fontSize: '16px' }}>
-            Gérez les réservations de vos clients ({visibleReservations.length} réservation{visibleReservations.length > 1 ? 's' : ''})
+            Gérez les réservations de vos clients ({totalReservations} réservation{totalReservations > 1 ? 's' : ''})
           </Typography>
 
         </Box>
