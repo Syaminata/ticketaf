@@ -130,14 +130,17 @@ export default function Reservations() {
       console.log('🔍 Filtres frontend - statusFilter:', statusFilter, 'routeFilter:', routeFilter, 'routeBusFilter:', routeBusFilter, 'dateRange:', dateRange);
       const [routeFrom, routeTo] = routeFilter ? routeFilter.split('|') : [null, null];
       const [busRouteFrom, busRouteTo] = routeBusFilter ? routeBusFilter.split('|') : [null, null];
+      // Si un filtre itinéraire covoiturage est actif, ignorer le filtre bus, et vice versa
+      const hasRouteFilter = routeFrom && routeTo;
+      const hasBusRouteFilter = !hasRouteFilter && busRouteFrom && busRouteTo;
       const params = new URLSearchParams({
         page: currentPage + 1,
         limit: currentLimit,
         showPast: 'false',
         ...(search && { search }),
         ...(statusFilter && statusFilter !== 'all' && { status: statusFilter }),
-        ...(routeFrom && routeTo && { routeFrom, routeTo }),
-        ...(busRouteFrom && busRouteTo && { busRouteFrom, busRouteTo }),
+        ...(hasRouteFilter && routeFrom && routeTo && { routeFrom, routeTo }),
+        ...(hasBusRouteFilter && busRouteFrom && busRouteTo && { busRouteFrom, busRouteTo }),
         ...(dateRange.startDate && { startDate: dateRange.startDate }),
         ...(dateRange.endDate && { endDate: dateRange.endDate }),
       });
@@ -845,9 +848,10 @@ export default function Reservations() {
             </TextField>
             <TextField
               select
-              label="Filtrer par itinéraire"
+              label="Itinéraire covoiturage"
               value={routeFilter}
               onChange={(e) => setRouteFilter(e.target.value)}
+              disabled={!!routeBusFilter} // griser si filtre bus actif
               size="small"
               sx={{
                 width: 200,
@@ -875,9 +879,10 @@ export default function Reservations() {
             </TextField>
             <TextField
               select
-              label="Filtrer par itinéraire bus"
+              label="Itinéraire bus"
               value={routeBusFilter}
               onChange={(e) => setRouteBusFilter(e.target.value)}
+              disabled={!!routeFilter} // griser si filtre covoiturage actif
               size="small"
               sx={{
                 width: 200,

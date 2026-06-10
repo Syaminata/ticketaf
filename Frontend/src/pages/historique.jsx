@@ -77,17 +77,18 @@ export default function Historique() {
       const params = new URLSearchParams({
         page: page + 1,
         limit: rowsPerPage,
+        showPast: 'true',
         ...(query && { search: query })
       });
 
       console.log('🌐 URL Historique appelée:', `/reservations/historique?${params}`);
 
       const [hRes, uRes] = await Promise.all([
-        fetch(`https://ticket-taf.itea.africa/api/reservations/historique?${params}`, { 
-          headers: { Authorization: `Bearer ${token}` } 
+        fetch(`https://ticket-taf.itea.africa/api/reservations/historique?${params}`, {
+          headers: { Authorization: `Bearer ${token}` }
         }),
-        fetch('https://ticket-taf.itea.africa/api/users', { 
-          headers: { Authorization: `Bearer ${token}` } 
+        fetch('https://ticket-taf.itea.africa/api/users', {
+          headers: { Authorization: `Bearer ${token}` }
         }),
       ]);
 
@@ -136,7 +137,7 @@ export default function Historique() {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Date inconnue';
-    const options = { 
+    const options = {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -148,64 +149,64 @@ export default function Historique() {
   };
 
   const loadVoyagePassengers = async (voyageId) => {
-  try {
-    const token = sessionStorage.getItem('token');
-    if (!token) {
-      throw new Error('Non authentifié. Veuillez vous reconnecter.');
-    }
-    
-    // Réinitialiser les états
-    setVoyagePassengers([]);
-    setPassengerError('');
-    
-    // Récupérer les réservations pour le voyage
-    const resReservations = await fetch(
-      `${API_BASE_URL}/reservations/voyage/${voyageId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
+    try {
+      const token = sessionStorage.getItem('token');
+      if (!token) {
+        throw new Error('Non authentifié. Veuillez vous reconnecter.');
       }
-    );
 
-    if (!resReservations.ok) {
-      const errorText = await resReservations.text();
-      throw new Error(`Erreur ${resReservations.status}: ${errorText}`);
+      // Réinitialiser les états
+      setVoyagePassengers([]);
+      setPassengerError('');
+
+      // Récupérer les réservations pour le voyage
+      const resReservations = await fetch(
+        `${API_BASE_URL}/reservations/voyage/${voyageId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (!resReservations.ok) {
+        const errorText = await resReservations.text();
+        throw new Error(`Erreur ${resReservations.status}: ${errorText}`);
+      }
+
+      const reservations = await resReservations.json();
+
+      if (!Array.isArray(reservations)) {
+        throw new Error('Format de réponse inattendu du serveur');
+      }
+
+      // Ouvrir le dialogue après avoir récupéré les données
+      setIsPassengerDialogOpen(true);
+
+      if (reservations.length === 0) {
+        setPassengerError('Aucun passager trouvé pour ce voyage.');
+        return;
+      }
+
+      // Formater les données des passagers
+      const passengers = reservations.map(reservation => ({
+        id: reservation._id,
+        name: reservation.user?.name || 'Passager inconnu',
+        phone: reservation.user?.numero || 'Non renseigné',
+        quantity: reservation.quantity || 1,
+        status: reservation.status || 'confirmée',
+        reservationTime: reservation.createdAt ? new Date(reservation.createdAt).toLocaleString('fr-FR') : 'Date inconnue'
+      }));
+
+      setVoyagePassengers(passengers);
+
+    } catch (error) {
+      console.error('Erreur détaillée:', error);
+      setPassengerError(`Impossible de charger les passagers: ${error.message}`);
+      setIsPassengerDialogOpen(true); // Ouvrir même en cas d'erreur pour afficher le message
     }
-
-    const reservations = await resReservations.json();
-    
-    if (!Array.isArray(reservations)) {
-      throw new Error('Format de réponse inattendu du serveur');
-    }
-
-    // Ouvrir le dialogue après avoir récupéré les données
-    setIsPassengerDialogOpen(true);
-
-    if (reservations.length === 0) {
-      setPassengerError('Aucun passager trouvé pour ce voyage.');
-      return;
-    }
-
-    // Formater les données des passagers
-    const passengers = reservations.map(reservation => ({
-      id: reservation._id,
-      name: reservation.user?.name || 'Passager inconnu',
-      phone: reservation.user?.numero || 'Non renseigné',
-      quantity: reservation.quantity || 1,
-      status: reservation.status || 'confirmée',
-      reservationTime: reservation.createdAt ? new Date(reservation.createdAt).toLocaleString('fr-FR') : 'Date inconnue'
-    }));
-
-    setVoyagePassengers(passengers);
-    
-  } catch (error) {
-    console.error('Erreur détaillée:', error);
-    setPassengerError(`Impossible de charger les passagers: ${error.message}`); 
-    setIsPassengerDialogOpen(true); // Ouvrir même en cas d'erreur pour afficher le message
-  }
-};
+  };
 
   const handleClosePassengerDialog = () => {
     setIsPassengerDialogOpen(false);
@@ -225,11 +226,7 @@ export default function Historique() {
     return { label: 'À venir', color: 'success', status: 'upcoming' };
   };
 
-  const matchesStatusFilter = (date) => {
-    if (statusFilter === 'all') return true;
-    const status = getTemporalStatus(date).status;
-    return status === statusFilter;
-  };
+
 
   const matchesDateFilter = (date) => {
     if (!dateFilter) return true;
@@ -251,13 +248,14 @@ export default function Historique() {
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const filteredReservations = useMemo(() => {
-    const filtered = (reservations || [])
+    return (reservations || [])
       .filter(r => {
-        const searchText = `${r.user?.name || ''} ${r.voyage ? (r.voyage.from + ' ' + r.voyage.to) : ''} ${r.bus ? (r.bus.from + ' ' + r.bus.to) : ''}`;
+        const searchText = `${r.user?.name || ''} ${r.voyage ? r.voyage.from + ' ' + r.voyage.to : ''} ${r.bus ? r.bus.from + ' ' + r.bus.to : ''}`;
         if (!filterByQuery(searchText)) return false;
         if (userFilter !== 'all' && r.user?._id !== userFilter) return false;
+        // statusFilter dans l'historique = statut de la réservation (confirmé/annulé/terminé)
+        if (statusFilter !== 'all' && r.status !== statusFilter) return false;
         const reservationDate = r.voyage?.date || r.bus?.departureDate;
-        // L'API retourne déjà uniquement les réservations passées, donc on accepte tout
         if (!matchesDateFilter(reservationDate)) return false;
         return true;
       })
@@ -266,9 +264,7 @@ export default function Historique() {
         const dateB = new Date(b.voyage?.date || b.bus?.departureDate || b.createdAt);
         return dateB - dateA;
       });
-    
-    return filtered;
-  }, [reservations, query, userFilter, dateFilter]);
+  }, [reservations, query, userFilter, statusFilter, dateFilter]);
 
   const filteredColis = useMemo(() => {
     const filtered = (colis || [])
@@ -286,7 +282,7 @@ export default function Historique() {
         const dateB = new Date(b.voyage?.date || b.createdAt);
         return dateB - dateA;
       });
-    
+
     return filtered;
   }, [colis, query, userFilter, statusFilter, dateFilter]);
 
@@ -305,7 +301,7 @@ export default function Historique() {
   const VoyageRow = ({ v }) => {
     const temporalStatus = getTemporalStatus(v.date);
     const isExpired = temporalStatus.status === 'expired';
-    
+
     return (
       <>
         <ListItem
@@ -318,9 +314,9 @@ export default function Historique() {
               </IconButton>
             </Box>
           }
-          sx={{ 
-            '&:hover': { backgroundColor: '#fafafa' }, 
-            borderRadius: '10px', 
+          sx={{
+            '&:hover': { backgroundColor: '#fafafa' },
+            borderRadius: '10px',
             px: 1.5,
             opacity: isExpired ? 0.7 : 1,
             backgroundColor: isExpired ? '#fef2f2' : 'transparent'
@@ -361,7 +357,7 @@ export default function Historique() {
     const reservationDate = r.voyage?.date || r.bus?.departureDate;
     const temporalStatus = getTemporalStatus(reservationDate);
     const isExpired = temporalStatus.status === 'expired';
-    
+
     return (
       <>
         <ListItem
@@ -371,9 +367,9 @@ export default function Historique() {
               <Chip size="small" label={temporalStatus.label} color={temporalStatus.color} />
             </Box>
           }
-          sx={{ 
-            '&:hover': { backgroundColor: '#fafafa' }, 
-            borderRadius: '10px', 
+          sx={{
+            '&:hover': { backgroundColor: '#fafafa' },
+            borderRadius: '10px',
             px: 1.5,
             opacity: isExpired ? 0.7 : 1,
             backgroundColor: isExpired ? '#fef2f2' : 'transparent'
@@ -430,7 +426,7 @@ export default function Historique() {
     const colisDate = c.voyage?.date;
     const temporalStatus = getTemporalStatus(colisDate);
     const isExpired = temporalStatus.status === 'expired';
-    
+
     const getStatusColor = (status) => {
       switch (status) {
         case 'envoyé': return 'info';
@@ -443,7 +439,7 @@ export default function Historique() {
     const getStatusText = (status) => {
       return status.charAt(0).toUpperCase() + status.slice(1);
     };
-    
+
     return (
       <>
         <ListItem
@@ -453,9 +449,9 @@ export default function Historique() {
               <Chip size="small" label={temporalStatus.label} color={temporalStatus.color} />
             </Box>
           }
-          sx={{ 
-            '&:hover': { backgroundColor: '#fafafa' }, 
-            borderRadius: '10px', 
+          sx={{
+            '&:hover': { backgroundColor: '#fafafa' },
+            borderRadius: '10px',
             px: 1.5,
             opacity: isExpired ? 0.7 : 1,
             backgroundColor: isExpired ? '#fef2f2' : 'transparent'
@@ -618,16 +614,12 @@ export default function Historique() {
   };
 
   const stats = useMemo(() => {
-    // Comme l'API retourne uniquement les éléments passés, tous sont considérés comme "expired"
-    const total = voyages.length + reservations.length + colis.length;
-    
-    return { 
-      expired: total,  // Tous les éléments sont passés
-      today: 0,       // Pas d'éléments du jour dans l'historique
-      upcoming: 0,    // Pas d'éléments à venir dans l'historique
-      total: total 
-    };
-  }, [voyages, reservations, colis]);
+    const total = reservations.length + colis.length;
+    const confirmed = reservations.filter(r => r.status === 'confirmé').length;
+    const cancelled = reservations.filter(r => r.status === 'annulé').length;
+    const done = reservations.filter(r => r.status === 'terminé').length;
+    return { total, confirmed, cancelled, done };
+  }, [reservations, colis]);
 
   return (
     <Box sx={{ p: 2, backgroundColor: '#ffff', minHeight: '100vh' }}>
@@ -666,15 +658,11 @@ export default function Historique() {
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth size="small">
-              <Select 
-                value={statusFilter}
-                label="Statut"
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
+              <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                 <MenuItem value="all">Tous ({stats.total})</MenuItem>
-                <MenuItem value="expired">Expirés ({stats.expired})</MenuItem>
-                <MenuItem value="today">Aujourd'hui ({stats.today})</MenuItem>
-                <MenuItem value="upcoming">À venir ({stats.upcoming})</MenuItem>
+                <MenuItem value="confirmé">Confirmés</MenuItem>
+                <MenuItem value="annulé">Annulés</MenuItem>
+                <MenuItem value="terminé">Terminés</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -692,8 +680,8 @@ export default function Historique() {
                 MenuProps={{
                   PaperProps: {
                     sx: {
-                      maxHeight: 180,  
-                      overflowY: 'auto' 
+                      maxHeight: 180,
+                      overflowY: 'auto'
                     }
                   }
                 }}
@@ -701,7 +689,7 @@ export default function Historique() {
                 <MenuItem value="all">Tous les utilisateurs</MenuItem>
                 {users.map(user => (
                   <MenuItem key={user._id} value={user._id}>
-                    {user.name} ({ user.numero})
+                    {user.name} ({user.numero})
                   </MenuItem>
                 ))}
               </Select>
@@ -729,31 +717,31 @@ export default function Historique() {
           <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="body2" sx={{ color: '#ffffffff', mr: 1 }}>Filtres actifs:</Typography>
             {statusFilter !== 'all' && (
-              <Chip 
-                label={`Statut: ${statusFilter === 'expired' ? 'Expirés' : statusFilter === 'today' ? "Aujourd'hui" : 'À venir'}`} 
-                size="small" 
-                onDelete={() => setStatusFilter('all')} 
+              <Chip
+                label={`Statut: ${statusFilter === 'expired' ? 'Expirés' : statusFilter === 'today' ? "Aujourd'hui" : 'À venir'}`}
+                size="small"
+                onDelete={() => setStatusFilter('all')}
               />
             )}
             {userFilter !== 'all' && (
-              <Chip 
-                label={`Utilisateur: ${users.find(u => u._id === userFilter)?.name || 'Inconnu'}`} 
-                size="small" 
-                onDelete={() => setUserFilter('all')} 
+              <Chip
+                label={`Utilisateur: ${users.find(u => u._id === userFilter)?.name || 'Inconnu'}`}
+                size="small"
+                onDelete={() => setUserFilter('all')}
               />
             )}
             {dateFilter && (
-              <Chip 
-                label={`Date: ${new Date(dateFilter).toLocaleDateString('fr-FR')}`} 
-                size="small" 
-                onDelete={() => setDateFilter('')} 
+              <Chip
+                label={`Date: ${new Date(dateFilter).toLocaleDateString('fr-FR')}`}
+                size="small"
+                onDelete={() => setDateFilter('')}
               />
             )}
             {query && (
-              <Chip 
-                label={`Recherche: "${query}"`} 
-                size="small" 
-                onDelete={() => setQuery('')} 
+              <Chip
+                label={`Recherche: "${query}"`}
+                size="small"
+                onDelete={() => setQuery('')}
               />
             )}
           </Box>
@@ -777,8 +765,8 @@ export default function Historique() {
 
       {renderSection()}
 
-      <Dialog 
-        open={isPassengerDialogOpen} 
+      <Dialog
+        open={isPassengerDialogOpen}
         onClose={handleClosePassengerDialog}
         maxWidth="sm"
         fullWidth
@@ -791,7 +779,7 @@ export default function Historique() {
             {passengerError ? (
               // Affichage de l'erreur
               <ListItem>
-                <ListItemText 
+                <ListItemText
                   primary={passengerError}
                   primaryTypographyProps={{
                     color: 'text.secondary',
@@ -805,8 +793,8 @@ export default function Historique() {
               voyagePassengers.map((passenger, index) => (
                 <React.Fragment key={index}>
                   <ListItem sx={{ px: 3, py: 1.5 }}>
-                    <ListItemText 
-                      primary={passenger.name} 
+                    <ListItemText
+                      primary={passenger.name}
                       secondary={passenger.phone}
                       primaryTypographyProps={{
                         fontWeight: 500,
@@ -842,8 +830,8 @@ export default function Historique() {
             ) : (
               // État de chargement ou liste vide
               <ListItem>
-                <ListItemText 
-                  primary="Chargement..." 
+                <ListItemText
+                  primary="Chargement..."
                   primaryTypographyProps={{
                     color: 'text.secondary',
                     textAlign: 'center',
@@ -855,8 +843,8 @@ export default function Historique() {
           </List>
         </DialogContent>
         <DialogActions sx={{ p: 2, borderTop: '1px solid #e0e0e0' }}>
-          <Button 
-            onClick={handleClosePassengerDialog} 
+          <Button
+            onClick={handleClosePassengerDialog}
             variant="contained"
             size="small"
             sx={{

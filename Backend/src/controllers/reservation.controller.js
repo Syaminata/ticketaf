@@ -199,6 +199,9 @@ const getAllReservations = async (req, res) => {
     } = req.query;
 
     let query = {};
+    if (!status || status === 'all') {
+      query.status = { $ne: 'annulé' };
+    }
 
     // ── Statut ───────────────────────────────────────────────────────────────
     if (status && status !== 'all') query.status = status;
@@ -265,7 +268,7 @@ const getAllReservations = async (req, res) => {
       // search est actif → combiner avec $and pour ne pas écraser
       query = {
         $and: [{ user: query.user }, { $or: orConditions }],
-        ...(query.status ? { status: query.status } : {}),
+        ...(query.status && typeof query.status === 'string' ? { status: query.status } : query.status ? { status: query.status } : {}),
         ...(query.ticket ? { ticket: query.ticket } : {})
       };
     } else {
